@@ -19,4 +19,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
+// Google Drive 스코프 추가 (이미지 업로드용)
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+
 export { app, db, auth, googleProvider };

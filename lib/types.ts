@@ -111,3 +111,13 @@ export interface ApprovedUser {
   approvedAt: Date;
   approvedBy: string; // 승인한 관리자의 UID
 }
+
+// 사용자별 시트 정보
+export interface UserSheet {
+  userId: string;
+  sheetId: string; // Google Sheets 파일 ID
+  sheetUrl: string; // Google Sheets URL
+  webAppUrl: string | null; // Apps Script 웹 앱 URL (배포 후)
+  createdAt: Date;
+  templateId: string; // 원본 템플릿 시트 ID
+}

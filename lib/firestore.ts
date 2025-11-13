@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse } from './types';
+import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse, UserSheet } from './types';
 import { saveQuizResultToSheet, saveSurveyResultToSheet } from './googleSheets';
 
 // ===== 퀴즈 관련 함수 =====
@@ -126,7 +126,8 @@ export async function addParticipantToQuizSession(sessionId: string, participant
 export async function submitQuizAnswer(
   sessionId: string,
   answer: QuizAnswer,
-  quizTitle?: string
+  quizTitle?: string,
+  userId?: string
 ) {
   try {
     const sessionRef = doc(db, 'quizSessions', sessionId);
@@ -151,7 +152,7 @@ export async function submitQuizAnswer(
           isCorrect: answer.isCorrect,
           responseTime: answer.responseTime,
           timestamp: answer.timestamp || new Date(),
-        }).catch(err => console.log('구글 시트 저장 생략:', err));
+        }, userId).catch(err => console.log('구글 시트 저장 생략:', err));
       }
     }
   } catch (error) {
@@ -265,7 +266,8 @@ export async function updateSurveySessionStatus(
 export async function submitSurveyResponse(
   sessionId: string,
   response: SurveyResponse,
-  surveyTitle?: string
+  surveyTitle?: string,
+  userId?: string
 ) {
   try {
     const sessionRef = doc(db, 'surveySessions', sessionId);
@@ -289,7 +291,7 @@ export async function submitSurveyResponse(
           scaleValue: response.scaleValue,
           textValue: response.textValue,
           timestamp: response.timestamp || new Date(),
-        }).catch(err => console.log('구글 시트 저장 생략:', err));
+        }, userId).catch(err => console.log('구글 시트 저장 생략:', err));
       }
     }
   } catch (error) {
@@ -467,6 +469,84 @@ export async function rejectUser(pendingUserId: string) {
     await deleteDoc(doc(db, 'pendingUsers', pendingUserId));
   } catch (error) {
     console.error('사용자 거절 실패:', error);
+    throw error;
+  }
+}
+
+// ===== 사용자 시트 관련 함수 =====
+
+/**
+ * 사용자 시트 정보 저장
+ */
+export async function saveUserSheet(userSheetData: Omit<UserSheet, 'createdAt'>) {
+  try {
+    // 기존 시트 확인 (userId로)
+    const q = query(collection(db, 'userSheets'), where('userId', '==', userSheetData.userId));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      // 이미 시트가 있으면 업데이트
+      const docId = querySnapshot.docs[0].id;
+      await updateDoc(doc(db, 'userSheets', docId), {
+        sheetId: userSheetData.sheetId,
+        sheetUrl: userSheetData.sheetUrl,
+        webAppUrl: userSheetData.webAppUrl,
+        templateId: userSheetData.templateId,
+      });
+      return docId;
+    } else {
+      // 없으면 새로 생성
+      const docRef = await addDoc(collection(db, 'userSheets'), {
+        ...userSheetData,
+        createdAt: serverTimestamp(),
+      });
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error('사용자 시트 저장 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자 시트 정보 가져오기
+ */
+export async function getUserSheet(userId: string): Promise<UserSheet | null> {
+  try {
+    const q = query(collection(db, 'userSheets'), where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    } as UserSheet;
+  } catch (error) {
+    console.error('사용자 시트 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자 시트 웹 앱 URL 업데이트
+ */
+export async function updateUserSheetWebAppUrl(userId: string, webAppUrl: string) {
+  try {
+    const q = query(collection(db, 'userSheets'), where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const docId = querySnapshot.docs[0].id;
+      await updateDoc(doc(db, 'userSheets', docId), {
+        webAppUrl,
+      });
+    }
+  } catch (error) {
+    console.error('웹 앱 URL 업데이트 실패:', error);
     throw error;
   }
 }

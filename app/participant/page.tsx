@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getQuiz, getSurvey } from '@/lib/firestore';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
 
-export default function ParticipantPage() {
+function ParticipantContent() {
   const searchParams = useSearchParams();
   const [view, setView] = useState<ViewType>('nickname');
   const [nickname, setNickname] = useState('');
@@ -538,5 +538,21 @@ function SurveySubmitted() {
         소중한 의견 감사합니다
       </p>
     </div>
+  );
+}
+
+// Suspense로 감싼 메인 컴포넌트
+export default function ParticipantPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <ParticipantContent />
+    </Suspense>
   );
 }

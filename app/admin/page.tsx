@@ -320,6 +320,8 @@ function QuizManager({ userId }: { userId: string }) {
     try {
       await deleteQuiz(quizId);
       setQuizzes(quizzes.filter(q => q.id !== quizId));
+      // 생성 폼이 열려있으면 닫기
+      setShowCreateForm(false);
     } catch (error) {
       console.error('퀴즈 삭제 실패:', error);
       alert('퀴즈 삭제에 실패했습니다.');
@@ -349,28 +351,30 @@ function QuizManager({ userId }: { userId: string }) {
       )}
 
       {/* 퀴즈 목록 */}
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 text-lg">퀴즈 목록을 불러오는 중...</p>
-          </div>
-        ) : quizzes.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+      {!showCreateForm && (
+        <div className="grid gap-4">
+          {isLoading ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500 text-lg">퀴즈 목록을 불러오는 중...</p>
             </div>
-            <p className="text-gray-500 text-lg">아직 생성된 퀴즈가 없습니다</p>
-            <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 퀴즈를 만들어보세요!</p>
-          </div>
-        ) : (
+          ) : quizzes.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-gray-500 text-lg">아직 생성된 퀴즈가 없습니다</p>
+              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 퀴즈를 만들어보세요!</p>
+            </div>
+          ) : (
           quizzes.map((quiz) => (
             <QuizCard key={quiz.id} quiz={quiz} onDelete={handleQuizDelete} />
           ))
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -413,6 +417,8 @@ function SurveyManager({ userId }: { userId: string }) {
     try {
       await deleteSurvey(surveyId);
       setSurveys(surveys.filter(s => s.id !== surveyId));
+      // 생성 폼이 열려있으면 닫기
+      setShowCreateForm(false);
     } catch (error) {
       console.error('설문 삭제 실패:', error);
       alert('설문 삭제에 실패했습니다.');
@@ -442,28 +448,30 @@ function SurveyManager({ userId }: { userId: string }) {
       )}
 
       {/* 설문 목록 */}
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 text-lg">설문 목록을 불러오는 중...</p>
-          </div>
-        ) : surveys.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
+      {!showCreateForm && (
+        <div className="grid gap-4">
+          {isLoading ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500 text-lg">설문 목록을 불러오는 중...</p>
             </div>
-            <p className="text-gray-500 text-lg">아직 생성된 설문이 없습니다</p>
-            <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
-          </div>
-        ) : (
-          surveys.map((survey) => (
-            <SurveyCard key={survey.id} survey={survey} onDelete={handleSurveyDelete} />
-          ))
-        )}
-      </div>
+          ) : surveys.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <p className="text-gray-500 text-lg">아직 생성된 설문이 없습니다</p>
+              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
+            </div>
+          ) : (
+            surveys.map((survey) => (
+              <SurveyCard key={survey.id} survey={survey} onDelete={handleSurveyDelete} />
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -471,8 +479,10 @@ function SurveyManager({ userId }: { userId: string }) {
 // 퀴즈 생성 폼
 function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; onCreated: (quiz: any) => void; userId: string }) {
   const [title, setTitle] = useState('');
+  const [questionIdCounter, setQuestionIdCounter] = useState(1);
   const [questions, setQuestions] = useState([
     {
+      id: 0,
       question: '',
       options: ['', '', '', ''],
       correctAnswer: 0,
@@ -480,13 +490,14 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
       imageUrl: '',
     }
   ]);
-  const [createdQuiz, setCreatedQuiz] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const addQuestion = () => {
     setQuestions([
       ...questions,
       {
+        id: questionIdCounter,
         question: '',
         options: ['', '', '', ''],
         correctAnswer: 0,
@@ -494,6 +505,7 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
         imageUrl: '',
       }
     ]);
+    setQuestionIdCounter(questionIdCounter + 1);
   };
 
   const removeQuestion = (index: number) => {
@@ -503,15 +515,29 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
   };
 
   const updateQuestion = (index: number, field: string, value: any) => {
-    const newQuestions = [...questions];
-    (newQuestions[index] as any)[field] = value;
-    setQuestions(newQuestions);
+    setQuestions(questions.map((q, idx) => {
+      if (idx === index) {
+        return {
+          ...q,
+          [field]: value
+        };
+      }
+      return q;
+    }));
   };
 
   const updateOption = (qIndex: number, optionIndex: number, value: string) => {
-    const newQuestions = [...questions];
-    newQuestions[qIndex].options[optionIndex] = value;
-    setQuestions(newQuestions);
+    setQuestions(questions.map((q, idx) => {
+      if (idx === qIndex) {
+        return {
+          ...q,
+          options: q.options.map((opt, optIdx) =>
+            optIdx === optionIndex ? value : opt
+          )
+        };
+      }
+      return q;
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -520,43 +546,53 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
     try {
       setIsSubmitting(true);
 
-      // Firebase에 퀴즈 저장
+      // Firebase에 퀴즈 저장 (임시 ID 제거)
+      const cleanQuestions = questions.map(({ id, ...rest }) => rest);
       const quizId = await createQuiz({
         title,
-        questions,
+        questions: cleanQuestions,
       }, userId);
 
       const quiz = {
         id: quizId,
         title,
-        questions,
+        questions: cleanQuestions,
         createdAt: new Date()
       };
 
-      setCreatedQuiz(quiz);
       onCreated(quiz);
+
+      // 성공 메시지 표시
+      setShowSuccessMessage(true);
+
+      // 2초 후 폼 닫기
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('퀴즈 생성 실패:', error);
       alert('퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (createdQuiz) {
-    return (
-      <QuizQRCodeDisplay
-        quiz={createdQuiz}
-        onClose={() => {
-          setCreatedQuiz(null);
-          onClose();
-        }}
-      />
-    );
-  }
-
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp max-h-[80vh] overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp max-h-[80vh] overflow-y-auto relative">
+      {/* 성공 메시지 오버레이 */}
+      {showSuccessMessage && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">퀴즈 생성 완료!</h3>
+            <p className="text-gray-600 mt-2">{title}</p>
+          </div>
+        </div>
+      )}
+
       <h3 className="text-xl font-bold text-gray-800 mb-4">새 퀴즈 만들기</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -574,19 +610,12 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
         </div>
 
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="text-lg font-semibold text-gray-800">질문 목록 ({questions.length}개)</h4>
-            <button
-              type="button"
-              onClick={addQuestion}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-semibold"
-            >
-              + 질문 추가
-            </button>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
           </div>
 
           {questions.map((q, qIndex) => (
-            <div key={qIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
                 <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
                 {questions.length > 1 && (
@@ -623,7 +652,7 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
                     <div key={optIndex} className="flex items-center space-x-2 mb-2">
                       <input
                         type="radio"
-                        name={`correctAnswer-${qIndex}`}
+                        name={`correctAnswer-${q.id}`}
                         checked={q.correctAnswer === optIndex}
                         onChange={() => updateQuestion(qIndex, 'correctAnswer', optIndex)}
                         className="w-4 h-4 text-blue-600"
@@ -656,12 +685,28 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
                 </div>
 
                 <ImageUploader
+                  key={`image-uploader-${q.id}`}
+                  uploaderId={`image-upload-${q.id}`}
                   onImageUploaded={(imageUrl) => updateQuestion(qIndex, 'imageUrl', imageUrl)}
                   currentImageUrl={q.imageUrl}
                 />
               </div>
             </div>
           ))}
+
+          {/* 질문 추가 버튼 */}
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="w-full py-4 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 hover:border-blue-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+          >
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            질문 추가하기
+          </button>
         </div>
 
         <div className="flex space-x-3 pt-4">
@@ -686,70 +731,6 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
   );
 }
 
-// 퀴즈 QR 코드 표시
-function QuizQRCodeDisplay({ quiz, onClose }: { quiz: any; onClose: () => void }) {
-  const participantUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/participant?quiz=${quiz.id}`
-    : '';
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-8 animate-slideUp">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">퀴즈 생성 완료!</h3>
-        <p className="text-gray-600 mb-6">{quiz.title}</p>
-
-        {/* QR 코드 */}
-        <div className="bg-gray-50 rounded-xl p-8 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-4">참여자용 QR 코드</p>
-          <div className="inline-block p-4 bg-white rounded-lg shadow-md">
-            <QRCodeSVG
-              value={participantUrl}
-              size={256}
-              level="H"
-              includeMargin={true}
-            />
-          </div>
-          <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
-        </div>
-
-        {/* URL 복사 */}
-        <div className="bg-blue-50 rounded-lg p-4 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={participantUrl}
-              readOnly
-              className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
-            />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(participantUrl);
-                alert('링크가 복사되었습니다!');
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
-            >
-              복사
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-        >
-          닫기
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // 설문 생성 폼
 function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void; onCreated: (survey: any) => void; userId: string }) {
   const [title, setTitle] = useState('');
@@ -757,8 +738,8 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
   const [type, setType] = useState<'scale' | 'text'>('scale');
   const [timeLimit, setTimeLimit] = useState(60);
   const [imageUrl, setImageUrl] = useState('');
-  const [createdSurvey, setCreatedSurvey] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -785,30 +766,39 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
         createdAt: new Date()
       };
 
-      setCreatedSurvey(survey);
       onCreated(survey);
+
+      // 성공 메시지 표시
+      setShowSuccessMessage(true);
+
+      // 2초 후 폼 닫기
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('설문 생성 실패:', error);
       alert('설문 생성에 실패했습니다. 다시 시도해주세요.');
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (createdSurvey) {
-    return (
-      <SurveyQRCodeDisplay
-        survey={createdSurvey}
-        onClose={() => {
-          setCreatedSurvey(null);
-          onClose();
-        }}
-      />
-    );
-  }
-
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp">
+    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp relative">
+      {/* 성공 메시지 오버레이 */}
+      {showSuccessMessage && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">설문 생성 완료!</h3>
+            <p className="text-gray-600 mt-2">{title}</p>
+          </div>
+        </div>
+      )}
+
       <h3 className="text-xl font-bold text-gray-800 mb-4">새 설문 만들기</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -910,74 +900,16 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
   );
 }
 
-// 설문 QR 코드 표시
-function SurveyQRCodeDisplay({ survey, onClose }: { survey: any; onClose: () => void }) {
-  const participantUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/participant?survey=${survey.id}`
-    : '';
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-8 animate-slideUp">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">설문 생성 완료!</h3>
-        <p className="text-gray-600 mb-6">{survey.title}</p>
-
-        {/* QR 코드 */}
-        <div className="bg-gray-50 rounded-xl p-8 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-4">참여자용 QR 코드</p>
-          <div className="inline-block p-4 bg-white rounded-lg shadow-md">
-            <QRCodeSVG
-              value={participantUrl}
-              size={256}
-              level="H"
-              includeMargin={true}
-            />
-          </div>
-          <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
-        </div>
-
-        {/* URL 복사 */}
-        <div className="bg-green-50 rounded-lg p-4 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={participantUrl}
-              readOnly
-              className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
-            />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(participantUrl);
-                alert('링크가 복사되었습니다!');
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
-            >
-              복사
-            </button>
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-        >
-          닫기
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // 퀴즈 카드 컴포넌트
 function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
+  // 스마트폰에서 접근 가능한 URL 생성 (Network IP 사용)
+  const participantUrl = typeof window !== 'undefined'
+    ? `http://${window.location.hostname}:${window.location.port}/participant?quiz=${quiz.id}`
+    : '';
 
   const handleStart = async () => {
     try {
@@ -991,34 +923,114 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
     }
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(participantUrl);
+    alert('링크가 복사되었습니다!');
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
-          <p className="text-gray-600 mt-2">{quiz.questions?.[0]?.question || '질문 없음'}</p>
-          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-            <span>❓ {quiz.questions?.length || 0}개 질문</span>
-            <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
+    <>
+      <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+        <div className="flex justify-between items-start gap-6">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
+            <p className="text-gray-600 mt-2">{quiz.questions?.[0]?.question || '질문 없음'}</p>
+            <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+              <span>❓ {quiz.questions?.length || 0}개 질문</span>
+              <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
+            </div>
+          </div>
+
+          {/* QR 코드 미리보기 */}
+          <div className="flex-shrink-0">
+            <div
+              onClick={() => setShowQRModal(true)}
+              className="cursor-pointer hover:opacity-80 transition-opacity p-2 bg-gray-50 rounded-lg"
+              title="클릭하여 확대"
+            >
+              <QRCodeSVG
+                value={participantUrl}
+                size={80}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+            <p className="text-xs text-gray-500 text-center mt-1">QR 코드</p>
+          </div>
+
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+            >
+              {isStarting ? '생성 중...' : '시작'}
+            </button>
+            <button
+              onClick={() => onDelete(quiz.id)}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+            >
+              삭제
+            </button>
           </div>
         </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleStart}
-            disabled={isStarting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-          >
-            {isStarting ? '생성 중...' : '시작'}
-          </button>
-          <button
-            onClick={() => onDelete(quiz.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-          >
-            삭제
-          </button>
-        </div>
       </div>
-    </div>
+
+      {/* QR 코드 확대 모달 */}
+      {showQRModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowQRModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
+              <p className="text-gray-600 mb-6">참여자용 QR 코드</p>
+
+              <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                <div className="inline-block p-4 bg-white rounded-lg shadow-md">
+                  <QRCodeSVG
+                    value={participantUrl}
+                    size={280}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={participantUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
+                  >
+                    복사
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1026,6 +1038,12 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
 function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
+  // 스마트폰에서 접근 가능한 URL 생성 (Network IP 사용)
+  const participantUrl = typeof window !== 'undefined'
+    ? `http://${window.location.hostname}:${window.location.port}/participant?survey=${survey.id}`
+    : '';
 
   const handleStart = async () => {
     try {
@@ -1039,33 +1057,113 @@ function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) 
     }
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(participantUrl);
+    alert('링크가 복사되었습니다!');
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-800">{survey.title}</h3>
-          <p className="text-gray-600 mt-2">{survey.question}</p>
-          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-            <span>⏱ {survey.timeLimit}초</span>
-            <span>📊 {survey.type === 'scale' ? '5점 척도' : '서술형'}</span>
+    <>
+      <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+        <div className="flex justify-between items-start gap-6">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-800">{survey.title}</h3>
+            <p className="text-gray-600 mt-2">{survey.question}</p>
+            <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+              <span>⏱ {survey.timeLimit}초</span>
+              <span>📊 {survey.type === 'scale' ? '5점 척도' : '서술형'}</span>
+            </div>
+          </div>
+
+          {/* QR 코드 미리보기 */}
+          <div className="flex-shrink-0">
+            <div
+              onClick={() => setShowQRModal(true)}
+              className="cursor-pointer hover:opacity-80 transition-opacity p-2 bg-gray-50 rounded-lg"
+              title="클릭하여 확대"
+            >
+              <QRCodeSVG
+                value={participantUrl}
+                size={80}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+            <p className="text-xs text-gray-500 text-center mt-1">QR 코드</p>
+          </div>
+
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+            >
+              {isStarting ? '생성 중...' : '시작'}
+            </button>
+            <button
+              onClick={() => onDelete(survey.id)}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+            >
+              삭제
+            </button>
           </div>
         </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleStart}
-            disabled={isStarting}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-          >
-            {isStarting ? '생성 중...' : '시작'}
-          </button>
-          <button
-            onClick={() => onDelete(survey.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-          >
-            삭제
-          </button>
-        </div>
       </div>
-    </div>
+
+      {/* QR 코드 확대 모달 */}
+      {showQRModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowQRModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{survey.title}</h3>
+              <p className="text-gray-600 mb-6">참여자용 QR 코드</p>
+
+              <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                <div className="inline-block p-4 bg-white rounded-lg shadow-md">
+                  <QRCodeSVG
+                    value={participantUrl}
+                    size={280}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
+              </div>
+
+              <div className="bg-green-50 rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={participantUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
+                  >
+                    복사
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

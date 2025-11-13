@@ -1,18 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { uploadImageToDrive, getGoogleAccessToken, optimizeImage } from '@/lib/googleDrive';
 
 interface ImageUploaderProps {
   onImageUploaded: (imageUrl: string) => void;
   currentImageUrl?: string;
+  uploaderId?: string;
 }
 
-export default function ImageUploader({ onImageUploaded, currentImageUrl }: ImageUploaderProps) {
+export default function ImageUploader({ onImageUploaded, currentImageUrl, uploaderId = 'image-upload' }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(currentImageUrl || null);
   const [error, setError] = useState('');
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 로그인 시 저장된 토큰 불러오기
+  useEffect(() => {
+    const savedToken = localStorage.getItem('googleAccessToken');
+    if (savedToken) {
+      setAccessToken(savedToken);
+    }
+  }, []);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -34,39 +43,56 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl }: Imag
       setUploading(true);
       setError('');
 
-      // 미리보기 표시
+      // 1. 즉시 로컬 미리보기 표시
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreview(e.target?.result as string);
+        const localUrl = e.target?.result as string;
+        onImageUploaded(localUrl); // 로컬 미리보기 먼저 표시
       };
       reader.readAsDataURL(file);
 
-      // 1. 이미지 최적화 (선택사항 - 용량 절감)
+      // 2. 이미지 최적화
       let fileToUpload = file;
-      if (file.size > 1024 * 1024) { // 1MB 이상이면 최적화
+      if (file.size > 1024 * 1024) {
         fileToUpload = await optimizeImage(file);
       }
 
-      // 2. Google 액세스 토큰 가져오기
-      const accessToken = await getGoogleAccessToken();
+      // 3. 액세스 토큰 확인
+      let token = accessToken;
+      if (!token) {
+        token = await getGoogleAccessToken();
+        setAccessToken(token);
+        localStorage.setItem('googleAccessToken', token);
+      }
 
-      // 3. Google Drive에 업로드
-      const imageUrl = await uploadImageToDrive(fileToUpload, accessToken);
+      // 4. Google Drive에 업로드
+      let imageUrl: string;
+      try {
+        imageUrl = await uploadImageToDrive(fileToUpload, token);
+      } catch (uploadError: any) {
+        // 토큰 만료 시 재요청
+        if (uploadError.message?.includes('401') || uploadError.message?.includes('unauthorized')) {
+          token = await getGoogleAccessToken();
+          setAccessToken(token);
+          localStorage.setItem('googleAccessToken', token);
+          imageUrl = await uploadImageToDrive(fileToUpload, token);
+        } else {
+          throw uploadError;
+        }
+      }
 
-      // 4. 부모 컴포넌트에 URL 전달
+      // 5. Google Drive URL로 업데이트
       onImageUploaded(imageUrl);
-      setPreview(imageUrl);
     } catch (err: any) {
       console.error('이미지 업로드 실패:', err);
       setError(err.message || '이미지 업로드에 실패했습니다.');
-      setPreview(null);
+      onImageUploaded('');
     } finally {
       setUploading(false);
     }
   };
 
   const handleRemoveImage = () => {
-    setPreview(null);
     onImageUploaded('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -79,30 +105,44 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl }: Imag
         이미지 추가 (선택사항)
       </label>
 
-      {preview ? (
+      {currentImageUrl ? (
         // 이미지 미리보기
         <div className="relative">
           <img
-            src={preview}
+            src={currentImageUrl}
             alt="업로드된 이미지"
             className="w-full max-h-64 object-contain rounded-lg border border-gray-300"
+            onError={(e) => {
+              // 이미지 로드 실패 시 처리
+              console.error('이미지 로드 실패:', currentImageUrl);
+            }}
           />
-          <button
-            type="button"
-            onClick={handleRemoveImage}
-            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
-            title="이미지 삭제"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {uploading && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-white border-t-blue-600 rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-white text-sm font-semibold">Google Drive에 업로드 중...</p>
+              </div>
+            </div>
+          )}
+          {!uploading && (
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+              title="이미지 삭제"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       ) : (
         // 업로드 버튼
         <div className="flex items-center justify-center w-full">
           <label
-            htmlFor="image-upload"
+            htmlFor={uploaderId}
             className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${
               uploading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
@@ -137,7 +177,7 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl }: Imag
             </div>
             <input
               ref={fileInputRef}
-              id="image-upload"
+              id={uploaderId}
               type="file"
               className="hidden"
               accept="image/*"
@@ -154,9 +194,11 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl }: Imag
         </div>
       )}
 
-      <p className="text-xs text-gray-500">
-        이미지는 자동으로 Google Drive에 업로드됩니다.
-      </p>
+      {!currentImageUrl && !uploading && (
+        <p className="text-xs text-gray-500">
+          이미지는 자동으로 Google Drive에 업로드됩니다.
+        </p>
+      )}
     </div>
   );
 }

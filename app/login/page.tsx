@@ -23,6 +23,14 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
+      // Google Drive 액세스 토큰 저장
+      const credential = result.user.getIdToken();
+      // @ts-ignore - Google 크리덴셜에서 액세스 토큰 추출
+      const googleCredential = result._tokenResponse?.oauthAccessToken;
+      if (googleCredential) {
+        localStorage.setItem('googleAccessToken', googleCredential);
+      }
+
       // 관리자 UID 확인
       const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
       const isAdmin = user.uid === adminUid;

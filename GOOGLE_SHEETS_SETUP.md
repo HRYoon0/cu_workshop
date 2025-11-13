@@ -2,6 +2,17 @@
 
 Firebase Firestore뿐만 아니라 구글 시트에도 실시간으로 퀴즈 및 설문 결과를 기록하는 방법입니다.
 
+## 📌 중요: 사용자별 시트 방식
+
+**이 가이드는 관리자가 한 번만 설정하는 템플릿 시트 가이드입니다.**
+
+- **템플릿 시트**: 관리자가 한 번만 생성 (이 가이드 따라 설정)
+- **사용자 시트**: 각 사용자 로그인 시 자동으로 복사됨 (SHEET_TEMPLATE_SETUP.md 참조)
+- **웹 앱 URL**: 관리자의 웹 앱 URL을 모든 사용자가 공유
+- **데이터 분리**: sheetId 파라미터로 각 사용자의 시트에 정확히 기록
+
+자세한 내용은 `SHEET_TEMPLATE_SETUP.md` 파일을 참고하세요.
+
 ## ⚡ 빠른 시작 가이드 (5분)
 
 1. **구글 시트 생성**: [sheets.google.com](https://sheets.google.com) → 빈 스프레드시트
@@ -228,9 +239,14 @@ function doPost(e) {
     // JSON 데이터 파싱
     const data = JSON.parse(e.postData.contents);
     const type = data.type; // 'quiz' 또는 'survey'
+    const sheetId = data.sheetId; // 사용자별 시트 ID
 
     // 스프레드시트 가져오기
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // sheetId가 있으면 해당 시트 열기 (사용자별 시트)
+    // 없으면 현재 스프레드시트 사용 (템플릿)
+    const ss = sheetId
+      ? SpreadsheetApp.openById(sheetId)
+      : SpreadsheetApp.getActiveSpreadsheet();
 
     if (type === 'quiz') {
       // 퀴즈 결과 기록
