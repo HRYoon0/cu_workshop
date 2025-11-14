@@ -27,6 +27,7 @@ export interface QuizSession {
 export interface QuizAnswer {
   participantId: string;
   participantName: string;
+  questionIndex: number; // 문제 번호
   answer: number;
   isCorrect: boolean;
   timestamp: Date;
