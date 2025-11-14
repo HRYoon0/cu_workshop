@@ -98,8 +98,7 @@ export default function QuizSessionPage({ params }: PageProps) {
   const handleEndQuiz = async () => {
     try {
       await updateQuizSessionStatus(sessionId, 'finished');
-      alert('퀴즈가 종료되었습니다.');
-      router.push('/admin');
+      alert('퀴즈가 종료되었습니다. 리더보드를 확인하세요!');
     } catch (err) {
       console.error('퀴즈 종료 실패:', err);
       alert('퀴즈 종료에 실패했습니다.');
@@ -254,6 +253,11 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const participantCount = activeParticipants.length;
   const currentAnswers = session.answers?.filter(a => a.questionIndex === currentQuestionIndex) || [];
+
+  // 퀴즈 종료 시 리더보드 표시
+  if (session.status === 'finished') {
+    return <LeaderboardView session={session} quiz={quiz} router={router} sessionId={sessionId} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -518,6 +522,143 @@ export default function QuizSessionPage({ params }: PageProps) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// 리더보드 화면
+function LeaderboardView({
+  session,
+  quiz,
+  router,
+  sessionId
+}: {
+  session: QuizSession;
+  quiz: Quiz;
+  router: any;
+  sessionId: string;
+}) {
+  // 점수 기준으로 내림차순 정렬, 상위 10명만
+  const topParticipants = [...session.participants]
+    .filter(p => (p.score ?? 0) > 0) // 점수가 0보다 큰 참가자만
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 10);
+
+  const getMedalIcon = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      default:
+        return '';
+    }
+  };
+
+  const getMedalColor = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return 'from-yellow-400 to-yellow-600';
+      case 2:
+        return 'from-gray-300 to-gray-500';
+      case 3:
+        return 'from-orange-400 to-orange-600';
+      default:
+        return 'from-blue-400 to-blue-600';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* 헤더 */}
+        <div className="text-center mb-8">
+          <div className="inline-block p-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full mb-4">
+            <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+          </div>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">🏆 최종 순위 🏆</h1>
+          <p className="text-xl text-gray-600">{quiz.title}</p>
+          <p className="text-sm text-gray-500 mt-2">
+            총 참여자: {session.participants.length}명 | 세션 ID: {sessionId.substring(0, 8)}...
+          </p>
+        </div>
+
+        {/* 리더보드 */}
+        <div className="bg-white rounded-3xl shadow-2xl p-8 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+            TOP 10 랭킹
+          </h2>
+
+          {topParticipants.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">점수가 기록된 참가자가 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {topParticipants.map((participant, index) => {
+                const rank = index + 1;
+                const medal = getMedalIcon(rank);
+                const isTopThree = rank <= 3;
+
+                return (
+                  <div
+                    key={participant.id}
+                    className={`flex items-center gap-4 p-6 rounded-2xl transition-all transform hover:scale-105 ${
+                      isTopThree
+                        ? `bg-gradient-to-r ${getMedalColor(rank)} text-white shadow-xl`
+                        : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    {/* 순위 */}
+                    <div className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl ${
+                      isTopThree ? 'bg-white bg-opacity-30' : 'bg-blue-100 text-blue-600'
+                    }`}>
+                      {medal || rank}
+                    </div>
+
+                    {/* 닉네임 */}
+                    <div className="flex-grow">
+                      <p className={`text-xl font-bold ${isTopThree ? 'text-white' : 'text-gray-800'}`}>
+                        {participant.nickname}
+                      </p>
+                      <p className={`text-sm ${isTopThree ? 'text-white text-opacity-80' : 'text-gray-500'}`}>
+                        {rank === 1 ? '🎉 최고 득점자!' : rank === 2 ? '👏 2등 달성!' : rank === 3 ? '🎊 3등 달성!' : `${rank}위`}
+                      </p>
+                    </div>
+
+                    {/* 점수 */}
+                    <div className={`flex-shrink-0 text-right ${isTopThree ? 'text-white' : 'text-gray-800'}`}>
+                      <p className="text-3xl font-bold">{participant.score?.toLocaleString() ?? 0}</p>
+                      <p className={`text-sm ${isTopThree ? 'text-white text-opacity-80' : 'text-gray-500'}`}>점</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 버튼 */}
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={() => router.push('/admin')}
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
+          >
+            관리자 페이지로 돌아가기
+          </button>
+        </div>
+
+        {/* QR 코드로 다시 참여하기 안내 */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-500 text-sm">
+            🎯 새로운 퀴즈를 시작하려면 관리자 페이지에서 세션을 생성하세요
+          </p>
+        </div>
       </div>
     </div>
   );

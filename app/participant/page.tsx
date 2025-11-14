@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, updateParticipantHeartbeat, submitQuizAnswer } from '@/lib/firestore';
+import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, updateParticipantHeartbeat, submitQuizAnswer, updateParticipantScore } from '@/lib/firestore';
 import type { QuizSession } from '@/lib/types';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
@@ -226,8 +226,8 @@ function ParticipantContent() {
           sessionStatus={session?.status || 'waiting'}
         />
       )}
-      {view === 'quiz' && quizData && sessionId && session && (
-        <QuizView nickname={nickname} quiz={quizData} sessionId={sessionId} session={session} />
+      {view === 'quiz' && quizData && sessionId && session && participantId && (
+        <QuizView nickname={nickname} quiz={quizData} sessionId={sessionId} session={session} participantId={participantId} />
       )}
       {view === 'survey' && surveyData && (
         <SurveyView nickname={nickname} survey={surveyData} />
@@ -356,7 +356,7 @@ function WaitingRoom({
 }
 
 // 퀴즈 화면
-function QuizView({ nickname, quiz, sessionId, session }: { nickname: string; quiz: any; sessionId: string; session: any }) {
+function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickname: string; quiz: any; sessionId: string; session: any; participantId: string }) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(session?.currentQuestionIndex || 0);
   const [timeLeft, setTimeLeft] = useState(quiz.questions[session?.currentQuestionIndex || 0]?.timeLimit || 10);
@@ -409,8 +409,9 @@ function QuizView({ nickname, quiz, sessionId, session }: { nickname: string; qu
     const isCorrect = answer === currentQuestion.correctAnswer;
 
     try {
+      // 답안 제출
       await submitQuizAnswer(sessionId, {
-        participantId: Date.now().toString(),
+        participantId: participantId,
         participantName: nickname,
         questionIndex: currentQuestionIndex,
         answer: answer,
@@ -418,6 +419,20 @@ function QuizView({ nickname, quiz, sessionId, session }: { nickname: string; qu
         timestamp: new Date(),
         responseTime: responseTime,
       }, quiz.title);
+
+      // 점수 계산: 정답일 경우에만 점수 부여
+      if (isCorrect) {
+        // 기본 점수 1000점 + (남은 시간 * 100점)
+        // 빠르게 답할수록 높은 점수
+        const baseScore = 1000;
+        const timeBonus = Math.floor(timeLeft * 100);
+        const totalScore = baseScore + timeBonus;
+
+        console.log(`점수 계산: ${baseScore} + (${timeLeft}초 * 100) = ${totalScore}점`);
+
+        // 점수 업데이트
+        await updateParticipantScore(sessionId, participantId, totalScore);
+      }
 
       setIsSubmitted(true);
     } catch (err) {

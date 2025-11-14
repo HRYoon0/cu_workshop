@@ -219,6 +219,42 @@ export async function updateParticipantHeartbeat(sessionId: string, participantI
 }
 
 /**
+ * 참가자 점수 업데이트
+ */
+export async function updateParticipantScore(
+  sessionId: string,
+  participantId: string,
+  scoreToAdd: number
+) {
+  try {
+    const sessionRef = doc(db, 'quizSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+
+    if (!sessionDoc.exists()) {
+      return;
+    }
+
+    const currentParticipants = sessionDoc.data().participants || [];
+    const updatedParticipants = currentParticipants.map((p: Participant) => {
+      if (p.id === participantId) {
+        return {
+          ...p,
+          score: (p.score || 0) + scoreToAdd,
+        };
+      }
+      return p;
+    });
+
+    await updateDoc(sessionRef, {
+      participants: updatedParticipants,
+    });
+    console.log('점수 업데이트 성공:', participantId, '+', scoreToAdd, '점');
+  } catch (error) {
+    console.error('점수 업데이트 실패:', error);
+  }
+}
+
+/**
  * 퀴즈 답안 제출
  */
 export async function submitQuizAnswer(

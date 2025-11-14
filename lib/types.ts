@@ -68,6 +68,7 @@ export interface SurveyResponse {
 export interface Participant {
   id: string;
   nickname: string;
+  score?: number;
   joinedAt: Date;
   lastActiveAt: Date;
 }
