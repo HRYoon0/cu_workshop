@@ -111,10 +111,7 @@ export async function addParticipantToQuizSession(sessionId: string, participant
 
     const currentParticipants = sessionDoc.data().participants || [];
     await updateDoc(sessionRef, {
-      participants: [...currentParticipants, {
-        ...participant,
-        joinedAt: serverTimestamp(),
-      }],
+      participants: [...currentParticipants, participant],
     });
   } catch (error) {
     console.error('참여자 추가 실패:', error);
