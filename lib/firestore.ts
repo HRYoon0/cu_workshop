@@ -111,11 +111,12 @@ export async function addParticipantToQuizSession(sessionId: string, participant
 
     const currentParticipants = sessionDoc.data().participants || [];
 
-    // serverTimestamp를 사용하여 일관성 유지
+    // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
+    const now = Timestamp.now();
     const participantWithTimestamp = {
       ...participant,
-      joinedAt: serverTimestamp(),
-      lastActiveAt: serverTimestamp(),
+      joinedAt: now,
+      lastActiveAt: now,
     };
 
     await updateDoc(sessionRef, {
@@ -176,11 +177,13 @@ export async function updateParticipantHeartbeat(sessionId: string, participantI
       return;
     }
 
+    // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
+    const now = Timestamp.now();
     const updatedParticipants = currentParticipants.map((p: Participant) => {
       if (p.id === participantId) {
         return {
           ...p,
-          lastActiveAt: serverTimestamp(),
+          lastActiveAt: now,
         };
       }
       return p;
