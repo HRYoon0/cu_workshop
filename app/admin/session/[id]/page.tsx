@@ -260,46 +260,55 @@ export default function QuizSessionPage({ params }: PageProps) {
     return <LeaderboardView session={session} quiz={quiz} router={router} sessionId={sessionId} />;
   }
 
+  // 대기실 화면
+  if (session.status === 'waiting') {
+    return <WaitingRoomView
+      quiz={quiz}
+      sessionId={sessionId}
+      session={session}
+      participantCount={participantCount}
+      activeParticipants={activeParticipants}
+      handleStartQuiz={handleStartQuiz}
+      setShowQRModal={setShowQRModal}
+      showQRModal={showQRModal}
+      router={router}
+    />;
+  }
+
+  // 퀴즈 진행 중 - 정답 확인 및 점수 순위 화면
+  if (session.status === 'active' && showAnswer) {
+    return <ScoreRankingView
+      quiz={quiz}
+      sessionId={sessionId}
+      session={session}
+      currentQuestionIndex={currentQuestionIndex}
+      currentQuestion={currentQuestion}
+      handleNextQuestion={handleNextQuestion}
+      handleEndQuiz={handleEndQuiz}
+      router={router}
+    />;
+  }
+
+  // 퀴즈 진행 중 - 문제 풀이 화면
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">{quiz.title}</h1>
               <p className="text-gray-600 mt-1">
-                세션 ID: {sessionId.substring(0, 8)}... | 상태:{' '}
-                <span
-                  className={`font-semibold ${
-                    session.status === 'waiting'
-                      ? 'text-yellow-600'
-                      : session.status === 'active'
-                      ? 'text-green-600'
-                      : 'text-gray-600'
-                  }`}
-                >
-                  {session.status === 'waiting' ? '대기 중' : session.status === 'active' ? '진행 중' : '종료됨'}
-                </span>
+                문제 {currentQuestionIndex + 1} / {quiz.questions.length} | 상태: <span className="font-semibold text-green-600">진행 중</span>
               </p>
             </div>
             <div className="flex gap-2">
-              {session.status === 'waiting' && (
-                <button
-                  onClick={handleStartQuiz}
-                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-semibold"
-                >
-                  퀴즈 시작
-                </button>
-              )}
-              {session.status === 'active' && (
-                <button
-                  onClick={handleEndQuiz}
-                  className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold"
-                >
-                  퀴즈 종료
-                </button>
-              )}
+              <button
+                onClick={handleEndQuiz}
+                className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-semibold"
+              >
+                퀴즈 종료
+              </button>
               <button
                 onClick={() => router.push('/admin')}
                 className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 font-semibold"
@@ -308,73 +317,14 @@ export default function QuizSessionPage({ params }: PageProps) {
               </button>
             </div>
           </div>
-
-          {/* 참가자 정보 */}
-          <div className="grid grid-cols-4 gap-4 mt-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">총 참가자</p>
-              <p className="text-2xl font-bold text-blue-600">{participantCount}명</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">현재 문제</p>
-              <p className="text-2xl font-bold text-green-600">
-                {currentQuestionIndex + 1} / {quiz.questions.length}
-              </p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">응답 수</p>
-              <p className="text-2xl font-bold text-purple-600">{currentAnswers.length}명</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-600 mb-2">참가 QR 코드</p>
-              <div
-                onClick={() => setShowQRModal(true)}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                title="클릭하여 확대"
-              >
-                <QRCodeSVG
-                  value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
-                  size={80}
-                  level="H"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">클릭하여 확대</p>
-            </div>
-          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* 왼쪽: 현재 문제 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                문제 {currentQuestionIndex + 1}
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePreviousQuestion}
-                  disabled={currentQuestionIndex === 0}
-                  className={`px-4 py-2 rounded ${
-                    currentQuestionIndex === 0
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  ← 이전
-                </button>
-                <button
-                  onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex >= quiz.questions.length - 1}
-                  className={`px-4 py-2 rounded ${
-                    currentQuestionIndex >= quiz.questions.length - 1
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  다음 →
-                </button>
-              </div>
-            </div>
+        {/* 현재 문제 */}
+        <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              문제 {currentQuestionIndex + 1}
+            </h2>
 
             {/* 문제 내용 */}
             <div className="mb-6">
@@ -423,68 +373,132 @@ export default function QuizSessionPage({ params }: PageProps) {
               </div>
 
               {!showAnswer && (
-                <div className="mt-4 text-sm text-gray-500 italic">
-                  {session?.status !== 'active'
-                    ? '⏸ "퀴즈 시작" 버튼을 눌러주세요'
-                    : '⏱ 제한 시간이 끝나면 정답이 표시됩니다'
-                  }
+                <div className="mt-4 text-sm text-gray-500 italic text-center">
+                  ⏱ 제한 시간이 끝나면 정답이 표시됩니다
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* 오른쪽: 참가자 및 응답 현황 */}
-          <div className="space-y-6">
-            {/* 참가자 목록 */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                참가자 목록 ({participantCount}명)
-              </h2>
-              {participantCount === 0 ? (
-                <p className="text-gray-500 text-center py-4">아직 참가자가 없습니다.</p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {activeParticipants.map((participant, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <span className="font-semibold text-blue-600">{idx + 1}</span>
-                      <span className="font-medium text-gray-900">{participant.nickname}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 현재 문제 응답 현황 */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                현재 문제 응답 현황 ({currentAnswers.length}명)
-              </h2>
-              {currentAnswers.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">아직 응답이 없습니다.</p>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {currentAnswers.map((answer, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-lg ${
-                        answer.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-900">{answer.participantName}</span>
-                        <span className={`font-semibold ${answer.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                          {answer.isCorrect ? '✓ 정답' : '✗ 오답'}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        선택: {answer.answer + 1}번 | 응답 시간: {answer.responseTime.toFixed(1)}초
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* 응답 현황 */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              응답 현황
+            </h2>
+            <div className="text-sm text-gray-600">
+              {currentAnswers.length} / {participantCount}명 응답 완료
             </div>
           </div>
+          <div className="bg-gray-100 rounded-lg h-4">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-lg transition-all duration-500"
+              style={{ width: `${participantCount > 0 ? (currentAnswers.length / participantCount) * 100 : 0}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 대기실 화면
+function WaitingRoomView({
+  quiz,
+  sessionId,
+  session,
+  participantCount,
+  activeParticipants,
+  handleStartQuiz,
+  setShowQRModal,
+  showQRModal,
+  router,
+}: {
+  quiz: Quiz;
+  sessionId: string;
+  session: QuizSession;
+  participantCount: number;
+  activeParticipants: any[];
+  handleStartQuiz: () => void;
+  setShowQRModal: (show: boolean) => void;
+  showQRModal: boolean;
+  router: any;
+}) {
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* 헤더 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">{quiz.title}</h1>
+              <p className="text-gray-600 mt-1">
+                세션 ID: {sessionId.substring(0, 8)}... | 상태: <span className="font-semibold text-yellow-600">대기 중</span>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleStartQuiz}
+                className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-semibold text-lg"
+              >
+                퀴즈 시작
+              </button>
+              <button
+                onClick={() => router.push('/admin')}
+                className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 font-semibold"
+              >
+                관리자 페이지
+              </button>
+            </div>
+          </div>
+
+          {/* 참가자 정보 */}
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="bg-blue-50 p-6 rounded-lg text-center">
+              <p className="text-sm text-gray-600 mb-2">총 참가자</p>
+              <p className="text-4xl font-bold text-blue-600">{participantCount}명</p>
+            </div>
+            <div className="bg-yellow-50 p-6 rounded-lg flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-600 mb-3">참가 QR 코드</p>
+              <div
+                onClick={() => setShowQRModal(true)}
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                title="클릭하여 확대"
+              >
+                <QRCodeSVG
+                  value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
+                  size={120}
+                  level="H"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-2">클릭하여 확대</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 참가자 목록 */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            참가자 목록 ({participantCount}명)
+          </h2>
+          {participantCount === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">아직 참가자가 없습니다.</p>
+              <p className="text-gray-400 text-sm mt-2">QR 코드를 스캔하여 참여할 수 있습니다.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {activeParticipants.map((participant, idx) => (
+                <div key={idx} className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg text-center">
+                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white font-bold text-xl">{participant.nickname.charAt(0)}</span>
+                  </div>
+                  <p className="font-semibold text-gray-800">{participant.nickname}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* QR 코드 확대 모달 */}
@@ -523,6 +537,129 @@ export default function QuizSessionPage({ params }: PageProps) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// 점수 순위 화면 (문제 사이)
+function ScoreRankingView({
+  quiz,
+  sessionId,
+  session,
+  currentQuestionIndex,
+  currentQuestion,
+  handleNextQuestion,
+  handleEndQuiz,
+  router,
+}: {
+  quiz: Quiz;
+  sessionId: string;
+  session: QuizSession;
+  currentQuestionIndex: number;
+  currentQuestion: any;
+  handleNextQuestion: () => void;
+  handleEndQuiz: () => void;
+  router: any;
+}) {
+  // 점수 순위 계산
+  const rankedParticipants = [...(session.participants || [])]
+    .filter(p => (p.score ?? 0) > 0)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .slice(0, 10); // 상위 10명
+
+  const isLastQuestion = currentQuestionIndex >= quiz.questions.length - 1;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* 헤더 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">{quiz.title}</h1>
+              <p className="text-gray-600 mt-1">
+                문제 {currentQuestionIndex + 1} / {quiz.questions.length} 완료
+              </p>
+            </div>
+            <button
+              onClick={() => router.push('/admin')}
+              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 font-semibold"
+            >
+              관리자 페이지
+            </button>
+          </div>
+        </div>
+
+        {/* 정답 표시 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 정답 확인</h2>
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+            <p className="text-gray-700 font-semibold mb-2">{currentQuestion.question}</p>
+            <p className="text-2xl font-bold text-green-600">
+              ✓ {currentQuestion.correctAnswer + 1}번: {currentQuestion.options[currentQuestion.correctAnswer]}
+            </p>
+          </div>
+        </div>
+
+        {/* 현재 점수 순위 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 현재 순위 TOP 10</h2>
+          {rankedParticipants.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">아직 점수가 기록된 참가자가 없습니다.</p>
+          ) : (
+            <div className="space-y-3">
+              {rankedParticipants.map((participant, index) => {
+                const rank = index + 1;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+                return (
+                  <div
+                    key={participant.id}
+                    className={`flex items-center gap-4 p-4 rounded-lg ${
+                      rank <= 3
+                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200'
+                        : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-12 text-center">
+                      {medal ? (
+                        <span className="text-3xl">{medal}</span>
+                      ) : (
+                        <span className="text-2xl font-bold text-gray-600">{rank}</span>
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <p className="font-bold text-lg text-gray-800">{participant.nickname}</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-2xl font-bold text-purple-600">{participant.score?.toLocaleString() ?? 0}</p>
+                      <p className="text-sm text-gray-500">점</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 다음 버튼 */}
+        <div className="flex gap-4">
+          {!isLastQuestion ? (
+            <button
+              onClick={handleNextQuestion}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg hover:from-blue-700 hover:to-purple-700 font-bold text-xl shadow-lg"
+            >
+              다음 문제로 →
+            </button>
+          ) : (
+            <button
+              onClick={handleEndQuiz}
+              className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-lg hover:from-red-700 hover:to-pink-700 font-bold text-xl shadow-lg"
+            >
+              퀴즈 종료
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
