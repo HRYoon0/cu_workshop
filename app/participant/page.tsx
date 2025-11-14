@@ -437,10 +437,12 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
       let scoreEarned = 0;
       // 점수 계산: 정답일 경우에만 점수 부여
       if (isCorrect) {
+        // 정확한 남은 시간 계산 (소수점 포함)
+        const exactTimeLeft = currentQuestion.timeLimit - responseTime;
         // 남은 시간 * 100점 (빠르게 답할수록 높은 점수)
-        scoreEarned = Math.floor(timeLeft * 100);
+        scoreEarned = Math.max(0, Math.round(exactTimeLeft * 100));
 
-        console.log(`점수 계산: ${timeLeft}초 * 100 = ${scoreEarned}점`);
+        console.log(`점수 계산: (${currentQuestion.timeLimit}초 - ${responseTime.toFixed(2)}초) × 100 = ${scoreEarned}점`);
 
         // 점수 업데이트
         await updateParticipantScore(sessionId, participantId, scoreEarned);
