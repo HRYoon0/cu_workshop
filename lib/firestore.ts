@@ -146,6 +146,37 @@ export async function removeParticipantFromQuizSession(sessionId: string, partic
 }
 
 /**
+ * 참가자 활동 시간 업데이트 (heartbeat)
+ */
+export async function updateParticipantHeartbeat(sessionId: string, participantId: string) {
+  try {
+    const sessionRef = doc(db, 'quizSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+
+    if (!sessionDoc.exists()) {
+      return;
+    }
+
+    const currentParticipants = sessionDoc.data().participants || [];
+    const updatedParticipants = currentParticipants.map((p: Participant) => {
+      if (p.id === participantId) {
+        return {
+          ...p,
+          lastActiveAt: new Date(),
+        };
+      }
+      return p;
+    });
+
+    await updateDoc(sessionRef, {
+      participants: updatedParticipants,
+    });
+  } catch (error) {
+    console.error('Heartbeat 업데이트 실패:', error);
+  }
+}
+
+/**
  * 퀴즈 답안 제출
  */
 export async function submitQuizAnswer(

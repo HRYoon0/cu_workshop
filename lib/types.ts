@@ -68,6 +68,7 @@ export interface Participant {
   id: string;
   nickname: string;
   joinedAt: Date;
+  lastActiveAt: Date;
 }
 
 // 세션 타입 (퀴즈 + 설문 통합)

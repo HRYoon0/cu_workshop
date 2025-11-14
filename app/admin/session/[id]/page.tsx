@@ -171,7 +171,18 @@ export default function QuizSessionPage({ params }: PageProps) {
   }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
-  const participantCount = session.participants?.length || 0;
+
+  // 활성 참가자 필터링 (10초 이내 활동한 참가자만)
+  const activeParticipants = (session.participants || []).filter(p => {
+    if (!p.lastActiveAt) return false;
+    const lastActive = p.lastActiveAt as any;
+    const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
+    const now = new Date();
+    const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+    return diffSeconds < 10; // 10초 이내
+  });
+
+  const participantCount = activeParticipants.length;
   const currentAnswers = session.answers?.filter(a => a.questionIndex === currentQuestionIndex) || [];
 
   return (
@@ -351,33 +362,22 @@ export default function QuizSessionPage({ params }: PageProps) {
           <div className="space-y-6">
             {/* 참가자 목록 */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">참가자 목록</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">
+                참가자 목록 ({participantCount}명)
+              </h2>
               {participantCount === 0 ? (
                 <p className="text-gray-500 text-center py-4">아직 참가자가 없습니다.</p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {session.participants?.map((participant, idx) => {
-                    // Firestore Timestamp를 Date로 안전하게 변환
-                    let timeStr = '방금 전';
-                    try {
-                      const joinedAt = participant.joinedAt as any;
-                      const date = joinedAt?.toDate
-                        ? joinedAt.toDate()
-                        : new Date(joinedAt);
-                      if (!isNaN(date.getTime())) {
-                        timeStr = date.toLocaleTimeString('ko-KR');
-                      }
-                    } catch (e) {
-                      // 변환 실패 시 기본값 사용
-                    }
-
-                    return (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  {activeParticipants.map((participant, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-blue-600">{idx + 1}</span>
                         <span className="font-medium text-gray-900">{participant.nickname}</span>
-                        <span className="text-sm text-gray-500">{timeStr}</span>
                       </div>
-                    );
-                  })}
+                      <span className="text-xs text-green-600 font-medium">● 온라인</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

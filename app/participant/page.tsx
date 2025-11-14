@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, submitQuizAnswer } from '@/lib/firestore';
+import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, updateParticipantHeartbeat, submitQuizAnswer } from '@/lib/firestore';
 import type { QuizSession } from '@/lib/types';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
@@ -93,11 +93,14 @@ function ParticipantContent() {
       const newParticipantId = Date.now().toString();
       setParticipantId(newParticipantId);
 
+      const now = new Date();
+
       // 세션에 참가자 추가
       await addParticipantToQuizSession(sessionId, {
         id: newParticipantId,
         nickname: nickname,
-        joinedAt: new Date(),
+        joinedAt: now,
+        lastActiveAt: now,
       });
 
       setView('waiting');
@@ -108,20 +111,17 @@ function ParticipantContent() {
     }
   };
 
-  // 페이지를 나갈 때 참가자 제거
+  // Heartbeat: 5초마다 활동 시간 업데이트
   useEffect(() => {
     if (!sessionId || !participantId) return;
 
-    // beforeunload 이벤트로 페이지 종료 시 참가자 제거
-    const handleBeforeUnload = () => {
-      removeParticipantFromQuizSession(sessionId, participantId);
-    };
+    const heartbeatInterval = setInterval(() => {
+      updateParticipantHeartbeat(sessionId, participantId);
+    }, 5000); // 5초마다
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // 컴포넌트 unmount 시 참가자 제거
+    // 컴포넌트 unmount 시 정리
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(heartbeatInterval);
       removeParticipantFromQuizSession(sessionId, participantId);
     };
   }, [sessionId, participantId]);
