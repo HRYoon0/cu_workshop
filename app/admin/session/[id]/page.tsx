@@ -132,7 +132,7 @@ export default function QuizSessionPage({ params }: PageProps) {
   useEffect(() => {
     const updateInterval = setInterval(() => {
       forceUpdate({});
-    }, 1000); // 1초마다 강제 렌더링
+    }, 2000); // 2초마다 강제 렌더링
 
     return () => clearInterval(updateInterval);
   }, []);
@@ -182,17 +182,22 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  // 활성 참가자 필터링 (3초 이내 활동한 참가자만)
+  // 활성 참가자 필터링
   const activeParticipants = (session.participants || []).filter(p => {
-    if (!p.lastActiveAt) return false;
+    // lastActiveAt이 없으면 신규 참가자로 간주하여 표시
+    if (!p.lastActiveAt) return true;
+
     try {
       const lastActive = p.lastActiveAt as any;
       const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
       const now = new Date();
       const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-      return diffSeconds < 3; // 3초 이내
+
+      // 5초 이내 활동한 참가자만 표시
+      return diffSeconds < 5;
     } catch (e) {
-      return false;
+      // 에러 발생 시 표시 (안전 장치)
+      return true;
     }
   });
 
