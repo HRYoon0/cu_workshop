@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus } from '@/lib/firestore';
+import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus, removeParticipantFromQuizSession } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { Quiz, QuizSession } from '@/lib/types';
 
@@ -368,7 +368,16 @@ export default function QuizSessionPage({ params }: PageProps) {
                         <span className="font-semibold text-blue-600">{idx + 1}</span>
                         <span className="font-medium text-gray-900">{participant.nickname}</span>
                       </div>
-                      <span className="text-xs text-green-600 font-medium">● 온라인</span>
+                      <button
+                        onClick={() => {
+                          if (confirm(`${participant.nickname}님을 제거하시겠습니까?`)) {
+                            removeParticipantFromQuizSession(sessionId, participant.id);
+                          }
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 hover:bg-red-50 rounded"
+                      >
+                        제거
+                      </button>
                     </div>
                   ))}
                 </div>

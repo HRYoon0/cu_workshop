@@ -109,16 +109,7 @@ function ParticipantContent() {
     }
   };
 
-  // 컴포넌트 unmount 시 참가자 제거
-  useEffect(() => {
-    if (!sessionId || !participantId) return;
-
-    // cleanup 함수: 컴포넌트가 unmount될 때 실행
-    return () => {
-      console.log('참가자 제거 중:', participantId);
-      removeParticipantFromQuizSession(sessionId, participantId);
-    };
-  }, [sessionId, participantId]);
+  // 자동 제거 기능 임시 비활성화 (추후 추가 예정)
 
   if (loading) {
     return (
