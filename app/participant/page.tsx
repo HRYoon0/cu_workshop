@@ -415,12 +415,14 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitted]);
 
-  const handleSubmit = async () => {
-    if (selectedAnswer === null && timeLeft > 0) return;
+  const handleAnswerSelect = async (answerIndex: number) => {
+    if (isSubmitted) return; // 이미 제출한 경우 무시
+
+    setSelectedAnswer(answerIndex);
+    setIsSubmitted(true); // 즉시 제출 상태로 변경
 
     const responseTime = (Date.now() - startTime) / 1000; // 초 단위
-    const answer = selectedAnswer !== null ? selectedAnswer : -1; // 시간 초과 시 -1
-    const isCorrect = answer === currentQuestion.correctAnswer;
+    const isCorrect = answerIndex === currentQuestion.correctAnswer;
 
     try {
       // 답안 제출
@@ -428,7 +430,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
         participantId: participantId,
         participantName: nickname,
         questionIndex: currentQuestionIndex,
-        answer: answer,
+        answer: answerIndex,
         isCorrect: isCorrect,
         timestamp: new Date(),
         responseTime: responseTime,
@@ -449,10 +451,35 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
       }
 
       setEarnedScore(scoreEarned); // 획득 점수 저장
-      setIsSubmitted(true);
     } catch (err) {
       console.error('답안 제출 실패:', err);
       alert('답안 제출에 실패했습니다.');
+      setIsSubmitted(false); // 실패 시 다시 선택 가능하도록
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (selectedAnswer !== null) return; // 이미 선택한 경우 무시
+
+    // 시간 초과 시 자동 제출
+    const responseTime = (Date.now() - startTime) / 1000;
+
+    try {
+      await submitQuizAnswer(sessionId, {
+        participantId: participantId,
+        participantName: nickname,
+        questionIndex: currentQuestionIndex,
+        answer: -1, // 시간 초과
+        isCorrect: false,
+        timestamp: new Date(),
+        responseTime: responseTime,
+      }, quiz.title);
+
+      setSelectedAnswer(-1);
+      setEarnedScore(0);
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('답안 제출 실패:', err);
     }
   };
 
@@ -507,14 +534,19 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               </div>
 
               {/* 선택지 */}
-              <div className="space-y-4 mb-8">
+              <div className="space-y-4">
                 {currentQuestion.options.map((option: string, index: number) => (
                   <button
                     key={index}
-                    onClick={() => setSelectedAnswer(index)}
-                    className={`w-full p-6 rounded-2xl text-left transition-all transform hover:scale-105 ${
+                    onClick={() => handleAnswerSelect(index)}
+                    disabled={isSubmitted}
+                    className={`w-full p-6 rounded-2xl text-left transition-all transform ${
+                      !isSubmitted ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'
+                    } ${
                       selectedAnswer === index
                         ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-xl'
+                        : isSubmitted
+                        ? 'bg-gray-200 text-gray-500'
                         : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                     }`}
                   >
@@ -530,18 +562,10 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
                 ))}
               </div>
 
-              {/* 제출 버튼 */}
-              <button
-                onClick={handleSubmit}
-                disabled={selectedAnswer === null}
-                className={`w-full py-4 rounded-2xl text-xl font-bold transition-all shadow-lg ${
-                  selectedAnswer !== null
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 transform hover:-translate-y-1'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {selectedAnswer !== null ? '답안 제출하기' : '답을 선택하세요'}
-              </button>
+              {/* 안내 메시지 */}
+              <p className="text-center text-gray-500 text-sm mt-6">
+                답을 선택하면 자동으로 제출됩니다
+              </p>
             </>
           ) : (
             <ResultView
