@@ -18,6 +18,7 @@ export interface QuizSession {
   id: string;
   quizId: string;
   status: 'waiting' | 'active' | 'finished';
+  currentQuestionIndex?: number;
   startTime?: Date;
   endTime?: Date;
   participants: Participant[];

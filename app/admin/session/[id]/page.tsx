@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus, removeParticipantFromQuizSession } from '@/lib/firestore';
+import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus, updateQuizSessionQuestion, removeParticipantFromQuizSession } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { Quiz, QuizSession } from '@/lib/types';
 
@@ -106,15 +106,21 @@ export default function QuizSessionPage({ params }: PageProps) {
     }
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (quiz && currentQuestionIndex < quiz.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const newIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(newIndex);
+      // 세션에도 현재 문제 인덱스 업데이트 (참가자들이 구독 중)
+      await updateQuizSessionQuestion(sessionId, newIndex);
     }
   };
 
-  const handlePreviousQuestion = () => {
+  const handlePreviousQuestion = async () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      const newIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(newIndex);
+      // 세션에도 현재 문제 인덱스 업데이트 (참가자들이 구독 중)
+      await updateQuizSessionQuestion(sessionId, newIndex);
     }
   };
 

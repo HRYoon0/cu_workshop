@@ -226,8 +226,8 @@ function ParticipantContent() {
           sessionStatus={session?.status || 'waiting'}
         />
       )}
-      {view === 'quiz' && quizData && sessionId && (
-        <QuizView nickname={nickname} quiz={quizData} sessionId={sessionId} />
+      {view === 'quiz' && quizData && sessionId && session && (
+        <QuizView nickname={nickname} quiz={quizData} sessionId={sessionId} session={session} />
       )}
       {view === 'survey' && surveyData && (
         <SurveyView nickname={nickname} survey={surveyData} />
@@ -356,14 +356,26 @@ function WaitingRoom({
 }
 
 // 퀴즈 화면
-function QuizView({ nickname, quiz, sessionId }: { nickname: string; quiz: any; sessionId: string }) {
+function QuizView({ nickname, quiz, sessionId, session }: { nickname: string; quiz: any; sessionId: string; session: any }) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(quiz.questions[0]?.timeLimit || 10);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(session?.currentQuestionIndex || 0);
+  const [timeLeft, setTimeLeft] = useState(quiz.questions[session?.currentQuestionIndex || 0]?.timeLimit || 10);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
+
+  // 세션의 currentQuestionIndex 변경 감지
+  useEffect(() => {
+    if (session?.currentQuestionIndex !== undefined && session.currentQuestionIndex !== currentQuestionIndex) {
+      console.log('문제 변경 감지:', session.currentQuestionIndex + 1);
+      setCurrentQuestionIndex(session.currentQuestionIndex);
+      setSelectedAnswer(null);
+      setIsSubmitted(false);
+      setStartTime(Date.now());
+      setTimeLeft(quiz.questions[session.currentQuestionIndex]?.timeLimit || 10);
+    }
+  }, [session?.currentQuestionIndex, currentQuestionIndex, quiz]);
 
   // 타이머
   useEffect(() => {

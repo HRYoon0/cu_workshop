@@ -86,6 +86,7 @@ export async function updateQuizSessionStatus(
 
     if (status === 'active') {
       updateData.startTime = serverTimestamp();
+      updateData.currentQuestionIndex = 0; // 퀴즈 시작 시 첫 번째 문제
     } else if (status === 'finished') {
       updateData.endTime = serverTimestamp();
     }
@@ -93,6 +94,25 @@ export async function updateQuizSessionStatus(
     await updateDoc(sessionRef, updateData);
   } catch (error) {
     console.error('세션 상태 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 퀴즈 세션 현재 문제 인덱스 업데이트
+ */
+export async function updateQuizSessionQuestion(
+  sessionId: string,
+  questionIndex: number
+) {
+  try {
+    const sessionRef = doc(db, 'quizSessions', sessionId);
+    await updateDoc(sessionRef, {
+      currentQuestionIndex: questionIndex,
+    });
+    console.log('현재 문제 업데이트:', questionIndex + 1);
+  } catch (error) {
+    console.error('문제 인덱스 업데이트 실패:', error);
     throw error;
   }
 }
