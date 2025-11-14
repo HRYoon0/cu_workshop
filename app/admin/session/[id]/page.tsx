@@ -46,8 +46,11 @@ export default function QuizSessionPage({ params }: PageProps) {
     if (!sessionId) return;
 
     const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
-      setSession(sessionData);
-      sessionRef.current = sessionData; // ref 업데이트
+      // state 업데이트를 다음 tick으로 미루어 React error #310 방지
+      setTimeout(() => {
+        setSession(sessionData);
+        sessionRef.current = sessionData; // ref 업데이트
+      }, 0);
     });
 
     return () => unsubscribe();

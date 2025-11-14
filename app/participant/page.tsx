@@ -65,7 +65,10 @@ function ParticipantContent() {
     if (!sessionId) return;
 
     const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
-      setSession(sessionData);
+      // state 업데이트를 다음 tick으로 미루어 React error #310 방지
+      setTimeout(() => {
+        setSession(sessionData);
+      }, 0);
     });
 
     return () => unsubscribe();

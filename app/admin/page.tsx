@@ -33,7 +33,7 @@ export default function AdminPage() {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (!currentUser) {
         // 로그인되지 않음 -> 로그인 페이지로
-        router.push('/login');
+        setTimeout(() => router.push('/login'), 0);
         return;
       }
 
@@ -41,7 +41,7 @@ export default function AdminPage() {
       const approved = await isApprovedUser(currentUser.uid);
       if (!approved) {
         // 승인되지 않음 -> 대기 화면으로
-        router.push('/waiting-approval');
+        setTimeout(() => router.push('/waiting-approval'), 0);
         return;
       }
 
@@ -49,9 +49,12 @@ export default function AdminPage() {
       const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
       const isAdminUser = currentUser.uid === adminUid;
 
-      setUser(currentUser);
-      setIsAdmin(isAdminUser);
-      setLoading(false);
+      // state 업데이트를 다음 tick으로 미루어 React error #310 방지
+      setTimeout(() => {
+        setUser(currentUser);
+        setIsAdmin(isAdminUser);
+        setLoading(false);
+      }, 0);
     });
 
     return () => unsubscribe();
