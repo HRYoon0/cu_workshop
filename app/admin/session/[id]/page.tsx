@@ -151,6 +151,39 @@ export default function QuizSessionPage({ params }: PageProps) {
     return () => clearInterval(timer);
   }, [questionTimer, session?.status]);
 
+  // 주기적으로 비활성 참가자 DB에서 제거 (15초 이상 비활동)
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const cleanupInterval = setInterval(async () => {
+      const currentSession = sessionRef.current;
+      if (!currentSession) return;
+
+      const allParticipants = currentSession.participants || [];
+      const now = new Date();
+
+      for (const p of allParticipants) {
+        if (!p.lastActiveAt) continue;
+
+        try {
+          const lastActive = p.lastActiveAt as any;
+          const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
+          const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+
+          // 15초 이상 비활동 시 DB에서 제거
+          if (diffSeconds > 15) {
+            await removeParticipantFromQuizSession(sessionId, p.id);
+          }
+        } catch (e) {
+          console.error('Cleanup 에러:', e);
+        }
+      }
+    }, 5000); // 5초마다 cleanup 실행
+
+    // Cleanup (async 작업 없음)
+    return () => clearInterval(cleanupInterval);
+  }, [sessionId]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -213,39 +246,6 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const participantCount = activeParticipants.length;
   const currentAnswers = session.answers?.filter(a => a.questionIndex === currentQuestionIndex) || [];
-
-  // 주기적으로 비활성 참가자 DB에서 제거 (15초 이상 비활동)
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const cleanupInterval = setInterval(async () => {
-      const currentSession = sessionRef.current;
-      if (!currentSession) return;
-
-      const allParticipants = currentSession.participants || [];
-      const now = new Date();
-
-      for (const p of allParticipants) {
-        if (!p.lastActiveAt) continue;
-
-        try {
-          const lastActive = p.lastActiveAt as any;
-          const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
-          const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-
-          // 15초 이상 비활동 시 DB에서 제거
-          if (diffSeconds > 15) {
-            await removeParticipantFromQuizSession(sessionId, p.id);
-          }
-        } catch (e) {
-          console.error('Cleanup 에러:', e);
-        }
-      }
-    }, 5000); // 5초마다 cleanup 실행
-
-    // Cleanup (async 작업 없음)
-    return () => clearInterval(cleanupInterval);
-  }, [sessionId]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
