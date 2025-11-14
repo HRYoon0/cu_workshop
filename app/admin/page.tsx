@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
 import { signOut } from 'firebase/auth';
 import {
   createQuiz,
@@ -904,12 +903,6 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
 function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-
-  // 스마트폰에서 접근 가능한 URL 생성 (Network IP 사용)
-  const participantUrl = typeof window !== 'undefined'
-    ? `http://${window.location.hostname}:${window.location.port}/participant?quiz=${quiz.id}`
-    : '';
 
   const handleStart = async () => {
     try {
@@ -923,114 +916,35 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(participantUrl);
-    alert('링크가 복사되었습니다!');
-  };
-
   return (
-    <>
-      <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-        <div className="flex justify-between items-start gap-6">
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
-            <p className="text-gray-600 mt-2">{quiz.questions?.[0]?.question || '질문 없음'}</p>
-            <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-              <span>❓ {quiz.questions?.length || 0}개 질문</span>
-              <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
-            </div>
+    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+      <div className="flex justify-between items-start gap-6">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
+          <p className="text-gray-600 mt-2">{quiz.questions?.[0]?.question || '질문 없음'}</p>
+          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+            <span>❓ {quiz.questions?.length || 0}개 질문</span>
+            <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
           </div>
+        </div>
 
-          {/* QR 코드 미리보기 */}
-          <div className="flex-shrink-0">
-            <div
-              onClick={() => setShowQRModal(true)}
-              className="cursor-pointer hover:opacity-80 transition-opacity p-2 bg-gray-50 rounded-lg"
-              title="클릭하여 확대"
-            >
-              <QRCodeSVG
-                value={participantUrl}
-                size={80}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
-            <p className="text-xs text-gray-500 text-center mt-1">QR 코드</p>
-          </div>
-
-          <div className="flex flex-col space-y-2">
-            <button
-              onClick={handleStart}
-              disabled={isStarting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-            >
-              {isStarting ? '생성 중...' : '시작'}
-            </button>
-            <button
-              onClick={() => onDelete(quiz.id)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-            >
-              삭제
-            </button>
-          </div>
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={handleStart}
+            disabled={isStarting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+          >
+            {isStarting ? '생성 중...' : '시작하기'}
+          </button>
+          <button
+            onClick={() => onDelete(quiz.id)}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+          >
+            삭제
+          </button>
         </div>
       </div>
-
-      {/* QR 코드 확대 모달 */}
-      {showQRModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowQRModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
-              <p className="text-gray-600 mb-6">참여자용 QR 코드</p>
-
-              <div className="bg-gray-50 rounded-xl p-6 mb-6">
-                <div className="inline-block p-4 bg-white rounded-lg shadow-md">
-                  <QRCodeSVG
-                    value={participantUrl}
-                    size={280}
-                    level="H"
-                    includeMargin={true}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
-              </div>
-
-              <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={participantUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
-                  >
-                    복사
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowQRModal(false)}
-                className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 
@@ -1038,12 +952,6 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
 function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-
-  // 스마트폰에서 접근 가능한 URL 생성 (Network IP 사용)
-  const participantUrl = typeof window !== 'undefined'
-    ? `http://${window.location.hostname}:${window.location.port}/participant?survey=${survey.id}`
-    : '';
 
   const handleStart = async () => {
     try {
@@ -1057,113 +965,34 @@ function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) 
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(participantUrl);
-    alert('링크가 복사되었습니다!');
-  };
-
   return (
-    <>
-      <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-        <div className="flex justify-between items-start gap-6">
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-800">{survey.title}</h3>
-            <p className="text-gray-600 mt-2">{survey.question}</p>
-            <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-              <span>⏱ {survey.timeLimit}초</span>
-              <span>📊 {survey.type === 'scale' ? '5점 척도' : '서술형'}</span>
-            </div>
+    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+      <div className="flex justify-between items-start gap-6">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-800">{survey.title}</h3>
+          <p className="text-gray-600 mt-2">{survey.question}</p>
+          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+            <span>⏱ {survey.timeLimit}초</span>
+            <span>📊 {survey.type === 'scale' ? '5점 척도' : '서술형'}</span>
           </div>
+        </div>
 
-          {/* QR 코드 미리보기 */}
-          <div className="flex-shrink-0">
-            <div
-              onClick={() => setShowQRModal(true)}
-              className="cursor-pointer hover:opacity-80 transition-opacity p-2 bg-gray-50 rounded-lg"
-              title="클릭하여 확대"
-            >
-              <QRCodeSVG
-                value={participantUrl}
-                size={80}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
-            <p className="text-xs text-gray-500 text-center mt-1">QR 코드</p>
-          </div>
-
-          <div className="flex flex-col space-y-2">
-            <button
-              onClick={handleStart}
-              disabled={isStarting}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-            >
-              {isStarting ? '생성 중...' : '시작'}
-            </button>
-            <button
-              onClick={() => onDelete(survey.id)}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-            >
-              삭제
-            </button>
-          </div>
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={handleStart}
+            disabled={isStarting}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+          >
+            {isStarting ? '생성 중...' : '시작하기'}
+          </button>
+          <button
+            onClick={() => onDelete(survey.id)}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+          >
+            삭제
+          </button>
         </div>
       </div>
-
-      {/* QR 코드 확대 모달 */}
-      {showQRModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowQRModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center">
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{survey.title}</h3>
-              <p className="text-gray-600 mb-6">참여자용 QR 코드</p>
-
-              <div className="bg-gray-50 rounded-xl p-6 mb-6">
-                <div className="inline-block p-4 bg-white rounded-lg shadow-md">
-                  <QRCodeSVG
-                    value={participantUrl}
-                    size={280}
-                    level="H"
-                    includeMargin={true}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
-              </div>
-
-              <div className="bg-green-50 rounded-lg p-4 mb-6">
-                <p className="text-sm font-medium text-gray-700 mb-2">참여 링크</p>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={participantUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded text-sm text-gray-900"
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-semibold"
-                  >
-                    복사
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowQRModal(false)}
-                className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
