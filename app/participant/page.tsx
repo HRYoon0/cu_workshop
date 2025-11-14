@@ -291,7 +291,7 @@ function QuizView({ nickname, quiz, sessionId }: { nickname: string; quiz: any; 
     if (isSubmitted || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
+      setTimeLeft((prev: number) => {
         if (prev <= 1) {
           // 시간 초과 시 자동 제출
           handleSubmit();
