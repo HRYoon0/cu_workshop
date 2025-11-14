@@ -360,9 +360,10 @@ export default function QuizSessionPage({ params }: PageProps) {
                     // Firestore Timestamp를 Date로 안전하게 변환
                     let timeStr = '방금 전';
                     try {
-                      const date = participant.joinedAt?.toDate
-                        ? participant.joinedAt.toDate()
-                        : new Date(participant.joinedAt);
+                      const joinedAt = participant.joinedAt as any;
+                      const date = joinedAt?.toDate
+                        ? joinedAt.toDate()
+                        : new Date(joinedAt);
                       if (!isNaN(date.getTime())) {
                         timeStr = date.toLocaleTimeString('ko-KR');
                       }
