@@ -326,8 +326,8 @@ export default function QuizSessionPage({ params }: PageProps) {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{idx + 1}.</span>
-                      <span>{option}</span>
+                      <span className="font-semibold text-gray-900">{idx + 1}.</span>
+                      <span className="text-gray-900">{option}</span>
                       {showAnswer && idx === currentQuestion.correctAnswer && (
                         <span className="ml-auto text-green-600 font-semibold">✓ 정답</span>
                       )}
@@ -373,7 +373,7 @@ export default function QuizSessionPage({ params }: PageProps) {
 
                     return (
                       <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="font-medium">{participant.nickname}</span>
+                        <span className="font-medium text-gray-900">{participant.nickname}</span>
                         <span className="text-sm text-gray-500">{timeStr}</span>
                       </div>
                     );
@@ -399,7 +399,7 @@ export default function QuizSessionPage({ params }: PageProps) {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{answer.participantName}</span>
+                        <span className="font-medium text-gray-900">{answer.participantName}</span>
                         <span className={`font-semibold ${answer.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                           {answer.isCorrect ? '✓ 정답' : '✗ 오답'}
                         </span>
