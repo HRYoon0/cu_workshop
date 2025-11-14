@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import confetti from 'canvas-confetti';
 import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus, updateQuizSessionQuestion, removeParticipantFromQuizSession } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { Quiz, QuizSession } from '@/lib/types';
@@ -545,6 +546,57 @@ function LeaderboardView({
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 10);
 
+  // 10등부터 1등까지 역순으로 정렬 (순차적 표시를 위해)
+  const reversedParticipants = [...topParticipants].reverse();
+
+  // 순차적으로 표시할 참가자 수
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  // 순차적으로 참가자 표시 및 폭죽 효과
+  useEffect(() => {
+    if (reversedParticipants.length === 0) return;
+
+    const interval = setInterval(() => {
+      setVisibleCount(prev => {
+        if (prev >= reversedParticipants.length) {
+          clearInterval(interval);
+          return prev;
+        }
+
+        // 현재 표시될 참가자의 순위 (역순이므로 계산 필요)
+        const currentRank = reversedParticipants.length - prev;
+
+        // 폭죽 효과
+        const colors = currentRank <= 3
+          ? ['#FFD700', '#FFA500', '#FF6347']
+          : ['#4169E1', '#1E90FF', '#00BFFF'];
+
+        confetti({
+          particleCount: currentRank <= 3 ? 100 : 50,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: colors
+        });
+
+        // 1등일 때 추가 폭죽
+        if (currentRank === 1) {
+          setTimeout(() => {
+            confetti({
+              particleCount: 200,
+              spread: 100,
+              origin: { y: 0.6 },
+              colors: ['#FFD700', '#FFA500', '#FF6347', '#FF1493']
+            });
+          }, 300);
+        }
+
+        return prev + 1;
+      });
+    }, 1500); // 1.5초마다 한 명씩 표시
+
+    return () => clearInterval(interval);
+  }, [reversedParticipants.length]);
+
   const getMedalIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -600,19 +652,28 @@ function LeaderboardView({
             </div>
           ) : (
             <div className="space-y-4">
-              {topParticipants.map((participant, index) => {
-                const rank = index + 1;
+              {reversedParticipants.map((participant, index) => {
+                // 역순이므로 실제 순위는 역계산
+                const rank = reversedParticipants.length - index;
                 const medal = getMedalIcon(rank);
                 const isTopThree = rank <= 3;
+
+                // visibleCount에 따라 표시 여부 결정
+                const isVisible = index < visibleCount;
+
+                if (!isVisible) return null;
 
                 return (
                   <div
                     key={participant.id}
-                    className={`flex items-center gap-4 p-6 rounded-2xl transition-all transform hover:scale-105 ${
+                    className={`flex items-center gap-4 p-6 rounded-2xl transition-all transform animate-fade-in-up ${
                       isTopThree
-                        ? `bg-gradient-to-r ${getMedalColor(rank)} text-white shadow-xl`
-                        : 'bg-gray-50 hover:bg-gray-100'
+                        ? `bg-gradient-to-r ${getMedalColor(rank)} text-white shadow-xl scale-105`
+                        : 'bg-gray-50'
                     }`}
+                    style={{
+                      animation: 'fadeInUp 0.5s ease-out'
+                    }}
                   >
                     {/* 순위 */}
                     <div className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center font-bold text-2xl ${

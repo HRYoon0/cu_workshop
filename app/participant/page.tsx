@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import confetti from 'canvas-confetti';
 import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, updateParticipantHeartbeat, submitQuizAnswer, updateParticipantScore } from '@/lib/firestore';
 import type { QuizSession } from '@/lib/types';
 
@@ -78,6 +79,10 @@ function ParticipantContent() {
   useEffect(() => {
     if (session?.status === 'active' && view === 'waiting') {
       setView(quizData ? 'quiz' : 'survey');
+    }
+    // 세션이 종료되면 결과 화면으로
+    if (session?.status === 'finished' && (view === 'quiz' || view === 'survey' || view === 'waiting')) {
+      setView('result');
     }
   }, [session?.status, view, quizData]);
 
@@ -232,6 +237,9 @@ function ParticipantContent() {
       {view === 'survey' && surveyData && (
         <SurveyView nickname={nickname} survey={surveyData} />
       )}
+      {view === 'result' && session && participantId && (
+        <FinalResultView nickname={nickname} session={session} participantId={participantId} />
+      )}
     </div>
   );
 }
@@ -362,8 +370,13 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
   const [timeLeft, setTimeLeft] = useState(quiz.questions[session?.currentQuestionIndex || 0]?.timeLimit || 10);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [earnedScore, setEarnedScore] = useState<number>(0); // 이번 문제에서 획득한 점수
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
+
+  // 현재 참가자의 총 점수 가져오기
+  const currentParticipant = session?.participants?.find((p: any) => p.id === participantId);
+  const totalScore = currentParticipant?.score ?? 0;
 
   // 세션의 currentQuestionIndex 변경 감지
   useEffect(() => {
@@ -372,6 +385,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
       setCurrentQuestionIndex(session.currentQuestionIndex);
       setSelectedAnswer(null);
       setIsSubmitted(false);
+      setEarnedScore(0); // 획득 점수 초기화
       setStartTime(Date.now());
       setTimeLeft(quiz.questions[session.currentQuestionIndex]?.timeLimit || 10);
     }
@@ -420,20 +434,22 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
         responseTime: responseTime,
       }, quiz.title);
 
+      let scoreEarned = 0;
       // 점수 계산: 정답일 경우에만 점수 부여
       if (isCorrect) {
         // 기본 점수 1000점 + (남은 시간 * 100점)
         // 빠르게 답할수록 높은 점수
         const baseScore = 1000;
         const timeBonus = Math.floor(timeLeft * 100);
-        const totalScore = baseScore + timeBonus;
+        scoreEarned = baseScore + timeBonus;
 
-        console.log(`점수 계산: ${baseScore} + (${timeLeft}초 * 100) = ${totalScore}점`);
+        console.log(`점수 계산: ${baseScore} + (${timeLeft}초 * 100) = ${scoreEarned}점`);
 
         // 점수 업데이트
-        await updateParticipantScore(sessionId, participantId, totalScore);
+        await updateParticipantScore(sessionId, participantId, scoreEarned);
       }
 
+      setEarnedScore(scoreEarned); // 획득 점수 저장
       setIsSubmitted(true);
     } catch (err) {
       console.error('답안 제출 실패:', err);
@@ -446,11 +462,14 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
       <div className="max-w-2xl w-full">
         {/* 상단 정보 바 */}
         <div className="bg-white rounded-t-3xl shadow-lg p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold">{nickname.charAt(0)}</span>
             </div>
-            <span className="font-semibold text-gray-800">{nickname}</span>
+            <div>
+              <span className="font-semibold text-gray-800 block">{nickname}</span>
+              <span className="text-xs text-purple-600 font-bold">⭐ {totalScore.toLocaleString()}점</span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -531,6 +550,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               correctAnswer={currentQuestion.correctAnswer}
               selectedAnswer={selectedAnswer !== null ? selectedAnswer : -1}
               options={currentQuestion.options}
+              earnedScore={earnedScore}
             />
           )}
         </div>
@@ -545,12 +565,53 @@ function ResultView({
   correctAnswer,
   selectedAnswer,
   options,
+  earnedScore,
 }: {
   isCorrect: boolean;
   correctAnswer: number;
   selectedAnswer: number;
   options: string[];
+  earnedScore: number;
 }) {
+  // 정답일 때 폭죽 효과
+  useEffect(() => {
+    if (isCorrect) {
+      // 여러 번 폭죽 터뜨리기
+      const duration = 2000;
+      const animationEnd = Date.now() + duration;
+
+      const randomInRange = (min: number, max: number) => {
+        return Math.random() * (max - min) + min;
+      };
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          return;
+        }
+
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#FFD700', '#FFA500', '#FF6347', '#FF1493', '#00CED1']
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#FFD700', '#FFA500', '#FF6347', '#FF1493', '#00CED1']
+        });
+      }, 100);
+
+      return () => clearInterval(interval);
+    }
+  }, [isCorrect]);
+
   return (
     <div className="text-center">
       {/* 결과 아이콘 */}
@@ -572,6 +633,14 @@ function ResultView({
       <h3 className={`text-4xl font-bold mb-4 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
         {isCorrect ? '정답입니다!' : selectedAnswer === -1 ? '시간 초과!' : '오답입니다'}
       </h3>
+
+      {/* 획득 점수 표시 */}
+      {isCorrect && earnedScore > 0 && (
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 mb-6 animate-bounce">
+          <p className="text-white font-bold text-2xl mb-2">🎉 획득 점수 🎉</p>
+          <p className="text-white font-bold text-5xl">+{earnedScore.toLocaleString()}점</p>
+        </div>
+      )}
 
       {!isCorrect && (
         <div className="bg-blue-50 rounded-2xl p-6 mb-6">
@@ -729,6 +798,89 @@ function SurveySubmitted() {
       <p className="text-gray-600 text-lg">
         소중한 의견 감사합니다
       </p>
+    </div>
+  );
+}
+
+// 최종 결과 화면
+function FinalResultView({ nickname, session, participantId }: { nickname: string; session: any; participantId: string }) {
+  const currentParticipant = session?.participants?.find((p: any) => p.id === participantId);
+  const totalScore = currentParticipant?.score ?? 0;
+
+  // 점수별 순위 계산
+  const sortedParticipants = [...(session?.participants || [])]
+    .filter(p => (p.score ?? 0) > 0)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+  const rank = sortedParticipants.findIndex(p => p.id === participantId) + 1;
+  const totalParticipants = sortedParticipants.length;
+
+  const getMedalIcon = (rank: number) => {
+    switch (rank) {
+      case 1: return '🥇';
+      case 2: return '🥈';
+      case 3: return '🥉';
+      default: return '🏅';
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+          {/* 순위 아이콘 */}
+          <div className="mb-6">
+            <div className="text-8xl mb-4">{getMedalIcon(rank)}</div>
+            <h2 className="text-5xl font-bold text-gray-800 mb-2">
+              {rank}등
+            </h2>
+            <p className="text-xl text-gray-600">
+              {nickname}님의 최종 순위
+            </p>
+          </div>
+
+          {/* 점수 표시 */}
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 mb-6">
+            <p className="text-white text-2xl mb-2">최종 점수</p>
+            <p className="text-white font-bold text-6xl mb-2">{totalScore.toLocaleString()}</p>
+            <p className="text-white text-lg">점</p>
+          </div>
+
+          {/* 상위 % 표시 */}
+          {totalParticipants > 0 && (
+            <div className="bg-blue-50 rounded-2xl p-6 mb-6">
+              <p className="text-gray-700 text-lg">
+                전체 <span className="font-bold text-blue-600">{totalParticipants}명</span> 중{' '}
+                <span className="font-bold text-blue-600">{rank}등</span>
+              </p>
+              <p className="text-gray-600 text-sm mt-2">
+                상위 {Math.round((rank / totalParticipants) * 100)}%
+              </p>
+            </div>
+          )}
+
+          {/* 격려 메시지 */}
+          <div className="mt-8">
+            {rank === 1 && (
+              <p className="text-2xl font-bold text-yellow-500">🎉 최고 득점자입니다! 축하합니다! 🎉</p>
+            )}
+            {rank === 2 && (
+              <p className="text-2xl font-bold text-gray-500">👏 2등! 정말 잘하셨습니다! 👏</p>
+            )}
+            {rank === 3 && (
+              <p className="text-2xl font-bold text-orange-500">🎊 3등! 훌륭합니다! 🎊</p>
+            )}
+            {rank > 3 && (
+              <p className="text-xl font-bold text-blue-600">🌟 수고하셨습니다! 🌟</p>
+            )}
+          </div>
+
+          {/* 하단 메시지 */}
+          <p className="text-gray-500 mt-8">
+            퀴즈에 참여해주셔서 감사합니다!
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
