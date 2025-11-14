@@ -22,6 +22,7 @@ export default function QuizSessionPage({ params }: PageProps) {
   const [showQRModal, setShowQRModal] = useState(false);
   const [questionTimer, setQuestionTimer] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [, forceUpdate] = useState({});
 
   // params를 unwrap
   useEffect(() => {
@@ -127,6 +128,15 @@ export default function QuizSessionPage({ params }: PageProps) {
     return () => clearInterval(timer);
   }, [questionTimer, session]);
 
+  // 참가자 목록 실시간 업데이트를 위한 주기적 강제 렌더링
+  useEffect(() => {
+    const updateInterval = setInterval(() => {
+      forceUpdate({});
+    }, 1000); // 1초마다 강제 렌더링
+
+    return () => clearInterval(updateInterval);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -172,14 +182,18 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  // 활성 참가자 필터링 (10초 이내 활동한 참가자만)
+  // 활성 참가자 필터링 (3초 이내 활동한 참가자만)
   const activeParticipants = (session.participants || []).filter(p => {
     if (!p.lastActiveAt) return false;
-    const lastActive = p.lastActiveAt as any;
-    const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
-    const now = new Date();
-    const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-    return diffSeconds < 10; // 10초 이내
+    try {
+      const lastActive = p.lastActiveAt as any;
+      const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
+      const now = new Date();
+      const diffSeconds = (now.getTime() - date.getTime()) / 1000;
+      return diffSeconds < 3; // 3초 이내
+    } catch (e) {
+      return false;
+    }
   });
 
   const participantCount = activeParticipants.length;

@@ -111,13 +111,16 @@ function ParticipantContent() {
     }
   };
 
-  // Heartbeat: 5초마다 활동 시간 업데이트
+  // Heartbeat: 1초마다 활동 시간 업데이트
   useEffect(() => {
     if (!sessionId || !participantId) return;
 
+    // 즉시 한 번 전송
+    updateParticipantHeartbeat(sessionId, participantId);
+
     const heartbeatInterval = setInterval(() => {
       updateParticipantHeartbeat(sessionId, participantId);
-    }, 5000); // 5초마다
+    }, 1000); // 1초마다
 
     // 컴포넌트 unmount 시 정리
     return () => {
