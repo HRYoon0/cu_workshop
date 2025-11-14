@@ -19,6 +19,9 @@ export default function QuizSessionPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [error, setError] = useState('');
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [questionTimer, setQuestionTimer] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   // params를 unwrap
   useEffect(() => {
@@ -90,6 +93,34 @@ export default function QuizSessionPage({ params }: PageProps) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
+
+  // 문제가 바뀔 때마다 타이머 리셋
+  useEffect(() => {
+    if (quiz && quiz.questions[currentQuestionIndex]) {
+      setQuestionTimer(quiz.questions[currentQuestionIndex].timeLimit);
+      setShowAnswer(false);
+    }
+  }, [currentQuestionIndex, quiz]);
+
+  // 타이머 카운트다운
+  useEffect(() => {
+    if (questionTimer <= 0) {
+      setShowAnswer(true);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setQuestionTimer((prev) => {
+        if (prev <= 1) {
+          setShowAnswer(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [questionTimer]);
 
   if (loading) {
     return (
@@ -205,11 +236,18 @@ export default function QuizSessionPage({ params }: PageProps) {
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg flex flex-col items-center justify-center">
               <p className="text-sm text-gray-600 mb-2">참가 QR 코드</p>
-              <QRCodeSVG
-                value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
-                size={80}
-                level="H"
-              />
+              <div
+                onClick={() => setShowQRModal(true)}
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                title="클릭하여 확대"
+              >
+                <QRCodeSVG
+                  value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
+                  size={80}
+                  level="H"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">클릭하여 확대</p>
             </div>
           </div>
         </div>
@@ -249,7 +287,17 @@ export default function QuizSessionPage({ params }: PageProps) {
 
             {/* 문제 내용 */}
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">{currentQuestion.question}</h3>
+              {/* 타이머 */}
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">{currentQuestion.question}</h3>
+                <div className={`px-4 py-2 rounded-lg font-bold text-lg ${
+                  questionTimer > 5 ? 'bg-green-100 text-green-700' :
+                  questionTimer > 0 ? 'bg-red-100 text-red-700 animate-pulse' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {questionTimer > 0 ? `${questionTimer}초` : '종료'}
+                </div>
+              </div>
 
               {currentQuestion.imageUrl && (
                 <img
@@ -265,7 +313,7 @@ export default function QuizSessionPage({ params }: PageProps) {
                   <div
                     key={idx}
                     className={`p-3 rounded-lg border-2 ${
-                      idx === currentQuestion.correctAnswer
+                      showAnswer && idx === currentQuestion.correctAnswer
                         ? 'border-green-500 bg-green-50'
                         : 'border-gray-300 bg-gray-50'
                     }`}
@@ -273,7 +321,7 @@ export default function QuizSessionPage({ params }: PageProps) {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{idx + 1}.</span>
                       <span>{option}</span>
-                      {idx === currentQuestion.correctAnswer && (
+                      {showAnswer && idx === currentQuestion.correctAnswer && (
                         <span className="ml-auto text-green-600 font-semibold">✓ 정답</span>
                       )}
                     </div>
@@ -281,9 +329,11 @@ export default function QuizSessionPage({ params }: PageProps) {
                 ))}
               </div>
 
-              <div className="mt-4 text-sm text-gray-600">
-                제한 시간: {currentQuestion.timeLimit}초
-              </div>
+              {!showAnswer && (
+                <div className="mt-4 text-sm text-gray-500 italic">
+                  ⏱ 제한 시간이 끝나면 정답이 표시됩니다
+                </div>
+              )}
             </div>
           </div>
 
@@ -340,6 +390,43 @@ export default function QuizSessionPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {/* QR 코드 확대 모달 */}
+        {showQRModal && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowQRModal(false)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
+                <p className="text-gray-600 mb-6">참여자용 QR 코드</p>
+
+                <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                  <div className="inline-block p-4 bg-white rounded-lg shadow-md">
+                    <QRCodeSVG
+                      value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
+                      size={280}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4">스마트폰으로 스캔하여 참여하세요</p>
+                </div>
+
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
