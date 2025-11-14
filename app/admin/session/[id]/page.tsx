@@ -22,7 +22,6 @@ export default function QuizSessionPage({ params }: PageProps) {
   const [showQRModal, setShowQRModal] = useState(false);
   const [questionTimer, setQuestionTimer] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [, forceUpdate] = useState({});
 
   // params를 unwrap
   useEffect(() => {
@@ -128,15 +127,6 @@ export default function QuizSessionPage({ params }: PageProps) {
     return () => clearInterval(timer);
   }, [questionTimer, session]);
 
-  // 참가자 목록 실시간 업데이트를 위한 주기적 강제 렌더링
-  useEffect(() => {
-    const updateInterval = setInterval(() => {
-      forceUpdate({});
-    }, 2000); // 2초마다 강제 렌더링
-
-    return () => clearInterval(updateInterval);
-  }, []);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -182,24 +172,8 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  // 활성 참가자 필터링
-  const activeParticipants = (session.participants || []).filter(p => {
-    // lastActiveAt이 없으면 신규 참가자로 간주하여 표시
-    if (!p.lastActiveAt) return true;
-
-    try {
-      const lastActive = p.lastActiveAt as any;
-      const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
-      const now = new Date();
-      const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-
-      // 5초 이내 활동한 참가자만 표시
-      return diffSeconds < 5;
-    } catch (e) {
-      // 에러 발생 시 표시 (안전 장치)
-      return true;
-    }
-  });
+  // 모든 참가자 표시 (필터링 제거)
+  const activeParticipants = session.participants || [];
 
   const participantCount = activeParticipants.length;
   const currentAnswers = session.answers?.filter(a => a.questionIndex === currentQuestionIndex) || [];
