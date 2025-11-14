@@ -362,8 +362,6 @@ function QuizView({ nickname, quiz, sessionId }: { nickname: string; quiz: any; 
     const timer = setInterval(() => {
       setTimeLeft((prev: number) => {
         if (prev <= 1) {
-          // 시간 초과 시 자동 제출
-          handleSubmit();
           return 0;
         }
         return prev - 1;
@@ -371,6 +369,14 @@ function QuizView({ nickname, quiz, sessionId }: { nickname: string; quiz: any; 
     }, 1000);
 
     return () => clearInterval(timer);
+  }, [timeLeft, isSubmitted]);
+
+  // 시간 초과 시 자동 제출
+  useEffect(() => {
+    if (timeLeft === 0 && !isSubmitted) {
+      handleSubmit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitted]);
 
   const handleSubmit = async () => {

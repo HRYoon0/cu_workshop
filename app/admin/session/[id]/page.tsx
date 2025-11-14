@@ -80,7 +80,8 @@ export default function QuizSessionPage({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [session, quiz]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.quizId]);
 
   const handleStartQuiz = async () => {
     try {
