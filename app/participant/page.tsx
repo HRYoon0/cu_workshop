@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, submitQuizAnswer } from '@/lib/firestore';
+import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, updateParticipantHeartbeat, submitQuizAnswer } from '@/lib/firestore';
 import type { QuizSession } from '@/lib/types';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
@@ -109,7 +109,61 @@ function ParticipantContent() {
     }
   };
 
-  // 자동 제거 기능 임시 비활성화 (추후 추가 예정)
+  // Heartbeat 시스템 (페이지가 보일 때만 전송)
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+
+    const sendHeartbeat = () => {
+      updateParticipantHeartbeat(sessionId, participantId);
+    };
+
+    // Page Visibility API
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+        if (!heartbeatInterval) {
+          heartbeatInterval = setInterval(sendHeartbeat, 3000);
+        }
+      } else {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+      }
+    };
+
+    // 초기 heartbeat 및 interval 시작
+    sendHeartbeat();
+    heartbeatInterval = setInterval(sendHeartbeat, 3000);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup (async 작업 없음)
+    return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [sessionId, participantId]);
+
+  // beforeunload로 페이지 종료 시 제거 (cleanup 함수가 아님)
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+
+    const handleBeforeUnload = () => {
+      // 동기 방식으로 처리
+      navigator.sendBeacon(`/api/leave?session=${sessionId}&participant=${participantId}`);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [sessionId, participantId]);
 
   if (loading) {
     return (
