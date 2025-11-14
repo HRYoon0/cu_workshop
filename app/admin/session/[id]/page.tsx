@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
 import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { Quiz, QuizSession } from '@/lib/types';
@@ -187,7 +188,7 @@ export default function QuizSessionPage({ params }: PageProps) {
           </div>
 
           {/* 참가자 정보 */}
-          <div className="grid grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-4 gap-4 mt-4">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">총 참가자</p>
               <p className="text-2xl font-bold text-blue-600">{participantCount}명</p>
@@ -201,6 +202,14 @@ export default function QuizSessionPage({ params }: PageProps) {
             <div className="bg-purple-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">응답 수</p>
               <p className="text-2xl font-bold text-purple-600">{currentAnswers.length}명</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-600 mb-2">참가 QR 코드</p>
+              <QRCodeSVG
+                value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:${typeof window !== 'undefined' ? window.location.port : '3000'}/participant?quiz=${quiz.id}&session=${sessionId}`}
+                size={80}
+                level="H"
+              />
             </div>
           </div>
         </div>

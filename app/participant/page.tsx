@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getQuiz, getSurvey } from '@/lib/firestore';
+import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, submitQuizAnswer } from '@/lib/firestore';
+import type { QuizSession } from '@/lib/types';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
 
@@ -13,11 +14,13 @@ function ParticipantContent() {
   const [nickname, setNickname] = useState('');
   const [quizData, setQuizData] = useState<any>(null);
   const [surveyData, setSurveyData] = useState<any>(null);
+  const [session, setSession] = useState<QuizSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const quizId = searchParams.get('quiz');
   const surveyId = searchParams.get('survey');
+  const sessionId = searchParams.get('session');
 
   useEffect(() => {
     async function loadData() {
@@ -55,6 +58,45 @@ function ParticipantContent() {
 
     loadData();
   }, [quizId, surveyId]);
+
+  // 세션 상태 구독
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
+      setSession(sessionData);
+
+      // 세션이 active 상태가 되면 퀴즈 시작
+      if (sessionData.status === 'active' && view === 'waiting') {
+        setView(quizData ? 'quiz' : 'survey');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [sessionId, view, quizData]);
+
+  const handleNicknameSubmit = async () => {
+    if (!sessionId) {
+      setError('세션 ID가 없습니다.');
+      setView('error');
+      return;
+    }
+
+    try {
+      // 세션에 참가자 추가
+      await addParticipantToQuizSession(sessionId, {
+        id: Date.now().toString(),
+        nickname: nickname,
+        joinedAt: new Date(),
+      });
+
+      setView('waiting');
+    } catch (err) {
+      console.error('참가자 추가 실패:', err);
+      setError('참가 신청에 실패했습니다.');
+      setView('error');
+    }
+  };
 
   if (loading) {
     return (
@@ -95,18 +137,18 @@ function ParticipantContent() {
         <NicknameInput
           nickname={nickname}
           setNickname={setNickname}
-          onSubmit={() => setView('waiting')}
+          onSubmit={handleNicknameSubmit}
           title={quizData?.title || surveyData?.title || ''}
         />
       )}
       {view === 'waiting' && (
         <WaitingRoom
           nickname={nickname}
-          onStart={() => setView(quizData ? 'quiz' : 'survey')}
+          sessionStatus={session?.status || 'waiting'}
         />
       )}
-      {view === 'quiz' && quizData && (
-        <QuizView nickname={nickname} quiz={quizData} />
+      {view === 'quiz' && quizData && sessionId && (
+        <QuizView nickname={nickname} quiz={quizData} sessionId={sessionId} />
       )}
       {view === 'survey' && surveyData && (
         <SurveyView nickname={nickname} survey={surveyData} />
@@ -193,10 +235,10 @@ function NicknameInput({
 // 대기실
 function WaitingRoom({
   nickname,
-  onStart,
+  sessionStatus,
 }: {
   nickname: string;
-  onStart: () => void;
+  sessionStatus: string;
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -210,7 +252,7 @@ function WaitingRoom({
           </div>
 
           <h2 className="text-3xl font-bold text-gray-800 mb-4">
-            대기 중...
+            {sessionStatus === 'waiting' ? '대기 중...' : '시작 준비 중...'}
           </h2>
           <p className="text-lg text-gray-600 mb-8">
             안녕하세요, <span className="font-bold text-purple-600">{nickname}</span>님!
@@ -235,17 +277,55 @@ function WaitingRoom({
 }
 
 // 퀴즈 화면
-function QuizView({ nickname, quiz }: { nickname: string; quiz: any }) {
+function QuizView({ nickname, quiz, sessionId }: { nickname: string; quiz: any; sessionId: string }) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(quiz.questions[0]?.timeLimit || 10);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [startTime, setStartTime] = useState<number>(Date.now());
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  const handleSubmit = () => {
-    if (selectedAnswer !== null) {
+  // 타이머
+  useEffect(() => {
+    if (isSubmitted || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          // 시간 초과 시 자동 제출
+          handleSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, isSubmitted]);
+
+  const handleSubmit = async () => {
+    if (selectedAnswer === null && timeLeft > 0) return;
+
+    const responseTime = (Date.now() - startTime) / 1000; // 초 단위
+    const answer = selectedAnswer !== null ? selectedAnswer : -1; // 시간 초과 시 -1
+    const isCorrect = answer === currentQuestion.correctAnswer;
+
+    try {
+      await submitQuizAnswer(sessionId, {
+        participantId: Date.now().toString(),
+        participantName: nickname,
+        questionIndex: currentQuestionIndex,
+        answer: answer,
+        isCorrect: isCorrect,
+        timestamp: new Date(),
+        responseTime: responseTime,
+      }, quiz.title);
+
       setIsSubmitted(true);
+    } catch (err) {
+      console.error('답안 제출 실패:', err);
+      alert('답안 제출에 실패했습니다.');
     }
   };
 
@@ -335,9 +415,9 @@ function QuizView({ nickname, quiz }: { nickname: string; quiz: any }) {
             </>
           ) : (
             <ResultView
-              isCorrect={selectedAnswer === currentQuestion.correctAnswer}
+              isCorrect={selectedAnswer !== null && selectedAnswer === currentQuestion.correctAnswer}
               correctAnswer={currentQuestion.correctAnswer}
-              selectedAnswer={selectedAnswer!}
+              selectedAnswer={selectedAnswer !== null ? selectedAnswer : -1}
               options={currentQuestion.options}
             />
           )}
@@ -378,7 +458,7 @@ function ResultView({
 
       {/* 결과 메시지 */}
       <h3 className={`text-4xl font-bold mb-4 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-        {isCorrect ? '정답입니다!' : '오답입니다'}
+        {isCorrect ? '정답입니다!' : selectedAnswer === -1 ? '시간 초과!' : '오답입니다'}
       </h3>
 
       {!isCorrect && (
