@@ -356,14 +356,27 @@ export default function QuizSessionPage({ params }: PageProps) {
                 <p className="text-gray-500 text-center py-4">아직 참가자가 없습니다.</p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {session.participants?.map((participant, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="font-medium">{participant.nickname}</span>
-                      <span className="text-sm text-gray-500">
-                        {new Date(participant.joinedAt).toLocaleTimeString('ko-KR')}
-                      </span>
-                    </div>
-                  ))}
+                  {session.participants?.map((participant, idx) => {
+                    // Firestore Timestamp를 Date로 안전하게 변환
+                    let timeStr = '방금 전';
+                    try {
+                      const date = participant.joinedAt?.toDate
+                        ? participant.joinedAt.toDate()
+                        : new Date(participant.joinedAt);
+                      if (!isNaN(date.getTime())) {
+                        timeStr = date.toLocaleTimeString('ko-KR');
+                      }
+                    } catch (e) {
+                      // 변환 실패 시 기본값 사용
+                    }
+
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="font-medium">{participant.nickname}</span>
+                        <span className="text-sm text-gray-500">{timeStr}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
