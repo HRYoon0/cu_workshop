@@ -570,6 +570,40 @@ function ScoreRankingView({
 
   const isLastQuestion = currentQuestionIndex >= quiz.questions.length - 1;
 
+  // 이전 순위 저장 및 비교
+  const [previousRanks, setPreviousRanks] = useState<{ [key: string]: number }>({});
+  const [showRankChanges, setShowRankChanges] = useState(false);
+
+  useEffect(() => {
+    // 현재 순위 맵 생성
+    const currentRanks: { [key: string]: number } = {};
+    rankedParticipants.forEach((p, index) => {
+      currentRanks[p.id] = index + 1;
+    });
+
+    // 순위 변동 애니메이션 표시
+    setShowRankChanges(true);
+    setTimeout(() => {
+      setShowRankChanges(false);
+    }, 3000);
+
+    // 다음을 위해 현재 순위 저장
+    return () => {
+      setPreviousRanks(currentRanks);
+    };
+  }, [currentQuestionIndex]);
+
+  // 순위 변동 계산
+  const getRankChange = (participantId: string, currentRank: number) => {
+    const previousRank = previousRanks[participantId];
+    if (!previousRank) return null; // 첫 문제 또는 새로 진입
+
+    const change = previousRank - currentRank;
+    if (change > 0) return { type: 'up', value: change }; // 순위 상승
+    if (change < 0) return { type: 'down', value: Math.abs(change) }; // 순위 하락
+    return { type: 'same', value: 0 }; // 유지
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-6">
       <div className="max-w-4xl mx-auto">
@@ -612,13 +646,21 @@ function ScoreRankingView({
               {rankedParticipants.map((participant, index) => {
                 const rank = index + 1;
                 const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+                const rankChange = getRankChange(participant.id, rank);
+
                 return (
                   <div
                     key={participant.id}
-                    className={`flex items-center gap-4 p-4 rounded-lg ${
+                    className={`flex items-center gap-4 p-4 rounded-lg transition-all duration-700 ${
                       rank <= 3
                         ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200'
                         : 'bg-gray-50'
+                    } ${
+                      showRankChanges && rankChange?.type === 'up'
+                        ? 'shadow-lg scale-105 border-2 border-green-400 bg-green-50'
+                        : showRankChanges && rankChange?.type === 'down'
+                        ? 'opacity-70 scale-95'
+                        : ''
                     }`}
                   >
                     <div className="flex-shrink-0 w-12 text-center">
@@ -630,6 +672,24 @@ function ScoreRankingView({
                     </div>
                     <div className="flex-grow">
                       <p className="font-bold text-lg text-gray-800">{participant.nickname}</p>
+                      {/* 순위 변동 표시 */}
+                      {showRankChanges && rankChange && rankChange.type !== 'same' && (
+                        <div className={`flex items-center gap-1 text-sm font-semibold mt-1 ${
+                          rankChange.type === 'up' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {rankChange.type === 'up' ? (
+                            <>
+                              <span className="text-lg">↑</span>
+                              <span>{rankChange.value}단계 상승!</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-lg">↓</span>
+                              <span>{rankChange.value}단계 하락</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0 text-right">
                       <p className="text-2xl font-bold text-purple-600">{participant.score?.toLocaleString() ?? 0}</p>
