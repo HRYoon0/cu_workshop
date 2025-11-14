@@ -213,12 +213,15 @@ export async function submitQuizAnswer(
 
     if (sessionDoc.exists()) {
       const currentAnswers = sessionDoc.data().answers || [];
+      // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
       await updateDoc(sessionRef, {
         answers: [...currentAnswers, {
           ...answer,
-          timestamp: serverTimestamp(),
+          timestamp: Timestamp.now(),
         }],
       });
+
+      console.log('답안 제출 성공:', answer.participantName, '문제', answer.questionIndex + 1);
 
       // 구글 시트에도 저장 (비동기, 에러 무시)
       if (quizTitle) {
@@ -353,10 +356,11 @@ export async function submitSurveyResponse(
 
     if (sessionDoc.exists()) {
       const currentResponses = sessionDoc.data().responses || [];
+      // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
       await updateDoc(sessionRef, {
         responses: [...currentResponses, {
           ...response,
-          timestamp: serverTimestamp(),
+          timestamp: Timestamp.now(),
         }],
       });
 
