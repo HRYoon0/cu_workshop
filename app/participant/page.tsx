@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, submitQuizAnswer } from '@/lib/firestore';
+import { getQuiz, getSurvey, subscribeToQuizSession, addParticipantToQuizSession, removeParticipantFromQuizSession, submitQuizAnswer } from '@/lib/firestore';
 import type { QuizSession } from '@/lib/types';
 
 type ViewType = 'nickname' | 'waiting' | 'quiz' | 'survey' | 'result' | 'error';
@@ -12,6 +12,7 @@ function ParticipantContent() {
   const searchParams = useSearchParams();
   const [view, setView] = useState<ViewType>('nickname');
   const [nickname, setNickname] = useState('');
+  const [participantId, setParticipantId] = useState('');
   const [quizData, setQuizData] = useState<any>(null);
   const [surveyData, setSurveyData] = useState<any>(null);
   const [session, setSession] = useState<QuizSession | null>(null);
@@ -88,9 +89,13 @@ function ParticipantContent() {
     }
 
     try {
+      // 고유한 참가자 ID 생성
+      const newParticipantId = Date.now().toString();
+      setParticipantId(newParticipantId);
+
       // 세션에 참가자 추가
       await addParticipantToQuizSession(sessionId, {
-        id: Date.now().toString(),
+        id: newParticipantId,
         nickname: nickname,
         joinedAt: new Date(),
       });
@@ -102,6 +107,24 @@ function ParticipantContent() {
       setView('error');
     }
   };
+
+  // 페이지를 나갈 때 참가자 제거
+  useEffect(() => {
+    if (!sessionId || !participantId) return;
+
+    // beforeunload 이벤트로 페이지 종료 시 참가자 제거
+    const handleBeforeUnload = () => {
+      removeParticipantFromQuizSession(sessionId, participantId);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // 컴포넌트 unmount 시 참가자 제거
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      removeParticipantFromQuizSession(sessionId, participantId);
+    };
+  }, [sessionId, participantId]);
 
   if (loading) {
     return (

@@ -120,6 +120,32 @@ export async function addParticipantToQuizSession(sessionId: string, participant
 }
 
 /**
+ * 퀴즈 세션에서 참여자 제거
+ */
+export async function removeParticipantFromQuizSession(sessionId: string, participantId: string) {
+  try {
+    const sessionRef = doc(db, 'quizSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+
+    if (!sessionDoc.exists()) {
+      return; // 세션이 없으면 조용히 종료
+    }
+
+    const currentParticipants = sessionDoc.data().participants || [];
+    const updatedParticipants = currentParticipants.filter(
+      (p: Participant) => p.id !== participantId
+    );
+
+    await updateDoc(sessionRef, {
+      participants: updatedParticipants,
+    });
+  } catch (error) {
+    console.error('참여자 제거 실패:', error);
+    // 에러를 throw하지 않음 (페이지 종료 시 에러가 발생해도 괜찮음)
+  }
+}
+
+/**
  * 퀴즈 답안 제출
  */
 export async function submitQuizAnswer(
