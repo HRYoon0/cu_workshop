@@ -437,13 +437,10 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
       let scoreEarned = 0;
       // 점수 계산: 정답일 경우에만 점수 부여
       if (isCorrect) {
-        // 기본 점수 1000점 + (남은 시간 * 100점)
-        // 빠르게 답할수록 높은 점수
-        const baseScore = 1000;
-        const timeBonus = Math.floor(timeLeft * 100);
-        scoreEarned = baseScore + timeBonus;
+        // 남은 시간 * 100점 (빠르게 답할수록 높은 점수)
+        scoreEarned = Math.floor(timeLeft * 100);
 
-        console.log(`점수 계산: ${baseScore} + (${timeLeft}초 * 100) = ${scoreEarned}점`);
+        console.log(`점수 계산: ${timeLeft}초 * 100 = ${scoreEarned}점`);
 
         // 점수 업데이트
         await updateParticipantScore(sessionId, participantId, scoreEarned);
@@ -636,7 +633,7 @@ function ResultView({
 
       {/* 획득 점수 표시 */}
       {isCorrect && earnedScore > 0 && (
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 mb-6 animate-bounce">
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 mb-6">
           <p className="text-white font-bold text-2xl mb-2">🎉 획득 점수 🎉</p>
           <p className="text-white font-bold text-5xl">+{earnedScore.toLocaleString()}점</p>
         </div>
