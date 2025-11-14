@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus, removeParticipantFromQuizSession } from '@/lib/firestore';
+import { subscribeToQuizSession, getQuiz, updateQuizSessionStatus } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import type { Quiz, QuizSession } from '@/lib/types';
 
@@ -38,29 +38,45 @@ export default function QuizSessionPage({ params }: PageProps) {
     return () => unsubscribe();
   }, [router]);
 
-  // 세션 및 퀴즈 데이터 로드
+  // 세션 데이터 구독
   useEffect(() => {
     if (!sessionId) return;
 
-    const unsubscribe = subscribeToQuizSession(sessionId, async (sessionData) => {
+    const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
       setSession(sessionData);
-
-      // 퀴즈 정보 가져오기
-      if (sessionData.quizId && !quiz) {
-        try {
-          const quizData = await getQuiz(sessionData.quizId);
-          setQuiz(quizData);
-          setLoading(false);
-        } catch (err) {
-          console.error('퀴즈 가져오기 실패:', err);
-          setError('퀴즈 정보를 불러올 수 없습니다.');
-          setLoading(false);
-        }
-      }
     });
 
     return () => unsubscribe();
   }, [sessionId]);
+
+  // 퀴즈 데이터 로드
+  useEffect(() => {
+    if (!session || quiz || !session.quizId) return;
+
+    let cancelled = false;
+
+    const loadQuiz = async () => {
+      try {
+        const quizData = await getQuiz(session.quizId);
+        if (!cancelled) {
+          setQuiz(quizData);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('퀴즈 가져오기 실패:', err);
+        if (!cancelled) {
+          setError('퀴즈 정보를 불러올 수 없습니다.');
+          setLoading(false);
+        }
+      }
+    };
+
+    loadQuiz();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, quiz]);
 
   const handleStartQuiz = async () => {
     try {
@@ -363,21 +379,9 @@ export default function QuizSessionPage({ params }: PageProps) {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {activeParticipants.map((participant, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-blue-600">{idx + 1}</span>
-                        <span className="font-medium text-gray-900">{participant.nickname}</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (confirm(`${participant.nickname}님을 제거하시겠습니까?`)) {
-                            removeParticipantFromQuizSession(sessionId, participant.id);
-                          }
-                        }}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium px-2 py-1 hover:bg-red-50 rounded"
-                      >
-                        제거
-                      </button>
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <span className="font-semibold text-blue-600">{idx + 1}</span>
+                      <span className="font-medium text-gray-900">{participant.nickname}</span>
                     </div>
                   ))}
                 </div>
