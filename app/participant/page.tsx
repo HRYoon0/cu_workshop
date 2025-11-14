@@ -98,14 +98,13 @@ function ParticipantContent() {
       const newParticipantId = Date.now().toString();
       setParticipantId(newParticipantId);
 
-      // 세션에 참가자 추가
+      // 세션에 참가자 추가 (joinedAt, lastActiveAt은 함수에서 자동 설정됨)
       await addParticipantToQuizSession(sessionId, {
         id: newParticipantId,
         nickname: nickname,
-        joinedAt: new Date(),
-        lastActiveAt: new Date(),
-      });
+      } as any);
 
+      console.log('참가 완료:', nickname, newParticipantId);
       setView('waiting');
     } catch (err: any) {
       console.error('참가자 추가 실패:', err);
@@ -116,22 +115,29 @@ function ParticipantContent() {
 
   // Heartbeat 시스템 (페이지가 보일 때만 전송)
   useEffect(() => {
-    if (!sessionId || !participantId) return;
+    if (!sessionId || !participantId) {
+      console.log('Heartbeat: sessionId 또는 participantId 없음', sessionId, participantId);
+      return;
+    }
 
+    console.log('Heartbeat 시스템 시작:', participantId);
     let heartbeatInterval: NodeJS.Timeout | null = null;
 
     const sendHeartbeat = () => {
+      console.log('Heartbeat 전송 중...', participantId);
       updateParticipantHeartbeat(sessionId, participantId);
     };
 
     // Page Visibility API
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        console.log('페이지가 다시 보임 - heartbeat 재시작');
         sendHeartbeat();
         if (!heartbeatInterval) {
           heartbeatInterval = setInterval(sendHeartbeat, 3000);
         }
       } else {
+        console.log('페이지가 숨겨짐 - heartbeat 중지');
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval);
           heartbeatInterval = null;
@@ -147,6 +153,7 @@ function ParticipantContent() {
 
     // Cleanup (async 작업 없음)
     return () => {
+      console.log('Heartbeat 시스템 종료');
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
       }

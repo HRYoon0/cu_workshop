@@ -110,9 +110,19 @@ export async function addParticipantToQuizSession(sessionId: string, participant
     }
 
     const currentParticipants = sessionDoc.data().participants || [];
+
+    // serverTimestamp를 사용하여 일관성 유지
+    const participantWithTimestamp = {
+      ...participant,
+      joinedAt: serverTimestamp(),
+      lastActiveAt: serverTimestamp(),
+    };
+
     await updateDoc(sessionRef, {
-      participants: [...currentParticipants, participant],
+      participants: [...currentParticipants, participantWithTimestamp],
     });
+
+    console.log('참가자 추가 성공:', participant.nickname, participant.id);
   } catch (error) {
     console.error('참여자 추가 실패:', error);
     throw error;
@@ -154,15 +164,23 @@ export async function updateParticipantHeartbeat(sessionId: string, participantI
     const sessionDoc = await getDoc(sessionRef);
 
     if (!sessionDoc.exists()) {
+      console.log('Heartbeat: 세션을 찾을 수 없음', sessionId);
       return;
     }
 
     const currentParticipants = sessionDoc.data().participants || [];
+    const participant = currentParticipants.find((p: Participant) => p.id === participantId);
+
+    if (!participant) {
+      console.log('Heartbeat: 참가자를 찾을 수 없음', participantId);
+      return;
+    }
+
     const updatedParticipants = currentParticipants.map((p: Participant) => {
       if (p.id === participantId) {
         return {
           ...p,
-          lastActiveAt: new Date(),
+          lastActiveAt: serverTimestamp(),
         };
       }
       return p;
@@ -171,6 +189,7 @@ export async function updateParticipantHeartbeat(sessionId: string, participantI
     await updateDoc(sessionRef, {
       participants: updatedParticipants,
     });
+    console.log('Heartbeat 전송 성공:', participant.nickname);
   } catch (error) {
     console.error('Heartbeat 업데이트 실패:', error);
   }
