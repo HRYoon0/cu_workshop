@@ -66,15 +66,17 @@ function ParticipantContent() {
 
     const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
       setSession(sessionData);
-
-      // 세션이 active 상태가 되면 퀴즈 시작
-      if (sessionData.status === 'active' && view === 'waiting') {
-        setView(quizData ? 'quiz' : 'survey');
-      }
     });
 
     return () => unsubscribe();
-  }, [sessionId, view, quizData]);
+  }, [sessionId]);
+
+  // 세션 상태가 active로 변경되면 퀴즈/설문 시작
+  useEffect(() => {
+    if (session?.status === 'active' && view === 'waiting') {
+      setView(quizData ? 'quiz' : 'survey');
+    }
+  }, [session?.status, view, quizData]);
 
   const handleNicknameSubmit = async () => {
     if (!nickname.trim()) {

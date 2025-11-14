@@ -145,7 +145,7 @@ export default function QuizSessionPage({ params }: PageProps) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [questionTimer, session]);
+  }, [questionTimer, session?.status]);
 
   if (loading) {
     return (
