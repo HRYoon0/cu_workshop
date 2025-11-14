@@ -105,15 +105,17 @@ export async function addParticipantToQuizSession(sessionId: string, participant
     const sessionRef = doc(db, 'quizSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
 
-    if (sessionDoc.exists()) {
-      const currentParticipants = sessionDoc.data().participants || [];
-      await updateDoc(sessionRef, {
-        participants: [...currentParticipants, {
-          ...participant,
-          joinedAt: serverTimestamp(),
-        }],
-      });
+    if (!sessionDoc.exists()) {
+      throw new Error('세션을 찾을 수 없습니다.');
     }
+
+    const currentParticipants = sessionDoc.data().participants || [];
+    await updateDoc(sessionRef, {
+      participants: [...currentParticipants, {
+        ...participant,
+        joinedAt: serverTimestamp(),
+      }],
+    });
   } catch (error) {
     console.error('참여자 추가 실패:', error);
     throw error;

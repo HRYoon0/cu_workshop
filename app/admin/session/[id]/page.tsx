@@ -102,8 +102,13 @@ export default function QuizSessionPage({ params }: PageProps) {
     }
   }, [currentQuestionIndex, quiz]);
 
-  // 타이머 카운트다운
+  // 타이머 카운트다운 (세션이 active 상태일 때만)
   useEffect(() => {
+    // 세션이 active 상태가 아니면 타이머 동작 안 함
+    if (!session || session.status !== 'active') {
+      return;
+    }
+
     if (questionTimer <= 0) {
       setShowAnswer(true);
       return;
@@ -120,7 +125,7 @@ export default function QuizSessionPage({ params }: PageProps) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [questionTimer]);
+  }, [questionTimer, session]);
 
   if (loading) {
     return (
@@ -291,11 +296,13 @@ export default function QuizSessionPage({ params }: PageProps) {
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-800">{currentQuestion.question}</h3>
                 <div className={`px-4 py-2 rounded-lg font-bold text-lg ${
+                  session?.status !== 'active' ? 'bg-yellow-100 text-yellow-700' :
                   questionTimer > 5 ? 'bg-green-100 text-green-700' :
                   questionTimer > 0 ? 'bg-red-100 text-red-700 animate-pulse' :
                   'bg-gray-100 text-gray-700'
                 }`}>
-                  {questionTimer > 0 ? `${questionTimer}초` : '종료'}
+                  {session?.status !== 'active' ? '대기 중' :
+                   questionTimer > 0 ? `${questionTimer}초` : '종료'}
                 </div>
               </div>
 
@@ -331,7 +338,10 @@ export default function QuizSessionPage({ params }: PageProps) {
 
               {!showAnswer && (
                 <div className="mt-4 text-sm text-gray-500 italic">
-                  ⏱ 제한 시간이 끝나면 정답이 표시됩니다
+                  {session?.status !== 'active'
+                    ? '⏸ "퀴즈 시작" 버튼을 눌러주세요'
+                    : '⏱ 제한 시간이 끝나면 정답이 표시됩니다'
+                  }
                 </div>
               )}
             </div>

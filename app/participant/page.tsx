@@ -76,8 +76,13 @@ function ParticipantContent() {
   }, [sessionId, view, quizData]);
 
   const handleNicknameSubmit = async () => {
+    if (!nickname.trim()) {
+      alert('닉네임을 입력해주세요.');
+      return;
+    }
+
     if (!sessionId) {
-      setError('세션 ID가 없습니다.');
+      setError('세션 ID가 없습니다. QR 코드를 다시 스캔해주세요.');
       setView('error');
       return;
     }
@@ -91,9 +96,9 @@ function ParticipantContent() {
       });
 
       setView('waiting');
-    } catch (err) {
+    } catch (err: any) {
       console.error('참가자 추가 실패:', err);
-      setError('참가 신청에 실패했습니다.');
+      setError(err?.message || '참가 신청에 실패했습니다. 다시 시도해주세요.');
       setView('error');
     }
   };
