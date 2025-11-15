@@ -333,7 +333,7 @@ function ApprovalManager({ userId }: { userId: string }) {
             <p className="text-gray-500 text-lg">승인 대기 중인 사용자가 없습니다</p>
           </div>
         ) : (
-          pendingUsers.map((pendingUser) => (
+          pendingUsers.map((pendingUser: any) => (
             <div key={pendingUser.id} className="bg-white rounded-xl shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -415,7 +415,7 @@ function QuizManager({ userId }: { userId: string }) {
   };
 
   const handleQuizUpdated = (updatedQuiz: any) => {
-    setQuizzes(quizzes.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+    setQuizzes(quizzes.map((q: any) => q.id === updatedQuiz.id ? updatedQuiz : q));
     setEditingQuiz(null);
     setShowCreateForm(false);
   };
@@ -491,7 +491,7 @@ function QuizManager({ userId }: { userId: string }) {
               <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 퀴즈를 만들어보세요!</p>
             </div>
           ) : (
-          quizzes.map((quiz) => (
+          quizzes.map((quiz: any) => (
             <QuizCard key={quiz.id} quiz={quiz} onEdit={handleQuizEdit} onDelete={handleQuizDelete} />
           ))
         )}
@@ -533,7 +533,7 @@ function SurveyManager({ userId }: { userId: string }) {
   };
 
   const handleSurveyUpdated = (updatedSurvey: any) => {
-    setSurveys(surveys.map(s => s.id === updatedSurvey.id ? updatedSurvey : s));
+    setSurveys(surveys.map((s: any) => s.id === updatedSurvey.id ? updatedSurvey : s));
     setEditingSurvey(null);
     setShowCreateForm(false);
   };
@@ -609,7 +609,7 @@ function SurveyManager({ userId }: { userId: string }) {
               <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
             </div>
           ) : (
-            surveys.map((survey) => (
+            surveys.map((survey: any) => (
               <SurveyCard key={survey.id} survey={survey} onEdit={handleSurveyEdit} onDelete={handleSurveyDelete} />
             ))
           )}
@@ -680,7 +680,7 @@ function QuizCreateForm({
   };
 
   const updateQuestion = (index: number, field: string, value: any) => {
-    setQuestions(questions.map((q, idx) => {
+    setQuestions(questions.map((q: any, idx: number) => {
       if (idx === index) {
         return {
           ...q,
@@ -692,11 +692,11 @@ function QuizCreateForm({
   };
 
   const updateOption = (qIndex: number, optionIndex: number, value: string) => {
-    setQuestions(questions.map((q, idx) => {
+    setQuestions(questions.map((q: any, idx: number) => {
       if (idx === qIndex) {
         return {
           ...q,
-          options: q.options.map((opt, optIdx) =>
+          options: q.options.map((opt: any, optIdx: number) =>
             optIdx === optionIndex ? value : opt
           )
         };
@@ -712,7 +712,7 @@ function QuizCreateForm({
       setIsSubmitting(true);
 
       // Firebase에 퀴즈 저장/업데이트 (임시 ID 제거)
-      const cleanQuestions = questions.map(({ id, ...rest }) => rest);
+      const cleanQuestions = questions.map(({ id, ...rest }: any) => rest);
 
       if (isEditMode && editingQuiz) {
         // 수정 모드
@@ -807,7 +807,7 @@ function QuizCreateForm({
             <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
           </div>
 
-          {questions.map((q, qIndex) => (
+          {questions.map((q: any, qIndex: number) => (
             <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
                 <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
@@ -841,7 +841,7 @@ function QuizCreateForm({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     선택지 (4개)
                   </label>
-                  {q.options.map((option, optIndex) => (
+                  {q.options.map((option: any, optIndex: number) => (
                     <div key={optIndex} className="flex items-center space-x-2 mb-2">
                       <input
                         type="radio"
