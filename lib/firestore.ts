@@ -37,6 +37,43 @@ export async function createQuiz(quizData: Omit<Quiz, 'id' | 'createdAt'>, userI
 }
 
 /**
+ * 퀴즈 업데이트
+ */
+export async function updateQuiz(quizId: string, quizData: Omit<Quiz, 'id' | 'createdAt' | 'userId'>) {
+  try {
+    const quizRef = doc(db, 'quizzes', quizId);
+    await updateDoc(quizRef, {
+      ...quizData,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('퀴즈 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 퀴즈 가져오기 (단일)
+ */
+export async function getQuiz(quizId: string) {
+  try {
+    const quizRef = doc(db, 'quizzes', quizId);
+    const quizDoc = await getDoc(quizRef);
+    if (!quizDoc.exists()) {
+      throw new Error('퀴즈를 찾을 수 없습니다.');
+    }
+    return {
+      id: quizDoc.id,
+      ...quizDoc.data(),
+      createdAt: (quizDoc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    } as Quiz;
+  } catch (error) {
+    console.error('퀴즈 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 특정 사용자의 퀴즈 가져오기
  */
 export async function getQuizzes(userId: string) {
@@ -332,6 +369,43 @@ export async function createSurvey(surveyData: Omit<Survey, 'id' | 'createdAt'>,
     return docRef.id;
   } catch (error) {
     console.error('설문 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 업데이트
+ */
+export async function updateSurvey(surveyId: string, surveyData: Omit<Survey, 'id' | 'createdAt' | 'userId'>) {
+  try {
+    const surveyRef = doc(db, 'surveys', surveyId);
+    await updateDoc(surveyRef, {
+      ...surveyData,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('설문 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 가져오기 (단일)
+ */
+export async function getSurvey(surveyId: string) {
+  try {
+    const surveyRef = doc(db, 'surveys', surveyId);
+    const surveyDoc = await getDoc(surveyRef);
+    if (!surveyDoc.exists()) {
+      throw new Error('설문을 찾을 수 없습니다.');
+    }
+    return {
+      id: surveyDoc.id,
+      ...surveyDoc.data(),
+      createdAt: (surveyDoc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    } as Survey;
+  } catch (error) {
+    console.error('설문 가져오기 실패:', error);
     throw error;
   }
 }

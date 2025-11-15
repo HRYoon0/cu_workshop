@@ -11,6 +11,8 @@ import {
   getSurveys,
   deleteQuiz,
   deleteSurvey,
+  updateQuiz,
+  updateSurvey,
   createQuizSession,
   createSurveySession,
   isApprovedUser,
@@ -385,6 +387,7 @@ function ApprovalManager({ userId }: { userId: string }) {
 function QuizManager({ userId }: { userId: string }) {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingQuiz, setEditingQuiz] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Firebase에서 퀴즈 목록 불러오기
@@ -411,6 +414,17 @@ function QuizManager({ userId }: { userId: string }) {
     // QR 코드를 표시하기 위해 폼을 닫지 않음
   };
 
+  const handleQuizUpdated = (updatedQuiz: any) => {
+    setQuizzes(quizzes.map(q => q.id === updatedQuiz.id ? updatedQuiz : q));
+    setEditingQuiz(null);
+    setShowCreateForm(false);
+  };
+
+  const handleQuizEdit = (quiz: any) => {
+    setEditingQuiz(quiz);
+    setShowCreateForm(true);
+  };
+
   const handleQuizDelete = async (quizId: string) => {
     if (!confirm('이 퀴즈를 삭제하시겠습니까?')) {
       return;
@@ -419,8 +433,9 @@ function QuizManager({ userId }: { userId: string }) {
     try {
       await deleteQuiz(quizId);
       setQuizzes(quizzes.filter(q => q.id !== quizId));
-      // 생성 폼이 열려있으면 닫기
+      // 생성/수정 폼이 열려있으면 닫기
       setShowCreateForm(false);
+      setEditingQuiz(null);
     } catch (error) {
       console.error('퀴즈 삭제 실패:', error);
       alert('퀴즈 삭제에 실패했습니다.');
@@ -433,19 +448,27 @@ function QuizManager({ userId }: { userId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">퀴즈 목록</h2>
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
+          onClick={() => {
+            setShowCreateForm(!showCreateForm);
+            if (showCreateForm) setEditingQuiz(null);
+          }}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg"
         >
           {showCreateForm ? '취소' : '+ 새 퀴즈 만들기'}
         </button>
       </div>
 
-      {/* 퀴즈 생성 폼 */}
+      {/* 퀴즈 생성/수정 폼 */}
       {showCreateForm && (
         <QuizCreateForm
-          onClose={() => setShowCreateForm(false)}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingQuiz(null);
+          }}
           onCreated={handleQuizCreated}
+          onUpdated={handleQuizUpdated}
           userId={userId}
+          editingQuiz={editingQuiz}
         />
       )}
 
@@ -469,7 +492,7 @@ function QuizManager({ userId }: { userId: string }) {
             </div>
           ) : (
           quizzes.map((quiz) => (
-            <QuizCard key={quiz.id} quiz={quiz} onDelete={handleQuizDelete} />
+            <QuizCard key={quiz.id} quiz={quiz} onEdit={handleQuizEdit} onDelete={handleQuizDelete} />
           ))
         )}
         </div>
@@ -482,6 +505,7 @@ function QuizManager({ userId }: { userId: string }) {
 function SurveyManager({ userId }: { userId: string }) {
   const [surveys, setSurveys] = useState<any[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingSurvey, setEditingSurvey] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Firebase에서 설문 목록 불러오기
@@ -508,6 +532,17 @@ function SurveyManager({ userId }: { userId: string }) {
     // QR 코드를 표시하기 위해 폼을 닫지 않음
   };
 
+  const handleSurveyUpdated = (updatedSurvey: any) => {
+    setSurveys(surveys.map(s => s.id === updatedSurvey.id ? updatedSurvey : s));
+    setEditingSurvey(null);
+    setShowCreateForm(false);
+  };
+
+  const handleSurveyEdit = (survey: any) => {
+    setEditingSurvey(survey);
+    setShowCreateForm(true);
+  };
+
   const handleSurveyDelete = async (surveyId: string) => {
     if (!confirm('이 설문을 삭제하시겠습니까?')) {
       return;
@@ -516,8 +551,9 @@ function SurveyManager({ userId }: { userId: string }) {
     try {
       await deleteSurvey(surveyId);
       setSurveys(surveys.filter(s => s.id !== surveyId));
-      // 생성 폼이 열려있으면 닫기
+      // 생성/수정 폼이 열려있으면 닫기
       setShowCreateForm(false);
+      setEditingSurvey(null);
     } catch (error) {
       console.error('설문 삭제 실패:', error);
       alert('설문 삭제에 실패했습니다.');
@@ -530,19 +566,27 @@ function SurveyManager({ userId }: { userId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">설문 목록</h2>
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
+          onClick={() => {
+            setShowCreateForm(!showCreateForm);
+            if (showCreateForm) setEditingSurvey(null);
+          }}
           className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
         >
           {showCreateForm ? '취소' : '+ 새 설문 만들기'}
         </button>
       </div>
 
-      {/* 설문 생성 폼 */}
+      {/* 설문 생성/수정 폼 */}
       {showCreateForm && (
         <SurveyCreateForm
-          onClose={() => setShowCreateForm(false)}
+          onClose={() => {
+            setShowCreateForm(false);
+            setEditingSurvey(null);
+          }}
           onCreated={handleSurveyCreated}
+          onUpdated={handleSurveyUpdated}
           userId={userId}
+          editingSurvey={editingSurvey}
         />
       )}
 
@@ -566,7 +610,7 @@ function SurveyManager({ userId }: { userId: string }) {
             </div>
           ) : (
             surveys.map((survey) => (
-              <SurveyCard key={survey.id} survey={survey} onDelete={handleSurveyDelete} />
+              <SurveyCard key={survey.id} survey={survey} onEdit={handleSurveyEdit} onDelete={handleSurveyDelete} />
             ))
           )}
         </div>
@@ -575,20 +619,42 @@ function SurveyManager({ userId }: { userId: string }) {
   );
 }
 
-// 퀴즈 생성 폼
-function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; onCreated: (quiz: any) => void; userId: string }) {
-  const [title, setTitle] = useState('');
-  const [questionIdCounter, setQuestionIdCounter] = useState(1);
-  const [questions, setQuestions] = useState([
-    {
-      id: 0,
-      question: '',
-      options: ['', '', '', ''],
-      correctAnswer: 0,
-      timeLimit: 10,
-      imageUrl: '',
-    }
-  ]);
+// 퀴즈 생성/수정 폼
+function QuizCreateForm({
+  onClose,
+  onCreated,
+  onUpdated,
+  userId,
+  editingQuiz
+}: {
+  onClose: () => void;
+  onCreated: (quiz: any) => void;
+  onUpdated?: (quiz: any) => void;
+  userId: string;
+  editingQuiz?: any;
+}) {
+  const isEditMode = !!editingQuiz;
+  const [title, setTitle] = useState(editingQuiz?.title || '');
+  const [questionIdCounter, setQuestionIdCounter] = useState(editingQuiz?.questions?.length || 1);
+  const [questions, setQuestions] = useState(
+    editingQuiz?.questions?.map((q: any, idx: number) => ({
+      id: idx,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      timeLimit: q.timeLimit,
+      imageUrl: q.imageUrl || '',
+    })) || [
+      {
+        id: 0,
+        question: '',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        timeLimit: 10,
+        imageUrl: '',
+      }
+    ]
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
@@ -645,32 +711,60 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
     try {
       setIsSubmitting(true);
 
-      // Firebase에 퀴즈 저장 (임시 ID 제거)
+      // Firebase에 퀴즈 저장/업데이트 (임시 ID 제거)
       const cleanQuestions = questions.map(({ id, ...rest }) => rest);
-      const quizId = await createQuiz({
-        title,
-        questions: cleanQuestions,
-      }, userId);
 
-      const quiz = {
-        id: quizId,
-        title,
-        questions: cleanQuestions,
-        createdAt: new Date()
-      };
+      if (isEditMode && editingQuiz) {
+        // 수정 모드
+        await updateQuiz(editingQuiz.id, {
+          title,
+          questions: cleanQuestions,
+        });
 
-      onCreated(quiz);
+        const updatedQuiz = {
+          ...editingQuiz,
+          title,
+          questions: cleanQuestions,
+        };
 
-      // 성공 메시지 표시
-      setShowSuccessMessage(true);
+        if (onUpdated) {
+          onUpdated(updatedQuiz);
+        }
 
-      // 2초 후 폼 닫기
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
+
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      } else {
+        // 생성 모드
+        const quizId = await createQuiz({
+          title,
+          questions: cleanQuestions,
+        }, userId);
+
+        const quiz = {
+          id: quizId,
+          title,
+          questions: cleanQuestions,
+          createdAt: new Date()
+        };
+
+        onCreated(quiz);
+
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
+
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      }
     } catch (error) {
-      console.error('퀴즈 생성 실패:', error);
-      alert('퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
+      console.error(isEditMode ? '퀴즈 수정 실패:' : '퀴즈 생성 실패:', error);
+      alert(isEditMode ? '퀴즈 수정에 실패했습니다. 다시 시도해주세요.' : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
       setIsSubmitting(false);
     }
   };
@@ -686,13 +780,13 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">퀴즈 생성 완료!</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '퀴즈 수정 완료!' : '퀴즈 생성 완료!'}</h3>
             <p className="text-gray-600 mt-2">{title}</p>
           </div>
         </div>
       )}
 
-      <h3 className="text-xl font-bold text-gray-800 mb-4">새 퀴즈 만들기</h3>
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '퀴즈 수정하기' : '새 퀴즈 만들기'}</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -814,7 +908,7 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
             disabled={isSubmitting}
             className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? '생성 중...' : '퀴즈 생성'}
+            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '퀴즈 수정' : '퀴즈 생성')}
           </button>
           <button
             type="button"
@@ -830,13 +924,26 @@ function QuizCreateForm({ onClose, onCreated, userId }: { onClose: () => void; o
   );
 }
 
-// 설문 생성 폼
-function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void; onCreated: (survey: any) => void; userId: string }) {
-  const [title, setTitle] = useState('');
-  const [question, setQuestion] = useState('');
-  const [type, setType] = useState<'scale' | 'text'>('scale');
-  const [timeLimit, setTimeLimit] = useState(60);
-  const [imageUrl, setImageUrl] = useState('');
+// 설문 생성/수정 폼
+function SurveyCreateForm({
+  onClose,
+  onCreated,
+  onUpdated,
+  userId,
+  editingSurvey
+}: {
+  onClose: () => void;
+  onCreated: (survey: any) => void;
+  onUpdated?: (survey: any) => void;
+  userId: string;
+  editingSurvey?: any;
+}) {
+  const isEditMode = !!editingSurvey;
+  const [title, setTitle] = useState(editingSurvey?.title || '');
+  const [question, setQuestion] = useState(editingSurvey?.question || '');
+  const [type, setType] = useState<'scale' | 'text'>(editingSurvey?.type || 'scale');
+  const [timeLimit, setTimeLimit] = useState(editingSurvey?.timeLimit || 60);
+  const [imageUrl, setImageUrl] = useState(editingSurvey?.imageUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
@@ -846,37 +953,69 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
     try {
       setIsSubmitting(true);
 
-      // Firebase에 설문 저장
-      const surveyId = await createSurvey({
-        title,
-        question,
-        type,
-        timeLimit,
-        imageUrl,
-      }, userId);
+      if (isEditMode && editingSurvey) {
+        // 수정 모드
+        await updateSurvey(editingSurvey.id, {
+          title,
+          question,
+          type,
+          timeLimit,
+          imageUrl,
+        });
 
-      const survey = {
-        id: surveyId,
-        title,
-        question,
-        type,
-        timeLimit,
-        imageUrl,
-        createdAt: new Date()
-      };
+        const updatedSurvey = {
+          ...editingSurvey,
+          title,
+          question,
+          type,
+          timeLimit,
+          imageUrl,
+        };
 
-      onCreated(survey);
+        if (onUpdated) {
+          onUpdated(updatedSurvey);
+        }
 
-      // 성공 메시지 표시
-      setShowSuccessMessage(true);
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
 
-      // 2초 후 폼 닫기
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      } else {
+        // 생성 모드
+        const surveyId = await createSurvey({
+          title,
+          question,
+          type,
+          timeLimit,
+          imageUrl,
+        }, userId);
+
+        const survey = {
+          id: surveyId,
+          title,
+          question,
+          type,
+          timeLimit,
+          imageUrl,
+          createdAt: new Date()
+        };
+
+        onCreated(survey);
+
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
+
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      }
     } catch (error) {
-      console.error('설문 생성 실패:', error);
-      alert('설문 생성에 실패했습니다. 다시 시도해주세요.');
+      console.error(isEditMode ? '설문 수정 실패:' : '설문 생성 실패:', error);
+      alert(isEditMode ? '설문 수정에 실패했습니다. 다시 시도해주세요.' : '설문 생성에 실패했습니다. 다시 시도해주세요.');
       setIsSubmitting(false);
     }
   };
@@ -892,13 +1031,13 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">설문 생성 완료!</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '설문 수정 완료!' : '설문 생성 완료!'}</h3>
             <p className="text-gray-600 mt-2">{title}</p>
           </div>
         </div>
       )}
 
-      <h3 className="text-xl font-bold text-gray-800 mb-4">새 설문 만들기</h3>
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '설문 수정하기' : '새 설문 만들기'}</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -983,7 +1122,7 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
             disabled={isSubmitting}
             className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? '생성 중...' : '설문 생성'}
+            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '설문 수정' : '설문 생성')}
           </button>
           <button
             type="button"
@@ -1000,7 +1139,7 @@ function SurveyCreateForm({ onClose, onCreated, userId }: { onClose: () => void;
 }
 
 // 퀴즈 카드 컴포넌트
-function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => void }) {
+function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) => void; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
 
@@ -1036,6 +1175,12 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
             {isStarting ? '생성 중...' : '시작하기'}
           </button>
           <button
+            onClick={() => onEdit(quiz)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
+          >
+            수정
+          </button>
+          <button
             onClick={() => onDelete(quiz.id)}
             className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
           >
@@ -1048,7 +1193,7 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
 }
 
 // 설문 카드 컴포넌트
-function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) => void }) {
+function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey: any) => void; onDelete: (id: string) => void }) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
 
@@ -1083,6 +1228,12 @@ function SurveyCard({ survey, onDelete }: { survey: any; onDelete: (id: string) 
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
           >
             {isStarting ? '생성 중...' : '시작하기'}
+          </button>
+          <button
+            onClick={() => onEdit(survey)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+          >
+            수정
           </button>
           <button
             onClick={() => onDelete(survey.id)}
