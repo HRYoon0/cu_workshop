@@ -151,7 +151,7 @@ export default function AdminPage() {
                   className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-semibold"
                   title="학교 이름 변경"
                 >
-                  변경
+                  학교 이름 변경
                 </button>
               </div>
               <p className="text-sm text-gray-500 mt-1">

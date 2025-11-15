@@ -1,6 +1,15 @@
 // Google Drive 이미지 업로드 헬퍼 함수
 
 /**
+ * 저장된 학교 이름 가져오기
+ * @returns 학교 이름 (없으면 기본값)
+ */
+function getSchoolName(): string {
+  if (typeof window === 'undefined') return '교육과정 워크숍';
+  return localStorage.getItem('schoolName') || '교육과정 워크숍';
+}
+
+/**
  * 폴더 찾기 또는 생성
  * @param folderName 폴더 이름
  * @param parentId 부모 폴더 ID (없으면 root)
@@ -61,10 +70,11 @@ export async function uploadImageToDrive(
   accessToken: string
 ): Promise<string> {
   try {
-    // 1. "교육과정 워크숍" 폴더 찾기/생성
-    const workshopFolderId = await findOrCreateFolder('교육과정 워크숍', accessToken);
+    // 1. 학교 이름 폴더 찾기/생성
+    const schoolName = getSchoolName();
+    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
-    // 2. "이미지" 폴더 찾기/생성 (교육과정 워크숍 안에)
+    // 2. "이미지" 폴더 찾기/생성 (학교 폴더 안에)
     const imageFolderId = await findOrCreateFolder('이미지', accessToken, workshopFolderId);
 
     // 3. 메타데이터 준비
@@ -181,8 +191,9 @@ export async function copyTemplateSheet(
   accessToken: string
 ): Promise<{ id: string; url: string; webAppUrl: string | null }> {
   try {
-    // 1. "교육과정 워크숍" 폴더 찾기/생성
-    const workshopFolderId = await findOrCreateFolder('교육과정 워크숍', accessToken);
+    // 1. 학교 이름 폴더 찾기/생성
+    const schoolName = getSchoolName();
+    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. 템플릿 시트 복사
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -198,7 +209,7 @@ export async function copyTemplateSheet(
         },
         body: JSON.stringify({
           name: sheetTitle,
-          parents: [workshopFolderId], // 교육과정 워크숍 폴더에 저장
+          parents: [workshopFolderId], // 학교 폴더에 저장
         }),
       }
     );
@@ -253,8 +264,9 @@ export async function createGoogleSheet(
   accessToken: string
 ): Promise<{ id: string; url: string }> {
   try {
-    // 1. "교육과정 워크숍" 폴더 찾기/생성
-    const workshopFolderId = await findOrCreateFolder('교육과정 워크숍', accessToken);
+    // 1. 학교 이름 폴더 찾기/생성
+    const schoolName = getSchoolName();
+    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. Google Sheets 생성
     const createResponse = await fetch(
@@ -268,7 +280,7 @@ export async function createGoogleSheet(
         body: JSON.stringify({
           name: title,
           mimeType: 'application/vnd.google-apps.spreadsheet',
-          parents: [workshopFolderId], // 교육과정 워크숍 폴더에 저장
+          parents: [workshopFolderId], // 학교 폴더에 저장
         }),
       }
     );
