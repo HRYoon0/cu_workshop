@@ -563,7 +563,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               </div>
 
               {/* 안내 메시지 */}
-              <p className="text-center text-gray-500 text-sm mt-4">
+              <p className="text-center text-gray-500 text-sm mt-4 pb-8">
                 답을 선택하면 자동으로 제출됩니다
               </p>
             </>
