@@ -484,7 +484,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center pt-0 px-3 pb-20">
+    <div className="min-h-screen flex items-center justify-center px-3">
       <div className="max-w-2xl w-full">
         {/* 상단 정보 바 */}
         <div className="bg-white rounded-t-3xl shadow-lg p-3 flex justify-between items-center">
