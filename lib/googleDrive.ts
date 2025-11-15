@@ -91,18 +91,52 @@ async function renameFolder(
 }
 
 /**
+ * root에 있는 모든 폴더 목록 조회
+ * @param accessToken Google OAuth 액세스 토큰
+ * @returns 폴더 목록
+ */
+export async function listRootFolders(accessToken: string): Promise<any[]> {
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false&fields=files(id,name)`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`폴더 목록 조회 실패: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return data.files || [];
+  } catch (error) {
+    console.error('폴더 목록 조회 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 학교 폴더 이름 변경 (기존 폴더가 있으면 이름 변경)
  * @param oldName 기존 폴더 이름
  * @param newName 새 폴더 이름
  * @param accessToken Google OAuth 액세스 토큰
+ * @returns 변경 여부 (true: 변경됨, false: 폴더 없음)
  */
 export async function renameSchoolFolder(
   oldName: string,
   newName: string,
   accessToken: string
-): Promise<void> {
+): Promise<{ renamed: boolean; message: string }> {
   try {
+    // 디버깅: root의 모든 폴더 확인
+    const allFolders = await listRootFolders(accessToken);
+    console.log('Drive root의 모든 폴더:', allFolders);
+
     // 1. 기존 폴더 검색 (root에서)
+    console.log('기존 폴더 검색 중:', oldName);
     const searchResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=name='${oldName}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false&fields=files(id,name)`,
       {
@@ -112,7 +146,12 @@ export async function renameSchoolFolder(
       }
     );
 
+    if (!searchResponse.ok) {
+      throw new Error(`폴더 검색 실패: ${await searchResponse.text()}`);
+    }
+
     const searchData = await searchResponse.json();
+    console.log('검색 결과:', searchData);
 
     // 2. 폴더가 있으면 이름 변경
     if (searchData.files && searchData.files.length > 0) {
@@ -124,8 +163,26 @@ export async function renameSchoolFolder(
       if (typeof window !== 'undefined') {
         localStorage.setItem('schoolFolderId', folderId);
       }
+
+      return {
+        renamed: true,
+        message: `폴더 이름이 변경되었습니다: "${oldName}" → "${newName}"`
+      };
     } else {
-      console.log('기존 폴더를 찾을 수 없습니다. 새 폴더가 생성될 예정입니다.');
+      // 폴더를 찾지 못한 경우, 기존 폴더 목록 표시
+      const folderNames = allFolders.map(f => f.name).join(', ');
+      console.log('기존 폴더를 찾을 수 없습니다.');
+
+      let message = `"${oldName}" 폴더를 찾을 수 없습니다.\n`;
+      if (allFolders.length > 0) {
+        message += `\n현재 Drive에 있는 폴더: ${folderNames}\n\n`;
+      }
+      message += `다음번 파일 업로드 시 "${newName}" 폴더가 새로 생성됩니다.`;
+
+      return {
+        renamed: false,
+        message: message
+      };
     }
   } catch (error) {
     console.error('학교 폴더 이름 변경 실패:', error);

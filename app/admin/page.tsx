@@ -100,12 +100,16 @@ export default function AdminPage() {
       try {
         const accessToken = localStorage.getItem('googleAccessToken');
         if (accessToken && oldName !== newName) {
-          await renameSchoolFolder(oldName, newName, accessToken);
-          alert('학교 이름과 Google Drive 폴더가 성공적으로 변경되었습니다!');
+          const result = await renameSchoolFolder(oldName, newName, accessToken);
+          alert(result.message);
+        } else if (!accessToken) {
+          alert('학교 이름이 변경되었습니다.\n이미지를 업로드하려면 먼저 Google Drive에 연결해주세요.');
+        } else {
+          alert('학교 이름이 변경되었습니다.');
         }
-      } catch (driveError) {
+      } catch (driveError: any) {
         console.error('Google Drive 폴더 이름 변경 실패:', driveError);
-        alert('학교 이름은 변경되었지만, Google Drive 폴더 이름 변경에 실패했습니다.\n다음번 파일 업로드 시 새 폴더가 생성됩니다.');
+        alert(`학교 이름은 변경되었지만, Google Drive 폴더 작업에 실패했습니다.\n에러: ${driveError.message}\n\n다음번 파일 업로드 시 새 폴더가 생성됩니다.`);
       }
     } catch (error) {
       console.error('학교 이름 변경 실패:', error);
