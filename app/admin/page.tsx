@@ -27,7 +27,7 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [schoolName, setSchoolName] = useState('교육과정 워크숍');
+  const [schoolName, setSchoolName] = useState('2025학년도 경남초등학교 교육과정 워크숍');
   const [showSchoolNameModal, setShowSchoolNameModal] = useState(false);
   const [tempSchoolName, setTempSchoolName] = useState('');
 

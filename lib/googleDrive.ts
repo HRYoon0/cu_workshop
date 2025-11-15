@@ -5,8 +5,8 @@
  * @returns 학교 이름 (없으면 기본값)
  */
 function getSchoolName(): string {
-  if (typeof window === 'undefined') return '교육과정 워크숍';
-  return localStorage.getItem('schoolName') || '교육과정 워크숍';
+  if (typeof window === 'undefined') return '2025학년도 경남초등학교 교육과정 워크숍';
+  return localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
 }
 
 /**
