@@ -484,7 +484,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-3">
+    <div className="min-h-screen flex items-start justify-center py-4 px-3 pb-8">
       <div className="max-w-2xl w-full">
         {/* 상단 정보 바 */}
         <div className="bg-white rounded-t-3xl shadow-lg p-3 flex justify-between items-center">
@@ -506,7 +506,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
         </div>
 
         {/* 퀴즈 컨텐츠 */}
-        <div className="bg-white rounded-b-3xl shadow-2xl p-6">
+        <div className="bg-white rounded-b-3xl shadow-2xl p-6 pb-8">
           {!isSubmitted ? (
             <>
               {/* 질문 */}
@@ -733,7 +733,7 @@ function ResultView({
       </div>
 
       {/* 다음 문제 안내 */}
-      <p className="text-gray-600 text-base pt-2">
+      <p className="text-gray-600 text-base pt-2 pb-4">
         {questionNumber < totalQuestions ? '다음 문제를 기다려주세요...' : '모든 문제가 끝났습니다!'}
       </p>
     </div>
