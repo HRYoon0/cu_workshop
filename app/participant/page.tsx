@@ -484,7 +484,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center pt-2 px-3 pb-20">
+    <div className="min-h-screen flex items-start justify-center pt-0 px-3 pb-20">
       <div className="max-w-2xl w-full">
         {/* 상단 정보 바 */}
         <div className="bg-white rounded-t-3xl shadow-lg p-3 flex justify-between items-center">
@@ -506,41 +506,41 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
         </div>
 
         {/* 퀴즈 컨텐츠 */}
-        <div className="bg-white rounded-b-3xl shadow-2xl p-6 pb-12">
+        <div className="bg-white rounded-b-3xl shadow-2xl p-5 pb-8">
           {!isSubmitted ? (
             <>
               {/* 질문 */}
-              <div className="mb-5">
+              <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-purple-600">
                     질문 {currentQuestionIndex + 1} / {quiz.questions.length}
                   </span>
                   <span className="text-sm text-gray-500">{quiz.title}</span>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-3">
+                <h2 className="text-xl font-bold text-gray-800 mb-2">
                   {currentQuestion.question}
                 </h2>
 
                 {/* 이미지 (있을 경우) */}
                 {currentQuestion.imageUrl && (
-                  <div className="mb-4 rounded-xl overflow-hidden">
+                  <div className="mb-3 rounded-xl overflow-hidden">
                     <img
                       src={currentQuestion.imageUrl}
                       alt="퀴즈 이미지"
-                      className="w-full max-h-96 object-contain bg-gray-50"
+                      className="w-full max-h-48 object-contain bg-gray-50"
                     />
                   </div>
                 )}
               </div>
 
               {/* 선택지 */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {currentQuestion.options.map((option: string, index: number) => (
                   <button
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
                     disabled={isSubmitted}
-                    className={`w-full p-5 rounded-2xl text-left transition-all transform ${
+                    className={`w-full p-4 rounded-2xl text-left transition-all transform ${
                       !isSubmitted ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'
                     } ${
                       selectedAnswer === index
@@ -563,7 +563,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               </div>
 
               {/* 안내 메시지 */}
-              <p className="text-center text-gray-500 text-sm mt-4 pb-16">
+              <p className="text-center text-gray-500 text-sm mt-3">
                 답을 선택하면 자동으로 제출됩니다
               </p>
             </>
