@@ -119,17 +119,19 @@ export async function listRootFolders(accessToken: string): Promise<any[]> {
 }
 
 /**
- * 학교 폴더 이름 변경 (기존 폴더가 있으면 이름 변경)
+ * 학교 폴더 이름 변경 또는 생성
+ * - 기존 폴더가 있으면 이름 변경
+ * - 없으면 새로 생성
  * @param oldName 기존 폴더 이름
  * @param newName 새 폴더 이름
  * @param accessToken Google OAuth 액세스 토큰
- * @returns 변경 여부 (true: 변경됨, false: 폴더 없음)
+ * @returns 작업 결과
  */
 export async function renameSchoolFolder(
   oldName: string,
   newName: string,
   accessToken: string
-): Promise<{ renamed: boolean; message: string }> {
+): Promise<{ renamed: boolean; created: boolean; message: string }> {
   try {
     // 디버깅: root의 모든 폴더 확인
     const allFolders = await listRootFolders(accessToken);
@@ -166,26 +168,34 @@ export async function renameSchoolFolder(
 
       return {
         renamed: true,
-        message: `폴더 이름이 변경되었습니다: "${oldName}" → "${newName}"`
+        created: false,
+        message: `Google Drive 폴더 이름이 변경되었습니다:\n"${oldName}" → "${newName}"`
       };
     } else {
-      // 폴더를 찾지 못한 경우, 기존 폴더 목록 표시
-      const folderNames = allFolders.map(f => f.name).join(', ');
-      console.log('기존 폴더를 찾을 수 없습니다.');
+      // 3. 폴더가 없으면 새로 생성
+      console.log('기존 폴더를 찾을 수 없습니다. 새 폴더를 생성합니다:', newName);
+      const newFolderId = await findOrCreateFolder(newName, accessToken, 'root');
 
-      let message = `"${oldName}" 폴더를 찾을 수 없습니다.\n`;
-      if (allFolders.length > 0) {
-        message += `\n현재 Drive에 있는 폴더: ${folderNames}\n\n`;
+      // 폴더 ID를 localStorage에 저장
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('schoolFolderId', newFolderId);
       }
-      message += `다음번 파일 업로드 시 "${newName}" 폴더가 새로 생성됩니다.`;
+
+      const folderNames = allFolders.map(f => f.name).join(', ');
+      let message = `"${oldName}" 폴더를 찾을 수 없어서 새로 생성했습니다.\n`;
+      if (allFolders.length > 0) {
+        message += `기존 폴더: ${folderNames}\n\n`;
+      }
+      message += `새 폴더: "${newName}"`;
 
       return {
         renamed: false,
+        created: true,
         message: message
       };
     }
   } catch (error) {
-    console.error('학교 폴더 이름 변경 실패:', error);
+    console.error('학교 폴더 작업 실패:', error);
     throw error;
   }
 }
