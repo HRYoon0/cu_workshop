@@ -675,7 +675,7 @@ function QuizCreateForm({
 
   const removeQuestion = (index: number) => {
     if (questions.length > 1) {
-      setQuestions(questions.filter((_q, i) => i !== index));
+      setQuestions(questions.filter((_q: any, i: number) => i !== index));
     }
   };
 
