@@ -924,7 +924,6 @@ function QuizCard({ quiz, onDelete }: { quiz: any; onDelete: (id: string) => voi
       <div className="flex justify-between items-start gap-6">
         <div className="flex-1">
           <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
-          <p className="text-gray-600 mt-2">{quiz.questions?.[0]?.question || '질문 없음'}</p>
           <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
             <span>❓ {quiz.questions?.length || 0}개 질문</span>
             <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
