@@ -532,50 +532,6 @@ export function subscribeToSurveySession(sessionId: string, callback: (session: 
 }
 
 /**
- * 특정 퀴즈 정보 가져오기
- */
-export async function getQuiz(quizId: string) {
-  try {
-    const docRef = doc(db, 'quizzes', quizId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: (docSnap.data().createdAt as Timestamp)?.toDate() || new Date(),
-      } as Quiz;
-    }
-    return null;
-  } catch (error) {
-    console.error('퀴즈 가져오기 실패:', error);
-    throw error;
-  }
-}
-
-/**
- * 특정 설문 정보 가져오기
- */
-export async function getSurvey(surveyId: string) {
-  try {
-    const docRef = doc(db, 'surveys', surveyId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: (docSnap.data().createdAt as Timestamp)?.toDate() || new Date(),
-      } as Survey;
-    }
-    return null;
-  } catch (error) {
-    console.error('설문 가져오기 실패:', error);
-    throw error;
-  }
-}
-
-/**
  * 퀴즈 삭제
  */
 export async function deleteQuiz(quizId: string) {
