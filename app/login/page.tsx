@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { isApprovedUser, addPendingUser, approveUser } from '@/lib/firestore';
 import { addDoc, collection } from 'firebase/firestore';
@@ -19,16 +19,19 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
 
-      // Google 로그인
+      // Google 로그인 (Drive 권한 포함)
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
       // Google Drive 액세스 토큰 저장
-      const credential = result.user.getIdToken();
-      // @ts-ignore - Google 크리덴셜에서 액세스 토큰 추출
-      const googleCredential = result._tokenResponse?.oauthAccessToken;
-      if (googleCredential) {
-        localStorage.setItem('googleAccessToken', googleCredential);
+      const googleCredential = GoogleAuthProvider.credentialFromResult(result);
+      const accessToken = googleCredential?.accessToken;
+
+      if (accessToken) {
+        localStorage.setItem('googleAccessToken', accessToken);
+        console.log('Google Drive 액세스 토큰 저장 완료');
+      } else {
+        console.warn('Google Drive 액세스 토큰을 가져올 수 없습니다.');
       }
 
       // 관리자 UID 확인
@@ -113,9 +116,10 @@ export default function LoginPage() {
           {loading ? '로그인 중...' : 'Google로 로그인'}
         </button>
 
-        <p className="text-sm text-gray-500 text-center mt-6">
-          처음 로그인하시는 경우 관리자의 승인이 필요합니다.
-        </p>
+        <div className="text-sm text-gray-500 text-center mt-6 space-y-1">
+          <p>처음 로그인하시는 경우 관리자의 승인이 필요합니다.</p>
+          <p className="text-xs">Google Drive 권한은 이미지 업로드에 사용됩니다.</p>
+        </div>
       </div>
     </div>
   );
