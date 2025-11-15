@@ -20,6 +20,7 @@ import {
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
+import { renameSchoolFolder } from '@/lib/googleDrive';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -80,12 +81,35 @@ export default function AdminPage() {
     }
   };
 
-  const handleSchoolNameSave = () => {
-    if (tempSchoolName.trim()) {
-      setSchoolName(tempSchoolName.trim());
-      localStorage.setItem('schoolName', tempSchoolName.trim());
+  const handleSchoolNameSave = async () => {
+    if (!tempSchoolName.trim()) {
+      return;
+    }
+
+    try {
+      const newName = tempSchoolName.trim();
+      const oldName = schoolName;
+
+      // 1. localStorage와 state 업데이트
+      setSchoolName(newName);
+      localStorage.setItem('schoolName', newName);
       setShowSchoolNameModal(false);
       setTempSchoolName('');
+
+      // 2. Google Drive 폴더 이름 변경 (비동기로 처리, 실패해도 앱은 계속 작동)
+      try {
+        const accessToken = localStorage.getItem('googleAccessToken');
+        if (accessToken && oldName !== newName) {
+          await renameSchoolFolder(oldName, newName, accessToken);
+          alert('학교 이름과 Google Drive 폴더가 성공적으로 변경되었습니다!');
+        }
+      } catch (driveError) {
+        console.error('Google Drive 폴더 이름 변경 실패:', driveError);
+        alert('학교 이름은 변경되었지만, Google Drive 폴더 이름 변경에 실패했습니다.\n다음번 파일 업로드 시 새 폴더가 생성됩니다.');
+      }
+    } catch (error) {
+      console.error('학교 이름 변경 실패:', error);
+      alert('학교 이름 변경에 실패했습니다.');
     }
   };
 

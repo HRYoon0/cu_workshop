@@ -60,6 +60,80 @@ async function findOrCreateFolder(
 }
 
 /**
+ * 폴더 이름 변경
+ * @param folderId 폴더 ID
+ * @param newName 새 폴더 이름
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+async function renameFolder(
+  folderId: string,
+  newName: string,
+  accessToken: string
+): Promise<void> {
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${folderId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: newName,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`폴더 이름 변경 실패: ${error}`);
+  }
+}
+
+/**
+ * 학교 폴더 이름 변경 (기존 폴더가 있으면 이름 변경)
+ * @param oldName 기존 폴더 이름
+ * @param newName 새 폴더 이름
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function renameSchoolFolder(
+  oldName: string,
+  newName: string,
+  accessToken: string
+): Promise<void> {
+  try {
+    // 1. 기존 폴더 검색 (root에서)
+    const searchResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${oldName}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false&fields=files(id,name)`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const searchData = await searchResponse.json();
+
+    // 2. 폴더가 있으면 이름 변경
+    if (searchData.files && searchData.files.length > 0) {
+      const folderId = searchData.files[0].id;
+      await renameFolder(folderId, newName, accessToken);
+      console.log(`폴더 이름 변경 완료: "${oldName}" → "${newName}"`);
+
+      // 폴더 ID를 localStorage에 저장 (추후 빠른 접근용)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('schoolFolderId', folderId);
+      }
+    } else {
+      console.log('기존 폴더를 찾을 수 없습니다. 새 폴더가 생성될 예정입니다.');
+    }
+  } catch (error) {
+    console.error('학교 폴더 이름 변경 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * Google Drive에 이미지 업로드
  * @param file 업로드할 파일
  * @param accessToken Google OAuth 액세스 토큰
