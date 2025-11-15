@@ -484,10 +484,10 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-3">
       <div className="max-w-2xl w-full">
         {/* 상단 정보 바 */}
-        <div className="bg-white rounded-t-3xl shadow-lg p-4 flex justify-between items-center">
+        <div className="bg-white rounded-t-3xl shadow-lg p-3 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold">{nickname.charAt(0)}</span>
@@ -506,24 +506,24 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
         </div>
 
         {/* 퀴즈 컨텐츠 */}
-        <div className="bg-white rounded-b-3xl shadow-2xl p-8">
+        <div className="bg-white rounded-b-3xl shadow-2xl p-6">
           {!isSubmitted ? (
             <>
               {/* 질문 */}
-              <div className="mb-8">
+              <div className="mb-5">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-purple-600">
                     질문 {currentQuestionIndex + 1} / {quiz.questions.length}
                   </span>
                   <span className="text-sm text-gray-500">{quiz.title}</span>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                <h2 className="text-2xl font-bold text-gray-800 mb-3">
                   {currentQuestion.question}
                 </h2>
 
                 {/* 이미지 (있을 경우) */}
                 {currentQuestion.imageUrl && (
-                  <div className="mb-6 rounded-xl overflow-hidden">
+                  <div className="mb-4 rounded-xl overflow-hidden">
                     <img
                       src={currentQuestion.imageUrl}
                       alt="퀴즈 이미지"
@@ -534,13 +534,13 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               </div>
 
               {/* 선택지 */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {currentQuestion.options.map((option: string, index: number) => (
                   <button
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
                     disabled={isSubmitted}
-                    className={`w-full p-6 rounded-2xl text-left transition-all transform ${
+                    className={`w-full p-5 rounded-2xl text-left transition-all transform ${
                       !isSubmitted ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'
                     } ${
                       selectedAnswer === index
@@ -563,7 +563,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
               </div>
 
               {/* 안내 메시지 */}
-              <p className="text-center text-gray-500 text-sm mt-6">
+              <p className="text-center text-gray-500 text-sm mt-4">
                 답을 선택하면 자동으로 제출됩니다
               </p>
             </>
@@ -656,37 +656,37 @@ function ResultView({
   }, [isCorrect]);
 
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4">
       {/* 결과 아이콘 */}
-      <div className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto ${
+      <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto ${
         isCorrect ? 'bg-green-100' : 'bg-red-100'
       }`}>
         {isCorrect ? (
-          <svg className="w-16 h-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         ) : (
-          <svg className="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
           </svg>
         )}
       </div>
 
       {/* 결과 메시지 */}
-      <h3 className={`text-4xl font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+      <h3 className={`text-3xl font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
         {isCorrect ? '정답입니다!' : selectedAnswer === -1 ? '시간 초과!' : '오답입니다'}
       </h3>
 
       {/* 획득 점수 표시 */}
       {isCorrect && earnedScore > 0 && (
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6">
-          <p className="text-white font-bold text-2xl mb-2">🎉 획득 점수 🎉</p>
-          <p className="text-white font-bold text-5xl">+{earnedScore.toLocaleString()}점</p>
+        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-4">
+          <p className="text-white font-bold text-xl mb-1">🎉 획득 점수 🎉</p>
+          <p className="text-white font-bold text-4xl">+{earnedScore.toLocaleString()}점</p>
         </div>
       )}
 
       {!isCorrect && (
-        <div className="bg-blue-50 rounded-2xl p-6">
+        <div className="bg-blue-50 rounded-2xl p-4">
           <p className="text-gray-700 mb-2">정답은</p>
           <p className="text-xl font-bold text-blue-600">
             {correctAnswer + 1}번: {options[correctAnswer]}
@@ -695,9 +695,9 @@ function ResultView({
       )}
 
       {/* 구분선 */}
-      <div className="border-t-2 border-gray-200 pt-6">
+      <div className="border-t-2 border-gray-200 pt-4">
         {/* 현재 점수 및 순위 */}
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 mb-4">
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 mb-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-gray-600 text-sm mb-1">현재 총 점수</p>
@@ -718,7 +718,7 @@ function ResultView({
         </div>
 
         {/* 진행 상황 */}
-        <div className="bg-gray-50 rounded-xl p-4">
+        <div className="bg-gray-50 rounded-xl p-3">
           <p className="text-sm text-gray-600 mb-2">문제 진행 상황</p>
           <div className="flex items-center gap-2">
             <div className="flex-grow bg-gray-200 rounded-full h-3">
@@ -733,7 +733,7 @@ function ResultView({
       </div>
 
       {/* 다음 문제 안내 */}
-      <p className="text-gray-600 text-lg pt-4">
+      <p className="text-gray-600 text-base pt-2">
         {questionNumber < totalQuestions ? '다음 문제를 기다려주세요...' : '모든 문제가 끝났습니다!'}
       </p>
     </div>
