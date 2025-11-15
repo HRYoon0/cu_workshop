@@ -27,6 +27,17 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [schoolName, setSchoolName] = useState('교육과정 워크숍');
+  const [showSchoolNameModal, setShowSchoolNameModal] = useState(false);
+  const [tempSchoolName, setTempSchoolName] = useState('');
+
+  useEffect(() => {
+    // 저장된 학교 이름 불러오기
+    const savedSchoolName = localStorage.getItem('schoolName');
+    if (savedSchoolName) {
+      setSchoolName(savedSchoolName);
+    }
+  }, []);
 
   useEffect(() => {
     // 로그인 상태 확인
@@ -69,6 +80,20 @@ export default function AdminPage() {
     }
   };
 
+  const handleSchoolNameSave = () => {
+    if (tempSchoolName.trim()) {
+      setSchoolName(tempSchoolName.trim());
+      localStorage.setItem('schoolName', tempSchoolName.trim());
+      setShowSchoolNameModal(false);
+      setTempSchoolName('');
+    }
+  };
+
+  const openSchoolNameModal = () => {
+    setTempSchoolName(schoolName);
+    setShowSchoolNameModal(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
@@ -79,12 +104,56 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* 학교 이름 설정 모달 */}
+      {showSchoolNameModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">학교 이름 설정</h3>
+            <input
+              type="text"
+              value={tempSchoolName}
+              onChange={(e) => setTempSchoolName(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 mb-6"
+              placeholder="예: OO중학교"
+              maxLength={50}
+              onKeyPress={(e) => e.key === 'Enter' && handleSchoolNameSave()}
+            />
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSchoolNameSave}
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              >
+                저장
+              </button>
+              <button
+                onClick={() => {
+                  setShowSchoolNameModal(false);
+                  setTempSchoolName('');
+                }}
+                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 */}
       <div className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">관리자 대시보드</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-900">{schoolName}</h1>
+                <button
+                  onClick={openSchoolNameModal}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-semibold"
+                  title="학교 이름 변경"
+                >
+                  변경
+                </button>
+              </div>
               <p className="text-sm text-gray-500 mt-1">
                 {user?.displayName || user?.email} 님 환영합니다
               </p>
