@@ -907,68 +907,68 @@ function FinalResultView({ nickname, session, participantId }: { nickname: strin
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-3">
       <div className="max-w-2xl w-full">
         {/* 헤더 */}
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">🏆 퀴즈 종료 🏆</h1>
-          <p className="text-gray-600">최종 결과를 확인하세요</p>
+        <div className="text-center mb-3">
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">🏆 퀴즈 종료 🏆</h1>
+          <p className="text-sm text-gray-600">최종 결과를 확인하세요</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-5 text-center">
           {/* 순위 아이콘 */}
-          <div className="mb-6">
-            <div className="text-8xl mb-4">{getMedalIcon(rank)}</div>
-            <h2 className="text-5xl font-bold text-gray-800 mb-2">
+          <div className="mb-4">
+            <div className="text-5xl mb-2">{getMedalIcon(rank)}</div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-1">
               {rank > 0 ? `${rank}등` : '-'}
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base text-gray-600">
               {nickname}님의 최종 순위
             </p>
           </div>
 
           {/* 점수 표시 */}
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 mb-6">
-            <p className="text-white text-2xl mb-2">최종 점수</p>
-            <p className="text-white font-bold text-6xl mb-2">{totalScore.toLocaleString()}</p>
-            <p className="text-white text-lg">점</p>
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-5 mb-4">
+            <p className="text-white text-lg mb-1">최종 점수</p>
+            <p className="text-white font-bold text-4xl mb-1">{totalScore.toLocaleString()}</p>
+            <p className="text-white text-sm">점</p>
           </div>
 
           {/* 상위 % 표시 */}
           {rank > 0 && totalParticipants > 0 && (
-            <div className="bg-blue-50 rounded-2xl p-6 mb-6">
-              <p className="text-gray-700 text-lg">
+            <div className="bg-blue-50 rounded-xl p-4 mb-4">
+              <p className="text-gray-700 text-base">
                 전체 <span className="font-bold text-blue-600">{totalParticipants}명</span> 중{' '}
                 <span className="font-bold text-blue-600">{rank}등</span>
               </p>
-              <p className="text-gray-600 text-sm mt-2">
+              <p className="text-gray-600 text-xs mt-1">
                 상위 {Math.round((rank / totalParticipants) * 100)}%
               </p>
             </div>
           )}
 
           {/* 격려 메시지 */}
-          <div className="mt-8 mb-6">
+          <div className="mt-4 mb-4">
             {rank === 1 && (
-              <p className="text-2xl font-bold text-yellow-500">🎉 최고 득점자입니다! 축하합니다! 🎉</p>
+              <p className="text-lg font-bold text-yellow-500">🎉 최고 득점자입니다! 축하합니다! 🎉</p>
             )}
             {rank === 2 && (
-              <p className="text-2xl font-bold text-gray-500">👏 2등! 정말 잘하셨습니다! 👏</p>
+              <p className="text-lg font-bold text-gray-500">👏 2등! 정말 잘하셨습니다! 👏</p>
             )}
             {rank === 3 && (
-              <p className="text-2xl font-bold text-orange-500">🎊 3등! 훌륭합니다! 🎊</p>
+              <p className="text-lg font-bold text-orange-500">🎊 3등! 훌륭합니다! 🎊</p>
             )}
             {rank > 3 && rank > 0 && (
-              <p className="text-xl font-bold text-blue-600">🌟 수고하셨습니다! 🌟</p>
+              <p className="text-base font-bold text-blue-600">🌟 수고하셨습니다! 🌟</p>
             )}
           </div>
 
           {/* 하단 메시지 */}
-          <div className="border-t pt-6">
-            <p className="text-gray-500 text-lg">
+          <div className="border-t pt-4">
+            <p className="text-gray-500 text-sm">
               퀴즈에 참여해주셔서 감사합니다!
             </p>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-gray-400 text-xs mt-1">
               관리자 화면에서 전체 순위를 확인할 수 있습니다
             </p>
           </div>
