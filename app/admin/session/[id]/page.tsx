@@ -330,7 +330,7 @@ export default function QuizSessionPage({ params }: PageProps) {
             <div className="mb-6">
               {/* 타이머 */}
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">{currentQuestion.question}</h3>
+                <h3 className="text-lg font-semibold text-gray-800 whitespace-pre-line">{currentQuestion.question}</h3>
                 <div className={`px-4 py-2 rounded-lg font-bold text-lg ${
                   session?.status !== 'active' ? 'bg-yellow-100 text-yellow-700' :
                   questionTimer > 5 ? 'bg-green-100 text-green-700' :
@@ -629,7 +629,7 @@ function ScoreRankingView({
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 정답 확인</h2>
           <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-            <p className="text-gray-700 font-semibold mb-2">{currentQuestion.question}</p>
+            <p className="text-gray-700 font-semibold mb-2 whitespace-pre-line">{currentQuestion.question}</p>
             <p className="text-2xl font-bold text-green-600">
               ✓ {currentQuestion.correctAnswer + 1}번: {currentQuestion.options[currentQuestion.correctAnswer]}
             </p>

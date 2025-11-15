@@ -517,7 +517,7 @@ function QuizView({ nickname, quiz, sessionId, session, participantId }: { nickn
                   </span>
                   <span className="text-sm text-gray-500">{quiz.title}</span>
                 </div>
-                <h2 className="text-xl font-bold text-gray-800 mb-2">
+                <h2 className="text-xl font-bold text-gray-800 mb-2 whitespace-pre-line">
                   {currentQuestion.question}
                 </h2>
 
@@ -789,7 +789,7 @@ function SurveyView({ nickname, survey }: { nickname: string; survey: any }) {
                 <div className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold mb-4">
                   설문조사
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4 whitespace-pre-line">
                   {survey.question}
                 </h2>
 
