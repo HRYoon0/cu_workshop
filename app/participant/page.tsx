@@ -65,26 +65,46 @@ function ParticipantContent() {
   useEffect(() => {
     if (!sessionId) return;
 
+    console.log('세션 구독 시작:', sessionId);
     const unsubscribe = subscribeToQuizSession(sessionId, (sessionData) => {
+      console.log('세션 데이터 업데이트:', {
+        status: sessionData?.status,
+        quizId: sessionData?.quizId,
+        participantCount: sessionData?.participants?.length
+      });
+
       // state 업데이트를 다음 tick으로 미루어 React error #310 방지
       setTimeout(() => {
         setSession(sessionData);
       }, 0);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('세션 구독 해제');
+      unsubscribe();
+    };
   }, [sessionId]);
 
   // 세션 상태가 active로 변경되면 퀴즈/설문 시작
   useEffect(() => {
+    console.log('세션 상태 확인:', {
+      status: session?.status,
+      view: view,
+      hasQuizData: !!quizData,
+      hasSurveyData: !!surveyData,
+      sessionId: sessionId
+    });
+
     if (session?.status === 'active' && view === 'waiting') {
+      console.log('퀴즈/설문 시작 조건 충족 - view 전환');
       setView(quizData ? 'quiz' : 'survey');
     }
     // 세션이 종료되면 결과 화면으로
     if (session?.status === 'finished' && (view === 'quiz' || view === 'survey' || view === 'waiting')) {
+      console.log('퀴즈/설문 종료 - 결과 화면으로 전환');
       setView('result');
     }
-  }, [session?.status, view, quizData]);
+  }, [session?.status, view, quizData, surveyData]);
 
   const handleNicknameSubmit = async () => {
     if (!nickname.trim()) {

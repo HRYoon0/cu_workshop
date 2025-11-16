@@ -718,3 +718,91 @@ export async function updateUserSheetWebAppUrl(userId: string, webAppUrl: string
     throw error;
   }
 }
+
+/**
+ * 모든 사용자 시트 정보 가져오기
+ */
+export async function getAllUserSheets(): Promise<UserSheet[]> {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'userSheets'));
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    })) as UserSheet[];
+  } catch (error) {
+    console.error('모든 사용자 시트 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+// ===== 논의 자료 (업무) 관련 함수 =====
+
+/**
+ * 새 업무 생성
+ */
+export async function createDiscussionTopic(
+  topicData: Omit<import('./types').DiscussionTopic, 'id' | 'createdAt' | 'userId'>,
+  userId: string
+) {
+  try {
+    const docRef = await addDoc(collection(db, 'discussionTopics'), {
+      ...topicData,
+      userId,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('업무 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자의 모든 업무 가져오기
+ */
+export async function getDiscussionTopics(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'discussionTopics'),
+      where('userId', '==', userId),
+      orderBy('order', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    }));
+  } catch (error) {
+    console.error('업무 목록 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 업무 수정
+ */
+export async function updateDiscussionTopic(
+  topicId: string,
+  topicData: { name?: string; order?: number }
+) {
+  try {
+    const topicRef = doc(db, 'discussionTopics', topicId);
+    await updateDoc(topicRef, topicData);
+  } catch (error) {
+    console.error('업무 수정 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 업무 삭제
+ */
+export async function deleteDiscussionTopic(topicId: string) {
+  try {
+    await deleteDoc(doc(db, 'discussionTopics', topicId));
+  } catch (error) {
+    console.error('업무 삭제 실패:', error);
+    throw error;
+  }
+}

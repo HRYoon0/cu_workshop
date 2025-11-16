@@ -43,6 +43,22 @@ export interface Survey {
   type: 'scale' | 'text';
   timeLimit: number; // 초 단위 (기본 60초)
   imageUrl?: string; // 이미지 URL (선택사항)
+  studentResultImageUrl?: string; // 학생 설문 결과 이미지 URL
+  parentResultImageUrl?: string; // 학부모 설문 결과 이미지 URL
+  studentResultData?: { // 학생 설문 결과 데이터
+    stronglyAgree: number;
+    agree: number;
+    neutral: number;
+    disagree: number;
+    stronglyDisagree: number;
+  };
+  parentResultData?: { // 학부모 설문 결과 데이터
+    stronglyAgree: number;
+    agree: number;
+    neutral: number;
+    disagree: number;
+    stronglyDisagree: number;
+  };
   createdAt: Date;
 }
 
@@ -124,4 +140,13 @@ export interface UserSheet {
   webAppUrl: string | null; // Apps Script 웹 앱 URL (배포 후)
   createdAt: Date;
   templateId: string; // 원본 템플릿 시트 ID
+}
+
+// 논의 자료 (업무) 관련 타입
+export interface DiscussionTopic {
+  id: string;
+  name: string; // 업무 이름 (예: "교육과정", "생활지도", "방과후")
+  order: number; // 정렬 순서
+  createdAt: Date;
+  userId: string; // 생성한 사용자 ID
 }

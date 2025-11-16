@@ -208,15 +208,16 @@ export async function renameSchoolFolder(
  */
 export async function uploadImageToDrive(
   file: File,
-  accessToken: string
+  accessToken: string,
+  subfolder: string = '이미지' // 기본값은 '이미지'
 ): Promise<string> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
     const schoolName = getSchoolName();
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
-    // 2. "이미지" 폴더 찾기/생성 (학교 폴더 안에)
-    const imageFolderId = await findOrCreateFolder('이미지', accessToken, workshopFolderId);
+    // 2. 지정된 서브폴더 찾기/생성 (학교 폴더 안에)
+    const imageFolderId = await findOrCreateFolder(subfolder, accessToken, workshopFolderId);
 
     // 3. 메타데이터 준비
     const metadata = {

@@ -7,9 +7,10 @@ interface ImageUploaderProps {
   onImageUploaded: (imageUrl: string) => void;
   currentImageUrl?: string;
   uploaderId?: string;
+  folderName?: string; // 구글 드라이브 내 서브폴더명 (기본값: '이미지')
 }
 
-export default function ImageUploader({ onImageUploaded, currentImageUrl, uploaderId = 'image-upload' }: ImageUploaderProps) {
+export default function ImageUploader({ onImageUploaded, currentImageUrl, uploaderId = 'image-upload', folderName = '이미지' }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -68,14 +69,14 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, upload
       // 4. Google Drive에 업로드
       let imageUrl: string;
       try {
-        imageUrl = await uploadImageToDrive(fileToUpload, token);
+        imageUrl = await uploadImageToDrive(fileToUpload, token, folderName);
       } catch (uploadError: any) {
         // 토큰 만료 시 재요청
         if (uploadError.message?.includes('401') || uploadError.message?.includes('unauthorized')) {
           token = await getGoogleAccessToken();
           setAccessToken(token);
           localStorage.setItem('googleAccessToken', token);
-          imageUrl = await uploadImageToDrive(fileToUpload, token);
+          imageUrl = await uploadImageToDrive(fileToUpload, token, folderName);
         } else {
           throw uploadError;
         }

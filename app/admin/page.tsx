@@ -18,15 +18,31 @@ import {
   isApprovedUser,
   getPendingUsers,
   approveUser,
-  rejectUser
+  rejectUser,
+  createDiscussionTopic,
+  getDiscussionTopics,
+  updateDiscussionTopic,
+  deleteDiscussionTopic,
+  getAllUserSheets,
+  getUserSheet,
+  saveUserSheet
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
 import { renameSchoolFolder } from '@/lib/googleDrive';
+import {
+  updateSchoolNameInAllTabs,
+  addSheetTab,
+  deleteSheetTab,
+  renameSheetTab,
+  setupSheetTabData,
+  getSheetTabs,
+  initializeUserSheet
+} from '@/lib/googleSheets';
 
 export default function AdminPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'quiz' | 'survey' | 'approval'>('quiz');
+  const [activeTab, setActiveTab] = useState<'quiz' | 'survey' | 'discussion' | 'approval'>('quiz');
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -98,20 +114,50 @@ export default function AdminPage() {
       setShowSchoolNameModal(false);
       setTempSchoolName('');
 
+      const accessToken = localStorage.getItem('googleAccessToken');
+
       // 2. Google Drive 폴더 이름 변경 (비동기로 처리, 실패해도 앱은 계속 작동)
-      try {
-        const accessToken = localStorage.getItem('googleAccessToken');
-        if (accessToken && oldName !== newName) {
+      if (accessToken && oldName !== newName) {
+        try {
           const result = await renameSchoolFolder(oldName, newName, accessToken);
-          alert(result.message);
-        } else if (!accessToken) {
-          alert('학교 이름이 변경되었습니다.\n이미지를 업로드하려면 먼저 Google Drive에 연결해주세요.');
-        } else {
-          alert('학교 이름이 변경되었습니다.');
+          console.log('Google Drive 폴더 이름 변경:', result.message);
+        } catch (driveError: any) {
+          console.error('Google Drive 폴더 이름 변경 실패:', driveError);
         }
-      } catch (driveError: any) {
-        console.error('Google Drive 폴더 이름 변경 실패:', driveError);
-        alert(`학교 이름은 변경되었지만, Google Drive 폴더 작업에 실패했습니다.\n에러: ${driveError.message}\n\n다음번 파일 업로드 시 새 폴더가 생성됩니다.`);
+
+        // 3. 모든 사용자의 Google Sheets 업데이트
+        try {
+          const userSheets = await getAllUserSheets();
+          if (userSheets.length > 0) {
+            let successCount = 0;
+            let failureCount = 0;
+
+            for (const userSheet of userSheets) {
+              try {
+                await updateSchoolNameInAllTabs(userSheet.sheetId, newName, accessToken);
+                successCount++;
+              } catch (sheetError) {
+                console.error(`시트 업데이트 실패 (userId: ${userSheet.userId}):`, sheetError);
+                failureCount++;
+              }
+            }
+
+            if (successCount > 0 || failureCount > 0) {
+              alert(`학교 이름이 변경되었습니다.\n\nGoogle Sheets 업데이트 결과:\n- 성공: ${successCount}개 시트\n- 실패: ${failureCount}개 시트`);
+            } else {
+              alert('학교 이름이 변경되었습니다.');
+            }
+          } else {
+            alert('학교 이름이 변경되었습니다.\n\n아직 생성된 사용자 시트가 없습니다.');
+          }
+        } catch (sheetsError: any) {
+          console.error('Google Sheets 업데이트 실패:', sheetsError);
+          alert(`학교 이름은 변경되었지만, Google Sheets 업데이트에 실패했습니다.\n에러: ${sheetsError.message}`);
+        }
+      } else if (!accessToken) {
+        alert('학교 이름이 변경되었습니다.\n\nGoogle Drive 및 Sheets를 업데이트하려면 먼저 Google에 연결해주세요.');
+      } else {
+        alert('학교 이름이 변경되었습니다.');
       }
     } catch (error) {
       console.error('학교 이름 변경 실패:', error);
@@ -229,6 +275,16 @@ export default function AdminPage() {
           >
             설문 관리
           </button>
+          <button
+            onClick={() => setActiveTab('discussion')}
+            className={`px-6 py-3 font-semibold transition-all ${
+              activeTab === 'discussion'
+                ? 'border-b-4 border-orange-500 text-orange-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            논의 자료
+          </button>
           {isAdmin && (
             <button
               onClick={() => setActiveTab('approval')}
@@ -247,6 +303,7 @@ export default function AdminPage() {
         <div className="mt-8">
           {activeTab === 'quiz' && <QuizManager userId={user?.uid} />}
           {activeTab === 'survey' && <SurveyManager userId={user?.uid} />}
+          {activeTab === 'discussion' && <DiscussionManager userId={user?.uid} />}
           {activeTab === 'approval' && isAdmin && <ApprovalManager userId={user?.uid} />}
         </div>
       </div>
@@ -944,6 +1001,27 @@ function SurveyCreateForm({
   const [type, setType] = useState<'scale' | 'text'>(editingSurvey?.type || 'scale');
   const [timeLimit, setTimeLimit] = useState(editingSurvey?.timeLimit || 60);
   const [imageUrl, setImageUrl] = useState(editingSurvey?.imageUrl || '');
+  const [studentResultImageUrl, setStudentResultImageUrl] = useState(editingSurvey?.studentResultImageUrl || '');
+  const [parentResultImageUrl, setParentResultImageUrl] = useState(editingSurvey?.parentResultImageUrl || '');
+
+  // 학생 결과 데이터
+  const [studentResultData, setStudentResultData] = useState({
+    stronglyAgree: editingSurvey?.studentResultData?.stronglyAgree || 0,
+    agree: editingSurvey?.studentResultData?.agree || 0,
+    neutral: editingSurvey?.studentResultData?.neutral || 0,
+    disagree: editingSurvey?.studentResultData?.disagree || 0,
+    stronglyDisagree: editingSurvey?.studentResultData?.stronglyDisagree || 0,
+  });
+
+  // 학부모 결과 데이터
+  const [parentResultData, setParentResultData] = useState({
+    stronglyAgree: editingSurvey?.parentResultData?.stronglyAgree || 0,
+    agree: editingSurvey?.parentResultData?.agree || 0,
+    neutral: editingSurvey?.parentResultData?.neutral || 0,
+    disagree: editingSurvey?.parentResultData?.disagree || 0,
+    stronglyDisagree: editingSurvey?.parentResultData?.stronglyDisagree || 0,
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
@@ -961,6 +1039,10 @@ function SurveyCreateForm({
           type,
           timeLimit,
           imageUrl,
+          studentResultImageUrl,
+          parentResultImageUrl,
+          studentResultData,
+          parentResultData,
         });
 
         const updatedSurvey = {
@@ -970,6 +1052,10 @@ function SurveyCreateForm({
           type,
           timeLimit,
           imageUrl,
+          studentResultImageUrl,
+          parentResultImageUrl,
+          studentResultData,
+          parentResultData,
         };
 
         if (onUpdated) {
@@ -991,6 +1077,10 @@ function SurveyCreateForm({
           type,
           timeLimit,
           imageUrl,
+          studentResultImageUrl,
+          parentResultImageUrl,
+          studentResultData,
+          parentResultData,
         }, userId);
 
         const survey = {
@@ -1000,6 +1090,10 @@ function SurveyCreateForm({
           type,
           timeLimit,
           imageUrl,
+          studentResultImageUrl,
+          parentResultImageUrl,
+          studentResultData,
+          parentResultData,
           createdAt: new Date()
         };
 
@@ -1116,6 +1210,151 @@ function SurveyCreateForm({
           currentImageUrl={imageUrl}
         />
 
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">📊 비교 결과 이미지 (선택사항)</h4>
+          <p className="text-xs text-gray-500 mb-3">학생/학부모 대상 설문 결과를 미리 업로드하면 교사 설문 결과와 함께 비교할 수 있습니다.</p>
+
+          <div className="space-y-6">
+            {/* 학생 결과 */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-blue-900 mb-2">
+                👦 학생 대상 설문 결과
+              </label>
+              <ImageUploader
+                onImageUploaded={setStudentResultImageUrl}
+                currentImageUrl={studentResultImageUrl}
+                uploaderId="student-result-upload"
+                folderName="설문 이미지"
+              />
+
+              <div className="mt-4">
+                <p className="text-xs text-gray-600 mb-2">구글폼 결과 데이터 (선택사항, Google Sheets 비교용)</p>
+                <div className="grid grid-cols-5 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-600">적극 찬성</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={studentResultData.stronglyAgree}
+                      onChange={(e) => setStudentResultData({...studentResultData, stronglyAgree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">찬성</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={studentResultData.agree}
+                      onChange={(e) => setStudentResultData({...studentResultData, agree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">보통</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={studentResultData.neutral}
+                      onChange={(e) => setStudentResultData({...studentResultData, neutral: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">반대</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={studentResultData.disagree}
+                      onChange={(e) => setStudentResultData({...studentResultData, disagree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">적극 반대</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={studentResultData.stronglyDisagree}
+                      onChange={(e) => setStudentResultData({...studentResultData, stronglyDisagree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 학부모 결과 */}
+            <div className="bg-purple-50 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-purple-900 mb-2">
+                👨‍👩‍👧 학부모 대상 설문 결과
+              </label>
+              <ImageUploader
+                onImageUploaded={setParentResultImageUrl}
+                currentImageUrl={parentResultImageUrl}
+                uploaderId="parent-result-upload"
+                folderName="설문 이미지"
+              />
+
+              <div className="mt-4">
+                <p className="text-xs text-gray-600 mb-2">구글폼 결과 데이터 (선택사항, Google Sheets 비교용)</p>
+                <div className="grid grid-cols-5 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-600">적극 찬성</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentResultData.stronglyAgree}
+                      onChange={(e) => setParentResultData({...parentResultData, stronglyAgree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">찬성</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentResultData.agree}
+                      onChange={(e) => setParentResultData({...parentResultData, agree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">보통</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentResultData.neutral}
+                      onChange={(e) => setParentResultData({...parentResultData, neutral: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">반대</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentResultData.disagree}
+                      onChange={(e) => setParentResultData({...parentResultData, disagree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">적극 반대</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={parentResultData.stronglyDisagree}
+                      onChange={(e) => setParentResultData({...parentResultData, stronglyDisagree: parseInt(e.target.value) || 0})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex space-x-3 pt-4">
           <button
             type="submit"
@@ -1201,7 +1440,7 @@ function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey
     try {
       setIsStarting(true);
       const sessionId = await createSurveySession(survey.id);
-      router.push(`/admin/session/${sessionId}`);
+      router.push(`/admin/survey-session/${sessionId}`);
     } catch (error) {
       console.error('세션 생성 실패:', error);
       alert('세션 생성에 실패했습니다.');
@@ -1243,6 +1482,496 @@ function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 논의 자료 (업무) 관리 컴포넌트
+function DiscussionManager({ userId }: { userId: string }) {
+  const [topics, setTopics] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
+  const [newTopicName, setNewTopicName] = useState('');
+  const [userSheet, setUserSheet] = useState<any>(null);
+  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      loadTopics();
+      loadUserSheet();
+    }
+  }, [userId]);
+
+  const loadTopics = async () => {
+    try {
+      setIsLoading(true);
+      const topicList = await getDiscussionTopics(userId);
+      setTopics(topicList);
+    } catch (error) {
+      console.error('업무 목록 불러오기 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadUserSheet = async () => {
+    try {
+      const sheet = await getUserSheet(userId);
+      setUserSheet(sheet);
+    } catch (error) {
+      console.error('사용자 시트 정보 불러오기 실패:', error);
+    }
+  };
+
+  const handleCreateUserSheet = async () => {
+    const accessToken = localStorage.getItem('googleAccessToken');
+    if (!accessToken) {
+      alert('Google에 먼저 연결해주세요.');
+      return;
+    }
+
+    const templateId = process.env.NEXT_PUBLIC_TEMPLATE_SHEET_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
+    const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+
+    if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.')) {
+      return;
+    }
+
+    try {
+      setIsCreatingSheet(true);
+
+      // 1. 템플릿 시트 복사 (Google Drive files.copy API 직접 호출)
+      const userEmail = auth.currentUser?.email || '';
+      const sheetName = `${schoolName.replace('2025학년도 ', '')} - ${userEmail}`;
+
+      const copyResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: sheetName,
+          }),
+        }
+      );
+
+      if (!copyResponse.ok) {
+        const error = await copyResponse.json();
+        throw new Error(`시트 복사 실패: ${JSON.stringify(error)}`);
+      }
+
+      const copyData = await copyResponse.json();
+      const newSheetId = copyData.id;
+      const newSheetUrl = copyData.webViewLink || `https://docs.google.com/spreadsheets/d/${newSheetId}/edit`;
+
+      console.log('시트 복사 완료:', newSheetId);
+
+      // 2. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
+      await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
+
+      // 3. Firestore에 저장
+      await saveUserSheet({
+        userId,
+        sheetId: newSheetId,
+        sheetUrl: newSheetUrl,
+        webAppUrl: null,
+        templateId,
+      });
+
+      await loadUserSheet();
+      alert('논의 자료 시트가 생성되었습니다!\n\n시트를 열어서 확인하세요.');
+    } catch (error: any) {
+      console.error('시트 생성 실패:', error);
+      alert(`시트 생성에 실패했습니다.\n\n에러: ${error.message}`);
+    } finally {
+      setIsCreatingSheet(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newTopicName.trim()) {
+      alert('업무 이름을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const topicName = newTopicName.trim();
+      const order = topics.length > 0 ? Math.max(...topics.map(t => t.order)) + 1 : 0;
+
+      // 1. Firestore에 업무 추가
+      await createDiscussionTopic({ name: topicName, order }, userId);
+
+      // 2. 모든 사용자의 Google Sheets에 탭 추가
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (accessToken) {
+        try {
+          const userSheets = await getAllUserSheets();
+          const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+
+          let successCount = 0;
+          let failureCount = 0;
+
+          for (const userSheet of userSheets) {
+            try {
+              // 새 탭 추가
+              await addSheetTab(userSheet.sheetId, topicName, accessToken);
+              // 초기 데이터 설정
+              await setupSheetTabData(userSheet.sheetId, topicName, schoolName, topicName, accessToken);
+              successCount++;
+            } catch (sheetError) {
+              console.error(`시트 탭 추가 실패 (userId: ${userSheet.userId}):`, sheetError);
+              failureCount++;
+            }
+          }
+
+          if (failureCount > 0) {
+            alert(`업무가 추가되었습니다.\n\nGoogle Sheets 탭 추가 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
+          }
+        } catch (sheetsError) {
+          console.error('Google Sheets 탭 추가 실패:', sheetsError);
+        }
+      }
+
+      await loadTopics();
+      setNewTopicName('');
+      setShowCreateForm(false);
+    } catch (error) {
+      console.error('업무 생성 실패:', error);
+      alert('업무 생성에 실패했습니다.');
+    }
+  };
+
+  const handleUpdate = async (topicId: string, newName: string) => {
+    if (!newName.trim()) {
+      alert('업무 이름을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const oldName = editingTopic?.name;
+      const trimmedNewName = newName.trim();
+
+      if (oldName === trimmedNewName) {
+        setEditingTopic(null);
+        return;
+      }
+
+      // 1. Firestore에서 업무 이름 변경
+      await updateDiscussionTopic(topicId, { name: trimmedNewName });
+
+      // 2. 모든 사용자의 Google Sheets에서 탭 이름 변경
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (accessToken && oldName) {
+        try {
+          const userSheets = await getAllUserSheets();
+          let successCount = 0;
+          let failureCount = 0;
+
+          for (const userSheet of userSheets) {
+            try {
+              // 기존 탭 찾기
+              const tabs = await getSheetTabs(userSheet.sheetId, accessToken);
+              const targetTab = tabs.find(tab => tab.title === oldName);
+
+              if (targetTab) {
+                // 탭 이름 변경
+                await renameSheetTab(userSheet.sheetId, targetTab.sheetId, trimmedNewName, accessToken);
+                // E1:E2 셀의 업무명도 변경
+                await setupSheetTabData(
+                  userSheet.sheetId,
+                  trimmedNewName,
+                  localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍',
+                  trimmedNewName,
+                  accessToken
+                );
+                successCount++;
+              }
+            } catch (sheetError) {
+              console.error(`시트 탭 이름 변경 실패 (userId: ${userSheet.userId}):`, sheetError);
+              failureCount++;
+            }
+          }
+
+          if (failureCount > 0) {
+            alert(`업무 이름이 변경되었습니다.\n\nGoogle Sheets 탭 이름 변경 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
+          }
+        } catch (sheetsError) {
+          console.error('Google Sheets 탭 이름 변경 실패:', sheetsError);
+        }
+      }
+
+      await loadTopics();
+      setEditingTopic(null);
+    } catch (error) {
+      console.error('업무 수정 실패:', error);
+      alert('업무 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDelete = async (topicId: string) => {
+    const topicToDelete = topics.find(t => t.id === topicId);
+    if (!topicToDelete) return;
+
+    if (!confirm(`'${topicToDelete.name}' 업무를 삭제하시겠습니까?\n관련된 Google Sheets 시트도 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      const topicName = topicToDelete.name;
+
+      // 1. 모든 사용자의 Google Sheets에서 탭 삭제
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (accessToken) {
+        try {
+          const userSheets = await getAllUserSheets();
+          let successCount = 0;
+          let failureCount = 0;
+
+          for (const userSheet of userSheets) {
+            try {
+              // 해당 이름의 탭 찾기
+              const tabs = await getSheetTabs(userSheet.sheetId, accessToken);
+              const targetTab = tabs.find(tab => tab.title === topicName);
+
+              if (targetTab) {
+                // 탭 삭제
+                await deleteSheetTab(userSheet.sheetId, targetTab.sheetId, accessToken);
+                successCount++;
+              }
+            } catch (sheetError) {
+              console.error(`시트 탭 삭제 실패 (userId: ${userSheet.userId}):`, sheetError);
+              failureCount++;
+            }
+          }
+
+          if (failureCount > 0) {
+            alert(`업무가 삭제되었습니다.\n\nGoogle Sheets 탭 삭제 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
+          }
+        } catch (sheetsError) {
+          console.error('Google Sheets 탭 삭제 실패:', sheetsError);
+        }
+      }
+
+      // 2. Firestore에서 업무 삭제
+      await deleteDiscussionTopic(topicId);
+      await loadTopics();
+    } catch (error) {
+      console.error('업무 삭제 실패:', error);
+      alert('업무 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleMoveUp = async (topic: any, index: number) => {
+    if (index === 0) return;
+
+    try {
+      const prevTopic = topics[index - 1];
+      await updateDiscussionTopic(topic.id, { order: prevTopic.order });
+      await updateDiscussionTopic(prevTopic.id, { order: topic.order });
+      await loadTopics();
+    } catch (error) {
+      console.error('순서 변경 실패:', error);
+      alert('순서 변경에 실패했습니다.');
+    }
+  };
+
+  const handleMoveDown = async (topic: any, index: number) => {
+    if (index === topics.length - 1) return;
+
+    try {
+      const nextTopic = topics[index + 1];
+      await updateDiscussionTopic(topic.id, { order: nextTopic.order });
+      await updateDiscussionTopic(nextTopic.id, { order: topic.order });
+      await loadTopics();
+    } catch (error) {
+      console.error('순서 변경 실패:', error);
+      alert('순서 변경에 실패했습니다.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">논의 자료 (업무) 관리</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            워크숍에서 논의할 업무를 관리합니다. 각 업무는 Google Sheets에서 별도의 시트로 생성됩니다.
+          </p>
+          {userSheet && (
+            <div className="mt-2">
+              <a
+                href={userSheet.sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                📊 내 논의 자료 시트 열기
+              </a>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3">
+          {!userSheet && (
+            <button
+              onClick={handleCreateUserSheet}
+              disabled={isCreatingSheet}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isCreatingSheet ? '생성 중...' : '📋 내 시트 생성'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold shadow-md"
+          >
+            {showCreateForm ? '취소' : '+ 새 업무 추가'}
+          </button>
+        </div>
+      </div>
+
+      {/* 업무 추가 폼 */}
+      {showCreateForm && (
+        <div className="bg-orange-50 rounded-xl p-6 border-2 border-orange-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">새 업무 추가</h3>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newTopicName}
+              onChange={(e) => setNewTopicName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
+              placeholder="업무 이름 (예: 교육과정, 생활지도, 방과후)"
+              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              maxLength={30}
+            />
+            <button
+              onClick={handleCreate}
+              className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+            >
+              추가
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 업무 목록 */}
+      <div className="grid gap-4">
+        {isLoading ? (
+          <div className="bg-white rounded-xl p-12 text-center">
+            <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500 text-lg">목록을 불러오는 중...</p>
+          </div>
+        ) : topics.length === 0 ? (
+          <div className="bg-white rounded-xl p-12 text-center">
+            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 text-lg">등록된 업무가 없습니다</p>
+            <p className="text-gray-400 text-sm mt-2">새 업무 추가 버튼을 눌러 업무를 등록하세요</p>
+          </div>
+        ) : (
+          topics.map((topic, index) => (
+            <div key={topic.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => handleMoveUp(topic, index)}
+                      disabled={index === 0}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="위로 이동"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleMoveDown(topic, index)}
+                      disabled={index === topics.length - 1}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="아래로 이동"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {editingTopic?.id === topic.id ? (
+                    <input
+                      type="text"
+                      defaultValue={topic.name}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdate(topic.id, (e.target as HTMLInputElement).value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value !== topic.name) {
+                          handleUpdate(topic.id, e.target.value);
+                        } else {
+                          setEditingTopic(null);
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      autoFocus
+                      maxLength={30}
+                    />
+                  ) : (
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-800">{topic.name}</h3>
+                      <p className="text-sm text-gray-500">순서: {index + 1}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  {editingTopic?.id === topic.id ? (
+                    <button
+                      onClick={() => setEditingTopic(null)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-semibold"
+                    >
+                      취소
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setEditingTopic(topic)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => handleDelete(topic.id)}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 안내 메시지 */}
+      {topics.length > 0 && (
+        <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+          <h4 className="font-bold text-blue-900 mb-2">📌 안내</h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• 업무 순서는 위/아래 화살표로 조정할 수 있습니다.</li>
+            <li>• 각 업무는 Google Sheets에서 별도 시트로 관리됩니다.</li>
+            <li>• 업무 삭제 시 해당 Google Sheets 시트도 함께 삭제됩니다.</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
