@@ -20,7 +20,8 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Google Drive 및 Sheets 스코프 추가
-googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+// drive.file 대신 drive를 사용하여 모든 파일 접근 가능
+googleProvider.addScope('https://www.googleapis.com/auth/drive');
 googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
 
 export { app, db, auth, googleProvider };
