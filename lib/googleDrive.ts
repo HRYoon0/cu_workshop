@@ -292,30 +292,14 @@ export async function getGoogleAccessToken(): Promise<string> {
     throw new Error('로그인이 필요합니다.');
   }
 
-  // Firebase Auth에서 Google 액세스 토큰 가져오기
-  const credential = await currentUser.getIdTokenResult();
+  // localStorage에서 저장된 토큰 확인
+  const storedToken = localStorage.getItem('googleAccessToken');
 
-  // Google 프로바이더의 액세스 토큰이 필요합니다
-  // 새로 로그인해야 할 수도 있습니다
-  const { GoogleAuthProvider, getAuth } = await import('firebase/auth');
-  const provider = new GoogleAuthProvider();
-
-  // Drive API 스코프만 추가 (시트 생성은 Drive API로 가능)
-  provider.addScope('https://www.googleapis.com/auth/drive.file');
-
-  // 재인증하여 Drive 권한 요청
-  const { signInWithPopup } = await import('firebase/auth');
-  const result = await signInWithPopup(auth, provider);
-
-  // @ts-ignore - Google 크리덴셜에서 액세스 토큰 가져오기
-  const googleCredential = GoogleAuthProvider.credentialFromResult(result);
-  const accessToken = googleCredential?.accessToken;
-
-  if (!accessToken) {
-    throw new Error('Google 액세스 토큰을 가져올 수 없습니다.');
+  if (!storedToken) {
+    throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
   }
 
-  return accessToken;
+  return storedToken;
 }
 
 /**

@@ -39,7 +39,6 @@ import {
   getSheetTabs,
   initializeUserSheet
 } from '@/lib/googleSheets';
-import { getGoogleAccessToken } from '@/lib/googleDrive';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -1529,62 +1528,50 @@ function DiscussionManager({ userId }: { userId: string }) {
     const templateId = process.env.NEXT_PUBLIC_SHEET_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
     const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
 
-    if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.\n\nGoogle Drive 권한이 필요합니다.')) {
+    if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.')) {
       return;
     }
 
     try {
       setIsCreatingSheet(true);
 
-      // 1. Google 액세스 토큰 가져오기 (없거나 만료된 경우 자동으로 재인증)
-      let accessToken = localStorage.getItem('googleAccessToken');
+      // 1. Google 액세스 토큰 확인
+      const accessToken = localStorage.getItem('googleAccessToken');
 
-      const copySheetWithToken = async (token: string) => {
-        const userEmail = auth.currentUser?.email || '';
-        const sheetName = `${schoolName.replace('2025학년도 ', '')} - ${userEmail}`;
-
-        const copyResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: sheetName,
-            }),
-          }
-        );
-
-        if (!copyResponse.ok) {
-          const error = await copyResponse.json();
-          throw new Error(`시트 복사 실패: ${JSON.stringify(error)}`);
-        }
-
-        return await copyResponse.json();
-      };
-
-      // 2. 템플릿 시트 복사 시도
-      let copyData;
-      try {
-        if (!accessToken) {
-          // 토큰이 없으면 새로 요청
-          accessToken = await getGoogleAccessToken();
-          localStorage.setItem('googleAccessToken', accessToken);
-        }
-        copyData = await copySheetWithToken(accessToken);
-      } catch (copyError: any) {
-        // 토큰 만료 시 재요청
-        if (copyError.message?.includes('401') || copyError.message?.includes('UNAUTHENTICATED') || copyError.message?.includes('invalid authentication')) {
-          console.log('토큰이 만료되어 재인증합니다...');
-          accessToken = await getGoogleAccessToken();
-          localStorage.setItem('googleAccessToken', accessToken);
-          copyData = await copySheetWithToken(accessToken);
-        } else {
-          throw copyError;
-        }
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
       }
+
+      // 2. 템플릿 시트 복사
+      const userEmail = auth.currentUser?.email || '';
+      const sheetName = `${schoolName.replace('2025학년도 ', '')} - ${userEmail}`;
+
+      const copyResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: sheetName,
+          }),
+        }
+      );
+
+      if (!copyResponse.ok) {
+        const error = await copyResponse.json();
+
+        // 401 에러면 토큰 만료
+        if (copyResponse.status === 401) {
+          throw new Error('Google 인증이 만료되었습니다. 다시 로그인해주세요.');
+        }
+
+        throw new Error(`시트 복사 실패: ${JSON.stringify(error)}`);
+      }
+
+      const copyData = await copyResponse.json();
 
       const newSheetId = copyData.id;
       const newSheetUrl = copyData.webViewLink || `https://docs.google.com/spreadsheets/d/${newSheetId}/edit`;
@@ -1609,7 +1596,9 @@ function DiscussionManager({ userId }: { userId: string }) {
       console.error('시트 생성 실패:', error);
       let errorMessage = '시트 생성에 실패했습니다.';
 
-      if (error.message?.includes('popup')) {
+      if (error.message?.includes('액세스 토큰이 없습니다') || error.message?.includes('다시 로그인')) {
+        errorMessage = 'Google 인증이 만료되었습니다.\n\n로그아웃 후 다시 로그인해주세요.';
+      } else if (error.message?.includes('popup')) {
         errorMessage = '팝업이 차단되었습니다.\n\n브라우저에서 팝업을 허용하고 다시 시도해주세요.';
       } else if (error.message?.includes('cancelled')) {
         errorMessage = 'Google 인증이 취소되었습니다.';
