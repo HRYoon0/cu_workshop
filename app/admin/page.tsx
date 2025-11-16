@@ -1844,7 +1844,7 @@ function DiscussionManager({ userId }: { userId: string }) {
               onChange={(e) => setNewTopicName(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
               placeholder="업무 이름 (예: 교육과정, 생활지도, 방과후)"
-              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
               maxLength={30}
             />
             <button
@@ -1918,7 +1918,7 @@ function DiscussionManager({ userId }: { userId: string }) {
                           setEditingTopic(null);
                         }
                       }}
-                      className="flex-1 px-4 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="flex-1 px-4 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                       autoFocus
                       maxLength={30}
                     />
