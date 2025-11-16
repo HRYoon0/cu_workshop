@@ -1526,7 +1526,7 @@ function DiscussionManager({ userId }: { userId: string }) {
   };
 
   const handleCreateUserSheet = async () => {
-    const templateId = process.env.NEXT_PUBLIC_TEMPLATE_SHEET_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
+    const templateId = process.env.NEXT_PUBLIC_SHEET_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
     const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
 
     if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.\n\nGoogle Drive 권한이 필요합니다.')) {
