@@ -1546,8 +1546,7 @@ function DiscussionManager({ userId }: { userId: string }) {
       }
 
       // 2. 템플릿 시트 복사
-      const userName = auth.currentUser?.displayName || auth.currentUser?.email || '';
-      const sheetName = `${schoolName} - ${userName}`;
+      const sheetName = schoolName;
 
       const copyResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
