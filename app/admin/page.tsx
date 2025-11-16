@@ -1835,21 +1835,20 @@ function DiscussionManager({ userId }: { userId: string }) {
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                📊 내 논의 자료 시트 열기
+                📊 최근 생성한 시트 열기
               </a>
+              <span className="text-xs text-gray-500 ml-2">(매년 새 시트를 생성할 수 있습니다)</span>
             </div>
           )}
         </div>
         <div className="flex gap-3">
-          {!userSheet && (
-            <button
-              onClick={handleCreateUserSheet}
-              disabled={isCreatingSheet}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {isCreatingSheet ? '생성 중...' : '📋 내 시트 생성'}
-            </button>
-          )}
+          <button
+            onClick={handleCreateUserSheet}
+            disabled={isCreatingSheet}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isCreatingSheet ? '생성 중...' : '📋 새 시트 생성'}
+          </button>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold shadow-md"
