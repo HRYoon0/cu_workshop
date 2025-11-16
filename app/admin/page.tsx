@@ -1546,8 +1546,8 @@ function DiscussionManager({ userId }: { userId: string }) {
       }
 
       // 2. 템플릿 시트 복사
-      const userEmail = auth.currentUser?.email || '';
-      const sheetName = `${schoolName.replace('2025학년도 ', '')} - ${userEmail}`;
+      const userName = auth.currentUser?.displayName || auth.currentUser?.email || '';
+      const sheetName = `${schoolName.replace('2025학년도 ', '')} - ${userName}`;
 
       const copyResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
