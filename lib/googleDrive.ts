@@ -16,7 +16,7 @@ function getSchoolName(): string {
  * @param accessToken Google OAuth 액세스 토큰
  * @returns 폴더 ID
  */
-async function findOrCreateFolder(
+export async function findOrCreateFolder(
   folderName: string,
   accessToken: string,
   parentId: string = 'root'

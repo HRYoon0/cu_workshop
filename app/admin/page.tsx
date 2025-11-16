@@ -29,7 +29,7 @@ import {
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
-import { renameSchoolFolder } from '@/lib/googleDrive';
+import { renameSchoolFolder, findOrCreateFolder } from '@/lib/googleDrive';
 import {
   updateSchoolNameInAllTabs,
   addSheetTab,
@@ -1545,7 +1545,10 @@ function DiscussionManager({ userId }: { userId: string }) {
         throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      // 2. 템플릿 시트 복사
+      // 2. 학교 폴더 찾기 또는 생성
+      const schoolFolderId = await findOrCreateFolder(schoolName, accessToken);
+
+      // 3. 템플릿 시트 복사 (학교 폴더에 저장)
       const sheetName = schoolName;
 
       const copyResponse = await fetch(
@@ -1558,6 +1561,7 @@ function DiscussionManager({ userId }: { userId: string }) {
           },
           body: JSON.stringify({
             name: sheetName,
+            parents: [schoolFolderId],
           }),
         }
       );
@@ -1580,10 +1584,10 @@ function DiscussionManager({ userId }: { userId: string }) {
 
       console.log('시트 복사 완료:', newSheetId);
 
-      // 3. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
+      // 4. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
 
-      // 4. Firestore에 저장
+      // 5. Firestore에 저장
       await saveUserSheet({
         userId,
         sheetId: newSheetId,
