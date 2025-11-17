@@ -792,34 +792,21 @@ export async function initializeUserSheet(
         .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        // 더 간단한 수식: 각 시트의 D5를 직접 참조하고 CHAR(10)으로 분리
-        // 세로로 나열하는 방식
-        const sheetDataParts = sourceSheets.map(sheetName => {
-          return `IFERROR(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10))),)`;
+        // QUERY를 사용하여 각 줄마다 시트 이름을 매칭하고, 빈 행 제거
+        // 각 시트에서 D5를 SPLIT하고, 해당 시트 이름을 함께 붙임
+        const sheetQueryParts = sourceSheets.map(sheetName => {
+          // 각 시트의 D5를 줄바꿈으로 분리하고, 각 줄에 시트 이름을 붙임
+          return `IFERROR(QUERY({TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10))),ARRAYFORMULA(IF(LEN(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))))>0,"${sheetName}",""))},"SELECT * WHERE Col1<>''"),{"",""})`;
         });
 
-        const sheetNameParts = sourceSheets.map(sheetName => {
-          return `IFERROR(TRANSPOSE(IF(SPLIT('${sheetName}'!D5,CHAR(10))<>"","${sheetName}",)),)`;
-        });
+        // 모든 시트의 데이터를 합치고 빈 행 제거
+        const combinedFormula = `=QUERY({${sheetQueryParts.join(';')}},"SELECT * WHERE Col1<>'' AND Col1<>' ' ORDER BY Col2",0)`;
 
-        // 모든 시트의 데이터를 세로로 합치는 수식
-        const combinedFormula = `={${sheetDataParts.join(';')}}`;
-        const namesFormula = `={${sheetNameParts.join(';')}}`;
-
-        // A4에 논의할 점 수식 입력
+        // A4에 수식 입력 (논의할 점과 시트 이름이 함께)
         await updateSheetRange(
           spreadsheetId,
           '논의 및 결정사항!A4',
           [[combinedFormula]],
-          accessToken,
-          'USER_ENTERED'
-        );
-
-        // B4에 시트 이름 수식 입력
-        await updateSheetRange(
-          spreadsheetId,
-          '논의 및 결정사항!B4',
-          [[namesFormula]],
           accessToken,
           'USER_ENTERED'
         );
