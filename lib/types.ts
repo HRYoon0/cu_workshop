@@ -143,10 +143,20 @@ export interface UserSheet {
 }
 
 // 논의 자료 (업무) 관련 타입
-export interface DiscussionTopic {
+export interface Department {
   id: string;
-  name: string; // 업무 이름 (예: "교육과정", "생활지도", "방과후")
+  name: string; // 부서 이름 (예: "교육과정", "생활지도", "방과후")
   order: number; // 정렬 순서
   createdAt: Date;
   userId: string; // 생성한 사용자 ID
+}
+
+// 논의 및 결정사항 데이터
+export interface DiscussionItem {
+  id?: string;
+  topic: string; // 논의할 점
+  gradeOrDept: string; // 학년, 업무
+  process: string; // 논의 과정
+  decision: string; // 결정 사항
+  row?: number; // Google Sheets 행 번호
 }

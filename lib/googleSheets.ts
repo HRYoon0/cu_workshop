@@ -573,3 +573,139 @@ export async function initializeUserSheet(
     throw error;
   }
 }
+
+/**
+ * 논의 및 결정사항 탭에서 데이터 읽기
+ * @param spreadsheetId 스프레드시트 ID
+ * @param accessToken Google OAuth 액세스 토큰
+ * @returns 논의 항목 배열
+ */
+export async function getDiscussionItems(
+  spreadsheetId: string,
+  accessToken: string
+): Promise<Array<{ id: string; topic: string; gradeOrDept: string; process: string; decision: string; row: number }>> {
+  try {
+    const tabName = '논의 및 결정사항';
+    // A4:D (4행부터 끝까지, A~D 컬럼)
+    const range = `${tabName}!A4:D`;
+
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Google Sheets API 오류: ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    // 각 행을 객체로 변환 (빈 행은 제외)
+    return rows
+      .map((row: string[], index: number) => ({
+        id: `row-${index + 4}`, // 4행부터 시작하므로
+        topic: row[0] || '',
+        gradeOrDept: row[1] || '',
+        process: row[2] || '',
+        decision: row[3] || '',
+        row: index + 4, // 실제 시트의 행 번호
+      }))
+      .filter((item: any) => item.topic || item.gradeOrDept || item.process || item.decision); // 완전히 빈 행 제외
+  } catch (error) {
+    console.error('논의 및 결정사항 데이터 읽기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 논의 및 결정사항 탭에 새로운 항목 추가
+ * @param spreadsheetId 스프레드시트 ID
+ * @param item 추가할 논의 항목
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function addDiscussionItem(
+  spreadsheetId: string,
+  item: { topic: string; gradeOrDept: string; process: string; decision: string },
+  accessToken: string
+): Promise<void> {
+  try {
+    const tabName = '논의 및 결정사항';
+
+    // 현재 데이터 읽기
+    const items = await getDiscussionItems(spreadsheetId, accessToken);
+
+    // 다음 빈 행 찾기
+    const nextRow = items.length > 0 ? Math.max(...items.map(i => i.row)) + 1 : 4;
+
+    // 새 데이터 추가
+    const range = `${tabName}!A${nextRow}:D${nextRow}`;
+    const values = [[item.topic, item.gradeOrDept, item.process, item.decision]];
+
+    await updateSheetRange(spreadsheetId, range, values, accessToken);
+
+    console.log('논의 및 결정사항 항목 추가 완료');
+  } catch (error) {
+    console.error('논의 및 결정사항 항목 추가 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 논의 및 결정사항 탭의 항목 업데이트
+ * @param spreadsheetId 스프레드시트 ID
+ * @param row 업데이트할 행 번호
+ * @param item 업데이트할 데이터
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function updateDiscussionItem(
+  spreadsheetId: string,
+  row: number,
+  item: { topic: string; gradeOrDept: string; process: string; decision: string },
+  accessToken: string
+): Promise<void> {
+  try {
+    const tabName = '논의 및 결정사항';
+    const range = `${tabName}!A${row}:D${row}`;
+    const values = [[item.topic, item.gradeOrDept, item.process, item.decision]];
+
+    await updateSheetRange(spreadsheetId, range, values, accessToken);
+
+    console.log('논의 및 결정사항 항목 업데이트 완료');
+  } catch (error) {
+    console.error('논의 및 결정사항 항목 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 논의 및 결정사항 탭의 항목 삭제
+ * @param spreadsheetId 스프레드시트 ID
+ * @param row 삭제할 행 번호
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function deleteDiscussionItem(
+  spreadsheetId: string,
+  row: number,
+  accessToken: string
+): Promise<void> {
+  try {
+    const tabName = '논의 및 결정사항';
+
+    // 행을 빈 값으로 업데이트 (실제 삭제 대신)
+    const range = `${tabName}!A${row}:D${row}`;
+    const values = [['', '', '', '']];
+
+    await updateSheetRange(spreadsheetId, range, values, accessToken);
+
+    console.log('논의 및 결정사항 항목 삭제 완료');
+  } catch (error) {
+    console.error('논의 및 결정사항 항목 삭제 실패:', error);
+    throw error;
+  }
+}

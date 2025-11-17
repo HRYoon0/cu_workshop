@@ -19,10 +19,10 @@ import {
   getPendingUsers,
   approveUser,
   rejectUser,
-  createDiscussionTopic,
-  getDiscussionTopics,
-  updateDiscussionTopic,
-  deleteDiscussionTopic,
+  createDepartment,
+  getDepartments,
+  updateDepartment,
+  deleteDepartment,
   getAllUserSheets,
   getUserSheet,
   saveUserSheet
@@ -37,7 +37,11 @@ import {
   renameSheetTab,
   setupSheetTabData,
   getSheetTabs,
-  initializeUserSheet
+  initializeUserSheet,
+  getDiscussionItems,
+  addDiscussionItem,
+  updateDiscussionItem,
+  deleteDiscussionItem
 } from '@/lib/googleSheets';
 
 export default function AdminPage() {
@@ -303,7 +307,7 @@ export default function AdminPage() {
         <div className="mt-8">
           {activeTab === 'quiz' && <QuizManager userId={user?.uid} />}
           {activeTab === 'survey' && <SurveyManager userId={user?.uid} />}
-          {activeTab === 'discussion' && <DiscussionManager userId={user?.uid} />}
+          {activeTab === 'discussion' && <DepartmentManager userId={user?.uid} />}
           {activeTab === 'approval' && isAdmin && <ApprovalManager userId={user?.uid} />}
         </div>
       </div>
@@ -1486,15 +1490,27 @@ function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey
   );
 }
 
-// 논의 자료 (업무) 관리 컴포넌트
-function DiscussionManager({ userId }: { userId: string }) {
+// 논의 자료 관리 컴포넌트
+function DepartmentManager({ userId }: { userId: string }) {
   const [topics, setTopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState<any>(null);
   const [newTopicName, setNewTopicName] = useState('');
   const [userSheet, setUserSheet] = useState<any>(null);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+
+  // 논의 및 결정사항 관련 상태
+  const [discussionItems, setDiscussionItems] = useState<any[]>([]);
+  const [isLoadingDiscussions, setIsLoadingDiscussions] = useState(false);
+  const [editingDiscussion, setEditingDiscussion] = useState<any>(null);
+  const [newDiscussionItem, setNewDiscussionItem] = useState({
+    topic: '',
+    gradeOrDept: '',
+    process: '',
+    decision: ''
+  });
 
   useEffect(() => {
     if (userId) {
@@ -1503,10 +1519,16 @@ function DiscussionManager({ userId }: { userId: string }) {
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (userSheet?.sheetId) {
+      loadDiscussionItems();
+    }
+  }, [userSheet]);
+
   const loadTopics = async () => {
     try {
       setIsLoading(true);
-      const topicList = await getDiscussionTopics(userId);
+      const topicList = await getDepartments(userId);
       setTopics(topicList);
     } catch (error) {
       console.error('업무 목록 불러오기 실패:', error);
@@ -1661,18 +1683,18 @@ function DiscussionManager({ userId }: { userId: string }) {
       const topicName = newTopicName.trim();
       const order = topics.length > 0 ? Math.max(...topics.map(t => t.order)) + 1 : 0;
 
-      // 1. Firestore에 업무 추가
-      await createDiscussionTopic({ name: topicName, order }, userId);
+      // 1. Firestore에 부서 추가
+      await createDepartment({ name: topicName, order }, userId);
 
-      // 2. 업무 목록 새로고침
+      // 2. 부서 목록 새로고침
       await loadTopics();
       setNewTopicName('');
       setShowCreateForm(false);
 
-      alert('업무가 추가되었습니다.\n\n새로 시트를 생성하는 사용자에게 자동으로 이 업무 탭이 추가됩니다.');
+      alert('부서가 추가되었습니다.\n\n새로 시트를 생성하는 사용자에게 자동으로 이 부서 탭이 추가됩니다.');
     } catch (error) {
-      console.error('업무 생성 실패:', error);
-      alert('업무 생성에 실패했습니다.');
+      console.error('부서 생성 실패:', error);
+      alert('부서 생성에 실패했습니다.');
     }
   };
 
@@ -1691,17 +1713,17 @@ function DiscussionManager({ userId }: { userId: string }) {
         return;
       }
 
-      // 1. Firestore에서 업무 이름 변경
-      await updateDiscussionTopic(topicId, { name: trimmedNewName });
+      // 1. Firestore에서 부서 이름 변경
+      await updateDepartment(topicId, { name: trimmedNewName });
 
-      // 2. 업무 목록 새로고침
+      // 2. 부서 목록 새로고침
       await loadTopics();
       setEditingTopic(null);
 
-      alert('업무 이름이 변경되었습니다.');
+      alert('부서 이름이 변경되었습니다.');
     } catch (error) {
-      console.error('업무 수정 실패:', error);
-      alert('업무 수정에 실패했습니다.');
+      console.error('부서 수정 실패:', error);
+      alert('부서 수정에 실패했습니다.');
     }
   };
 
@@ -1709,19 +1731,19 @@ function DiscussionManager({ userId }: { userId: string }) {
     const topicToDelete = topics.find(t => t.id === topicId);
     if (!topicToDelete) return;
 
-    if (!confirm(`'${topicToDelete.name}' 업무를 삭제하시겠습니까?`)) {
+    if (!confirm(`'${topicToDelete.name}' 부서를 삭제하시겠습니까?`)) {
       return;
     }
 
     try {
-      // Firestore에서 업무 삭제
-      await deleteDiscussionTopic(topicId);
+      // Firestore에서 부서 삭제
+      await deleteDepartment(topicId);
       await loadTopics();
 
-      alert('업무가 삭제되었습니다.');
+      alert('부서가 삭제되었습니다.');
     } catch (error) {
-      console.error('업무 삭제 실패:', error);
-      alert('업무 삭제에 실패했습니다.');
+      console.error('부서 삭제 실패:', error);
+      alert('부서 삭제에 실패했습니다.');
     }
   };
 
@@ -1730,8 +1752,8 @@ function DiscussionManager({ userId }: { userId: string }) {
 
     try {
       const prevTopic = topics[index - 1];
-      await updateDiscussionTopic(topic.id, { order: prevTopic.order });
-      await updateDiscussionTopic(prevTopic.id, { order: topic.order });
+      await updateDepartment(topic.id, { order: prevTopic.order });
+      await updateDepartment(prevTopic.id, { order: topic.order });
       await loadTopics();
     } catch (error) {
       console.error('순서 변경 실패:', error);
@@ -1744,8 +1766,8 @@ function DiscussionManager({ userId }: { userId: string }) {
 
     try {
       const nextTopic = topics[index + 1];
-      await updateDiscussionTopic(topic.id, { order: nextTopic.order });
-      await updateDiscussionTopic(nextTopic.id, { order: topic.order });
+      await updateDepartment(topic.id, { order: nextTopic.order });
+      await updateDepartment(nextTopic.id, { order: topic.order });
       await loadTopics();
     } catch (error) {
       console.error('순서 변경 실패:', error);
@@ -1753,13 +1775,114 @@ function DiscussionManager({ userId }: { userId: string }) {
     }
   };
 
+  // 논의 및 결정사항 관련 함수들
+  const loadDiscussionItems = async () => {
+    if (!userSheet?.sheetId) {
+      setDiscussionItems([]);
+      return;
+    }
+
+    try {
+      setIsLoadingDiscussions(true);
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다.');
+      }
+
+      const items = await getDiscussionItems(userSheet.sheetId, accessToken);
+      setDiscussionItems(items);
+    } catch (error) {
+      console.error('논의 항목 로드 실패:', error);
+      alert('논의 항목을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoadingDiscussions(false);
+    }
+  };
+
+  const handleAddDiscussionItem = async () => {
+    if (!userSheet?.sheetId) {
+      alert('먼저 시트를 생성해주세요.');
+      return;
+    }
+
+    if (!newDiscussionItem.topic.trim()) {
+      alert('논의할 점을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다.');
+      }
+
+      await addDiscussionItem(userSheet.sheetId, newDiscussionItem, accessToken);
+
+      // 폼 초기화
+      setNewDiscussionItem({
+        topic: '',
+        gradeOrDept: '',
+        process: '',
+        decision: ''
+      });
+
+      // 목록 새로고침
+      await loadDiscussionItems();
+      alert('논의 항목이 추가되었습니다.');
+    } catch (error) {
+      console.error('논의 항목 추가 실패:', error);
+      alert('논의 항목 추가에 실패했습니다.');
+    }
+  };
+
+  const handleUpdateDiscussionItem = async (row: number, item: any) => {
+    if (!userSheet?.sheetId) return;
+
+    try {
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다.');
+      }
+
+      await updateDiscussionItem(userSheet.sheetId, row, item, accessToken);
+      setEditingDiscussion(null);
+      await loadDiscussionItems();
+      alert('논의 항목이 수정되었습니다.');
+    } catch (error) {
+      console.error('논의 항목 수정 실패:', error);
+      alert('논의 항목 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteDiscussionItem = async (row: number, topic: string) => {
+    if (!userSheet?.sheetId) return;
+
+    if (!confirm(`'${topic}' 항목을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다.');
+      }
+
+      await deleteDiscussionItem(userSheet.sheetId, row, accessToken);
+      await loadDiscussionItems();
+      alert('논의 항목이 삭제되었습니다.');
+    } catch (error) {
+      console.error('논의 항목 삭제 실패:', error);
+      alert('논의 항목 삭제에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">논의 자료 (업무) 관리</h2>
+          <h2 className="text-2xl font-bold text-gray-800">논의 자료 관리</h2>
           <p className="text-sm text-gray-500 mt-1">
-            워크숍에서 논의할 업무를 관리합니다. 각 업무는 Google Sheets에서 별도의 시트로 생성됩니다.
+            워크숍에서 논의할 주제를 관리합니다. 부서는 "부서 관리" 버튼에서 설정할 수 있습니다.
           </p>
           {userSheet && (
             <div className="mt-2">
@@ -1792,152 +1915,377 @@ function DiscussionManager({ userId }: { userId: string }) {
             {isCreatingSheet ? '생성 중...' : '📋 새 시트 생성'}
           </button>
           <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold shadow-md"
+            onClick={() => setShowDepartmentModal(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
           >
-            {showCreateForm ? '취소' : '+ 새 업무 추가'}
+            부서 관리
           </button>
         </div>
       </div>
 
-      {/* 업무 추가 폼 */}
-      {showCreateForm && (
-        <div className="bg-orange-50 rounded-xl p-6 border-2 border-orange-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">새 업무 추가</h3>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={newTopicName}
-              onChange={(e) => setNewTopicName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
-              placeholder="업무 이름 (예: 교육과정, 생활지도, 방과후)"
-              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
-              maxLength={30}
-            />
-            <button
-              onClick={handleCreate}
-              className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
-            >
-              추가
-            </button>
+      {/* 부서 관리 모달 */}
+      {showDepartmentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDepartmentModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-2xl font-bold text-gray-800">부서 관리</h3>
+              <button
+                onClick={() => setShowDepartmentModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* 부서 추가 폼 */}
+              <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                <h4 className="text-lg font-bold text-gray-800 mb-4">새 부서 추가</h4>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={newTopicName}
+                    onChange={(e) => setNewTopicName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
+                    placeholder="부서 이름 (예: 교육과정, 생활지도, 방과후)"
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    maxLength={30}
+                  />
+                  <button
+                    onClick={handleCreate}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    추가
+                  </button>
+                </div>
+              </div>
+
+              {/* 부서 목록 */}
+              <div className="space-y-4">
+                {isLoading ? (
+                  <div className="bg-white rounded-xl p-12 text-center">
+                    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500 text-lg">목록을 불러오는 중...</p>
+                  </div>
+                ) : topics.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
+                    <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-500 text-lg">등록된 부서가 없습니다</p>
+                    <p className="text-gray-400 text-sm mt-2">위의 폼에서 부서를 추가하세요</p>
+                  </div>
+                ) : (
+                  topics.map((topic, index) => (
+                    <div key={topic.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow border-2 border-gray-100">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => handleMoveUp(topic, index)}
+                              disabled={index === 0}
+                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="위로 이동"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleMoveDown(topic, index)}
+                              disabled={index === topics.length - 1}
+                              className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="아래로 이동"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="flex-1">
+                            {editingTopic?.id === topic.id ? (
+                              <input
+                                type="text"
+                                defaultValue={topic.name}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const newName = (e.target as HTMLInputElement).value;
+                                    handleUpdate(topic.id, newName);
+                                  }
+                                }}
+                                onBlur={(e) => handleUpdate(topic.id, e.target.value)}
+                                autoFocus
+                                className="text-xl font-bold text-gray-800 border-2 border-blue-500 rounded px-3 py-1 w-full"
+                                maxLength={30}
+                              />
+                            ) : (
+                              <div className="text-xl font-bold text-gray-800">{topic.name}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {editingTopic?.id === topic.id ? (
+                            <button
+                              onClick={() => setEditingTopic(null)}
+                              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                            >
+                              취소
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEditingTopic(topic)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                수정
+                              </button>
+                              <button
+                                onClick={() => handleDelete(topic.id)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                              >
+                                삭제
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* 안내 메시지 */}
+              {topics.length > 0 && (
+                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <h4 className="font-bold text-blue-900 mb-2">📌 안내</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• 부서 순서는 위/아래 화살표로 조정할 수 있습니다.</li>
+                    <li>• 각 부서는 Google Sheets에서 별도 시트로 관리됩니다.</li>
+                    <li>• 새로 시트를 생성하는 사용자에게 자동으로 부서 탭이 추가됩니다.</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* 업무 목록 */}
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 text-lg">목록을 불러오는 중...</p>
+      {/* 논의 및 결정사항 테이블 */}
+      {!userSheet ? (
+        <div className="bg-white rounded-xl p-12 text-center shadow-md">
+          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
           </div>
-        ) : topics.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          <p className="text-gray-600 text-lg font-semibold">먼저 시트를 생성해주세요</p>
+          <p className="text-gray-400 text-sm mt-2">상단의 "📋 새 시트 생성" 버튼을 눌러 내 전용 논의 자료 시트를 만들 수 있습니다.</p>
+        </div>
+      ) : (
+        <>
+          {/* 새 논의 항목 추가 폼 */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-green-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">새 논의 항목 추가</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <input
+                type="text"
+                value={newDiscussionItem.topic}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, topic: e.target.value })}
+                placeholder="논의할 점"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+              <input
+                type="text"
+                value={newDiscussionItem.gradeOrDept}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, gradeOrDept: e.target.value })}
+                placeholder="학년/업무"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
             </div>
-            <p className="text-gray-500 text-lg">등록된 업무가 없습니다</p>
-            <p className="text-gray-400 text-sm mt-2">새 업무 추가 버튼을 눌러 업무를 등록하세요</p>
-          </div>
-        ) : (
-          topics.map((topic, index) => (
-            <div key={topic.id} className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => handleMoveUp(topic, index)}
-                      disabled={index === 0}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="위로 이동"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleMoveDown(topic, index)}
-                      disabled={index === topics.length - 1}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="아래로 이동"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {editingTopic?.id === topic.id ? (
-                    <input
-                      type="text"
-                      defaultValue={topic.name}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleUpdate(topic.id, (e.target as HTMLInputElement).value);
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (e.target.value !== topic.name) {
-                          handleUpdate(topic.id, e.target.value);
-                        } else {
-                          setEditingTopic(null);
-                        }
-                      }}
-                      className="flex-1 px-4 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
-                      autoFocus
-                      maxLength={30}
-                    />
-                  ) : (
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-800">{topic.name}</h3>
-                      <p className="text-sm text-gray-500">순서: {index + 1}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  {editingTopic?.id === topic.id ? (
-                    <button
-                      onClick={() => setEditingTopic(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-semibold"
-                    >
-                      취소
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setEditingTopic(topic)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={() => handleDelete(topic.id)}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-                      >
-                        삭제
-                      </button>
-                    </>
-                  )}
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                value={newDiscussionItem.process}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, process: e.target.value })}
+                placeholder="논의 과정"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newDiscussionItem.decision}
+                  onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, decision: e.target.value })}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddDiscussionItem()}
+                  placeholder="결정 사항"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                />
+                <button
+                  onClick={handleAddDiscussionItem}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  추가
+                </button>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          </div>
 
-      {/* 안내 메시지 */}
-      {topics.length > 0 && (
-        <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
-          <h4 className="font-bold text-blue-900 mb-2">📌 안내</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• 업무 순서는 위/아래 화살표로 조정할 수 있습니다.</li>
-            <li>• 각 업무는 Google Sheets에서 별도 시트로 관리됩니다.</li>
-            <li>• 업무 삭제 시 해당 Google Sheets 시트도 함께 삭제됩니다.</li>
-          </ul>
-        </div>
+          {/* 논의 항목 목록 */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-green-600 to-blue-600 text-white">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold">논의할 점</th>
+                    <th className="px-6 py-4 text-left font-semibold">학년/업무</th>
+                    <th className="px-6 py-4 text-left font-semibold">논의 과정</th>
+                    <th className="px-6 py-4 text-left font-semibold">결정 사항</th>
+                    <th className="px-6 py-4 text-center font-semibold w-32">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoadingDiscussions ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
+                          <p className="text-gray-500">논의 항목을 불러오는 중...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : discussionItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <p className="text-gray-500 text-lg">등록된 논의 항목이 없습니다</p>
+                        <p className="text-gray-400 text-sm mt-2">위의 폼에서 새 논의 항목을 추가하세요</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    discussionItems.map((item, index) => (
+                      <tr
+                        key={item.id}
+                        className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-green-50 transition-colors border-b border-gray-200`}
+                      >
+                        {editingDiscussion?.id === item.id ? (
+                          <>
+                            <td className="px-6 py-4">
+                              <input
+                                type="text"
+                                defaultValue={item.topic}
+                                ref={(input) => {
+                                  if (input) {
+                                    (editingDiscussion as any).topicInput = input;
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <input
+                                type="text"
+                                defaultValue={item.gradeOrDept}
+                                ref={(input) => {
+                                  if (input) {
+                                    (editingDiscussion as any).gradeOrDeptInput = input;
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <input
+                                type="text"
+                                defaultValue={item.process}
+                                ref={(input) => {
+                                  if (input) {
+                                    (editingDiscussion as any).processInput = input;
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <input
+                                type="text"
+                                defaultValue={item.decision}
+                                ref={(input) => {
+                                  if (input) {
+                                    (editingDiscussion as any).decisionInput = input;
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => {
+                                    const updatedItem = {
+                                      topic: (editingDiscussion as any).topicInput?.value || '',
+                                      gradeOrDept: (editingDiscussion as any).gradeOrDeptInput?.value || '',
+                                      process: (editingDiscussion as any).processInput?.value || '',
+                                      decision: (editingDiscussion as any).decisionInput?.value || ''
+                                    };
+                                    handleUpdateDiscussionItem(item.row, updatedItem);
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  onClick={() => setEditingDiscussion(null)}
+                                  className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-6 py-4 text-gray-900">{item.topic}</td>
+                            <td className="px-6 py-4 text-gray-700">{item.gradeOrDept}</td>
+                            <td className="px-6 py-4 text-gray-700">{item.process}</td>
+                            <td className="px-6 py-4 text-gray-700">{item.decision}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => setEditingDiscussion(item)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDiscussionItem(item.row, item.topic)}
+                                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 안내 메시지 */}
+          {discussionItems.length > 0 && (
+            <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
+              <h4 className="font-bold text-green-900 mb-2">📌 안내</h4>
+              <ul className="text-sm text-green-800 space-y-1">
+                <li>• 모든 변경사항은 Google Sheets에 즉시 반영됩니다.</li>
+                <li>• 삭제된 항목은 복구할 수 없으니 주의하세요.</li>
+                <li>• Google Sheets를 직접 열어서 편집할 수도 있습니다.</li>
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

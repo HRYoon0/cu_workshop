@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse, UserSheet } from './types';
+import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse, UserSheet, Department } from './types';
 import { saveQuizResultToSheet, saveSurveyResultToSheet } from './googleSheets';
 
 // ===== 퀴즈 관련 함수 =====
@@ -731,75 +731,75 @@ export async function getAllUserSheets(): Promise<UserSheet[]> {
 // ===== 논의 자료 (업무) 관련 함수 =====
 
 /**
- * 새 업무 생성
+ * 새 부서 생성
  */
-export async function createDiscussionTopic(
-  topicData: Omit<import('./types').DiscussionTopic, 'id' | 'createdAt' | 'userId'>,
+export async function createDepartment(
+  deptData: Omit<Department, 'id' | 'createdAt' | 'userId'>,
   userId: string
 ) {
   try {
-    const docRef = await addDoc(collection(db, 'discussionTopics'), {
-      ...topicData,
+    const docRef = await addDoc(collection(db, 'departments'), {
+      ...deptData,
       userId,
       createdAt: serverTimestamp(),
     });
     return docRef.id;
   } catch (error) {
-    console.error('업무 생성 실패:', error);
+    console.error('부서 생성 실패:', error);
     throw error;
   }
 }
 
 /**
- * 사용자의 모든 업무 가져오기
+ * 사용자의 모든 부서 가져오기
  */
-export async function getDiscussionTopics(userId: string) {
+export async function getDepartments(userId: string) {
   try {
     const q = query(
-      collection(db, 'discussionTopics'),
+      collection(db, 'departments'),
       where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(q);
-    const topics = querySnapshot.docs.map(doc => ({
+    const depts = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
     }));
 
     // JavaScript에서 order 기준으로 정렬
-    topics.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    depts.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
 
-    return topics;
+    return depts;
   } catch (error) {
-    console.error('업무 목록 가져오기 실패:', error);
+    console.error('부서 목록 가져오기 실패:', error);
     throw error;
   }
 }
 
 /**
- * 업무 수정
+ * 부서 수정
  */
-export async function updateDiscussionTopic(
-  topicId: string,
-  topicData: { name?: string; order?: number }
+export async function updateDepartment(
+  deptId: string,
+  deptData: { name?: string; order?: number }
 ) {
   try {
-    const topicRef = doc(db, 'discussionTopics', topicId);
-    await updateDoc(topicRef, topicData);
+    const deptRef = doc(db, 'departments', deptId);
+    await updateDoc(deptRef, deptData);
   } catch (error) {
-    console.error('업무 수정 실패:', error);
+    console.error('부서 수정 실패:', error);
     throw error;
   }
 }
 
 /**
- * 업무 삭제
+ * 부서 삭제
  */
-export async function deleteDiscussionTopic(topicId: string) {
+export async function deleteDepartment(deptId: string) {
   try {
-    await deleteDoc(doc(db, 'discussionTopics', topicId));
+    await deleteDoc(doc(db, 'departments', deptId));
   } catch (error) {
-    console.error('업무 삭제 실패:', error);
+    console.error('부서 삭제 실패:', error);
     throw error;
   }
 }
