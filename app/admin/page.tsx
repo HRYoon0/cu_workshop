@@ -1977,6 +1977,18 @@ function DepartmentManager({ userId }: { userId: string }) {
               >
                 📊 최근 생성한 시트 열기
               </a>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(userSheet.sheetUrl).then(() => {
+                    alert('시트 공유 링크가 클립보드에 복사되었습니다!');
+                  }).catch(() => {
+                    alert('복사 실패. 링크를 수동으로 복사해주세요: ' + userSheet.sheetUrl);
+                  });
+                }}
+                className="ml-2 text-sm text-green-600 hover:text-green-800 underline"
+              >
+                📋 링크 복사
+              </button>
               <span className="text-xs text-gray-500 ml-2">
                 ({new Date(userSheet.createdAt).toLocaleDateString('ko-KR', {
                   year: 'numeric',
