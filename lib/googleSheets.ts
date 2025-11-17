@@ -995,13 +995,15 @@ export async function addDiscussionItem(
 export async function updateDiscussionItem(
   spreadsheetId: string,
   row: number,
-  item: { topic: string; gradeOrDept: string; process: string; decision: string },
+  item: { process: string; decision: string },
   accessToken: string
 ): Promise<void> {
   try {
     const tabName = '논의 및 결정사항';
-    const range = `${tabName}!A${row}:D${row}`;
-    const values = [[item.topic, item.gradeOrDept, item.process, item.decision]];
+    // C, D 컬럼만 업데이트 (논의 과정, 결정 사항)
+    // A, B 컬럼은 자동 집계 수식이므로 건드리지 않음
+    const range = `${tabName}!C${row}:D${row}`;
+    const values = [[item.process, item.decision]];
 
     await updateSheetRange(spreadsheetId, range, values, accessToken);
 
