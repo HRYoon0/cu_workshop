@@ -800,7 +800,8 @@ export async function initializeUserSheet(
         });
 
         // VSTACK으로 모든 시트 데이터를 합치고, FILTER로 빈 행 제거
-        const combinedFormula = `=FILTER(VSTACK(${vstackParts.join(',')}),INDEX(VSTACK(${vstackParts.join(',')}),0,1)<>"")`;
+        // IFERROR로 감싸서 모든 셀이 비어있을 때 #N/A 에러 방지
+        const combinedFormula = `=IFERROR(FILTER(VSTACK(${vstackParts.join(',')}),INDEX(VSTACK(${vstackParts.join(',')}),0,1)<>""),{"",""})`;
 
         // A4에 수식 입력 (논의할 점과 시트 이름이 함께)
         await updateSheetRange(
