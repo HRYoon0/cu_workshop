@@ -11,6 +11,7 @@ import {
   onSnapshot,
   serverTimestamp,
   orderBy,
+  limit,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -648,28 +649,12 @@ export async function rejectUser(pendingUserId: string) {
  */
 export async function saveUserSheet(userSheetData: Omit<UserSheet, 'createdAt'>) {
   try {
-    // 기존 시트 확인 (userId로)
-    const q = query(collection(db, 'userSheets'), where('userId', '==', userSheetData.userId));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      // 이미 시트가 있으면 업데이트
-      const docId = querySnapshot.docs[0].id;
-      await updateDoc(doc(db, 'userSheets', docId), {
-        sheetId: userSheetData.sheetId,
-        sheetUrl: userSheetData.sheetUrl,
-        webAppUrl: userSheetData.webAppUrl,
-        templateId: userSheetData.templateId,
-      });
-      return docId;
-    } else {
-      // 없으면 새로 생성
-      const docRef = await addDoc(collection(db, 'userSheets'), {
-        ...userSheetData,
-        createdAt: serverTimestamp(),
-      });
-      return docRef.id;
-    }
+    // 매번 새 시트 문서 생성 (기존 시트는 history로 남김)
+    const docRef = await addDoc(collection(db, 'userSheets'), {
+      ...userSheetData,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
   } catch (error) {
     console.error('사용자 시트 저장 실패:', error);
     throw error;
@@ -677,11 +662,17 @@ export async function saveUserSheet(userSheetData: Omit<UserSheet, 'createdAt'>)
 }
 
 /**
- * 사용자 시트 정보 가져오기
+ * 사용자 시트 정보 가져오기 (가장 최근 시트)
  */
 export async function getUserSheet(userId: string): Promise<UserSheet | null> {
   try {
-    const q = query(collection(db, 'userSheets'), where('userId', '==', userId));
+    // createdAt 기준으로 내림차순 정렬하여 가장 최근 시트만 가져오기
+    const q = query(
+      collection(db, 'userSheets'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
