@@ -29,8 +29,8 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-center text-gray-800 mb-3">
               관리자 로그인
             </h2>
-            <p className="text-gray-600 text-center">
-              Google 계정으로 로그인하여 교육과정 워크숍을 진행하세요
+            <p className="text-gray-600 text-center whitespace-nowrap">
+              Google 계정으로 로그인하여 워크숍을 진행하세요
             </p>
           </div>
         </Link>
