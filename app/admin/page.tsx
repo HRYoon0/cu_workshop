@@ -1664,40 +1664,12 @@ function DiscussionManager({ userId }: { userId: string }) {
       // 1. Firestore에 업무 추가
       await createDiscussionTopic({ name: topicName, order }, userId);
 
-      // 2. 모든 사용자의 Google Sheets에 탭 추가
-      const accessToken = localStorage.getItem('googleAccessToken');
-      if (accessToken) {
-        try {
-          const userSheets = await getAllUserSheets();
-          const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
-
-          let successCount = 0;
-          let failureCount = 0;
-
-          for (const userSheet of userSheets) {
-            try {
-              // 새 탭 추가
-              await addSheetTab(userSheet.sheetId, topicName, accessToken);
-              // 초기 데이터 설정
-              await setupSheetTabData(userSheet.sheetId, topicName, schoolName, topicName, accessToken);
-              successCount++;
-            } catch (sheetError) {
-              console.error(`시트 탭 추가 실패 (userId: ${userSheet.userId}):`, sheetError);
-              failureCount++;
-            }
-          }
-
-          if (failureCount > 0) {
-            alert(`업무가 추가되었습니다.\n\nGoogle Sheets 탭 추가 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
-          }
-        } catch (sheetsError) {
-          console.error('Google Sheets 탭 추가 실패:', sheetsError);
-        }
-      }
-
+      // 2. 업무 목록 새로고침
       await loadTopics();
       setNewTopicName('');
       setShowCreateForm(false);
+
+      alert('업무가 추가되었습니다.\n\n새로 시트를 생성하는 사용자에게 자동으로 이 업무 탭이 추가됩니다.');
     } catch (error) {
       console.error('업무 생성 실패:', error);
       alert('업무 생성에 실패했습니다.');
@@ -1722,49 +1694,11 @@ function DiscussionManager({ userId }: { userId: string }) {
       // 1. Firestore에서 업무 이름 변경
       await updateDiscussionTopic(topicId, { name: trimmedNewName });
 
-      // 2. 모든 사용자의 Google Sheets에서 탭 이름 변경
-      const accessToken = localStorage.getItem('googleAccessToken');
-      if (accessToken && oldName) {
-        try {
-          const userSheets = await getAllUserSheets();
-          let successCount = 0;
-          let failureCount = 0;
-
-          for (const userSheet of userSheets) {
-            try {
-              // 기존 탭 찾기
-              const tabs = await getSheetTabs(userSheet.sheetId, accessToken);
-              const targetTab = tabs.find(tab => tab.title === oldName);
-
-              if (targetTab) {
-                // 탭 이름 변경
-                await renameSheetTab(userSheet.sheetId, targetTab.sheetId, trimmedNewName, accessToken);
-                // E1:E2 셀의 업무명도 변경
-                await setupSheetTabData(
-                  userSheet.sheetId,
-                  trimmedNewName,
-                  localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍',
-                  trimmedNewName,
-                  accessToken
-                );
-                successCount++;
-              }
-            } catch (sheetError) {
-              console.error(`시트 탭 이름 변경 실패 (userId: ${userSheet.userId}):`, sheetError);
-              failureCount++;
-            }
-          }
-
-          if (failureCount > 0) {
-            alert(`업무 이름이 변경되었습니다.\n\nGoogle Sheets 탭 이름 변경 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
-          }
-        } catch (sheetsError) {
-          console.error('Google Sheets 탭 이름 변경 실패:', sheetsError);
-        }
-      }
-
+      // 2. 업무 목록 새로고침
       await loadTopics();
       setEditingTopic(null);
+
+      alert('업무 이름이 변경되었습니다.');
     } catch (error) {
       console.error('업무 수정 실패:', error);
       alert('업무 수정에 실패했습니다.');
@@ -1775,49 +1709,16 @@ function DiscussionManager({ userId }: { userId: string }) {
     const topicToDelete = topics.find(t => t.id === topicId);
     if (!topicToDelete) return;
 
-    if (!confirm(`'${topicToDelete.name}' 업무를 삭제하시겠습니까?\n관련된 Google Sheets 시트도 삭제됩니다.`)) {
+    if (!confirm(`'${topicToDelete.name}' 업무를 삭제하시겠습니까?`)) {
       return;
     }
 
     try {
-      const topicName = topicToDelete.name;
-
-      // 1. 모든 사용자의 Google Sheets에서 탭 삭제
-      const accessToken = localStorage.getItem('googleAccessToken');
-      if (accessToken) {
-        try {
-          const userSheets = await getAllUserSheets();
-          let successCount = 0;
-          let failureCount = 0;
-
-          for (const userSheet of userSheets) {
-            try {
-              // 해당 이름의 탭 찾기
-              const tabs = await getSheetTabs(userSheet.sheetId, accessToken);
-              const targetTab = tabs.find(tab => tab.title === topicName);
-
-              if (targetTab) {
-                // 탭 삭제
-                await deleteSheetTab(userSheet.sheetId, targetTab.sheetId, accessToken);
-                successCount++;
-              }
-            } catch (sheetError) {
-              console.error(`시트 탭 삭제 실패 (userId: ${userSheet.userId}):`, sheetError);
-              failureCount++;
-            }
-          }
-
-          if (failureCount > 0) {
-            alert(`업무가 삭제되었습니다.\n\nGoogle Sheets 탭 삭제 결과:\n- 성공: ${successCount}개\n- 실패: ${failureCount}개`);
-          }
-        } catch (sheetsError) {
-          console.error('Google Sheets 탭 삭제 실패:', sheetsError);
-        }
-      }
-
-      // 2. Firestore에서 업무 삭제
+      // Firestore에서 업무 삭제
       await deleteDiscussionTopic(topicId);
       await loadTopics();
+
+      alert('업무가 삭제되었습니다.');
     } catch (error) {
       console.error('업무 삭제 실패:', error);
       alert('업무 삭제에 실패했습니다.');
