@@ -489,14 +489,30 @@ export async function moveSheetTab(
 
 /**
  * Google Sheets 시트 탭 복제
+ * @param spreadsheetId 스프레드시트 ID
+ * @param sourceSheetId 원본 시트 ID
+ * @param newTitle 새 시트 이름
+ * @param accessToken Google OAuth 액세스 토큰
+ * @param insertSheetIndex 삽입할 위치 (선택, 기본값은 맨 뒤)
  */
 export async function duplicateSheetTab(
   spreadsheetId: string,
   sourceSheetId: number,
   newTitle: string,
-  accessToken: string
+  accessToken: string,
+  insertSheetIndex?: number
 ): Promise<number> {
   try {
+    const duplicateRequest: any = {
+      sourceSheetId: sourceSheetId,
+      newSheetName: newTitle,
+    };
+
+    // 삽입 위치가 지정된 경우에만 추가
+    if (insertSheetIndex !== undefined) {
+      duplicateRequest.insertSheetIndex = insertSheetIndex;
+    }
+
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
       {
@@ -508,10 +524,7 @@ export async function duplicateSheetTab(
         body: JSON.stringify({
           requests: [
             {
-              duplicateSheet: {
-                sourceSheetId: sourceSheetId,
-                newSheetName: newTitle,
-              },
+              duplicateSheet: duplicateRequest,
             },
           ],
         }),
@@ -676,13 +689,19 @@ export async function initializeUserSheet(
       }
     }
 
-    // 8. "업무별" 시트를 복제하여 각 부서 시트 생성
+    // 8. "업무별" 시트를 복제하여 각 부서 시트 생성 (맨 뒤에 순서대로)
     const newDepartmentSheetIds: { name: string; sheetId: number }[] = [];
-    for (const topic of topicsToAdd) {
+
+    // 현재 탭 수 계산 (복제 시 맨 뒤에 배치하기 위해)
+    const currentTabCount = currentTabs.length;
+
+    for (let i = 0; i < topicsToAdd.length; i++) {
+      const topic = topicsToAdd[i];
       try {
-        // "업무별" 시트 복제
-        const newSheetId = await duplicateSheetTab(spreadsheetId, templateSheet.sheetId, topic.name, accessToken);
-        console.log(`탭 복제 완료: ${topic.name}`);
+        // "업무별" 시트 복제 (맨 뒤에 순서대로 배치)
+        const insertIndex = currentTabCount + i;
+        const newSheetId = await duplicateSheetTab(spreadsheetId, templateSheet.sheetId, topic.name, accessToken, insertIndex);
+        console.log(`탭 복제 완료: ${topic.name} (index: ${insertIndex})`);
         newDepartmentSheetIds.push({ name: topic.name, sheetId: newSheetId });
 
         // 복제된 시트 내에서 "업무별" 텍스트를 부서 이름으로 변경
@@ -707,12 +726,12 @@ export async function initializeUserSheet(
       // 삭제 실패해도 계속 진행
     }
 
-    // 10. 부서 시트를 6학년 다음 순서대로 배치
+    // 10. 모든 부서 시트를 6학년 다음 순서대로 재배치
     // 기본 순서: 논의 및 결정사항(0), 1학년(1), 2학년(2), 3학년(3), 4학년(4), 5학년(5), 6학년(6)
     // 부서는 index 7부터 시작
     const updatedTabs = await getSheetTabs(spreadsheetId, accessToken);
 
-    // topics 배열의 순서대로 부서 시트 정렬
+    // topics 배열의 순서대로 부서 시트 정렬 (모든 부서, 기존+새로 추가된 것 모두)
     for (let i = 0; i < topics.length; i++) {
       const topicName = topics[i].name;
       const targetTab = updatedTabs.find(tab => tab.title === topicName);
