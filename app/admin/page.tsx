@@ -2308,7 +2308,9 @@ function DepartmentManager({ userId }: { userId: string }) {
                     </tr>
                   ) : (
                     discussionItems.map((item, index) => {
-                      const isEditing = editingItems[item.id] || false;
+                      // 비어있는 항목은 기본적으로 편집 모드, 입력된 항목은 보기 모드
+                      const isEmpty = !item.process && !item.decision;
+                      const isEditing = editingItems[item.id] !== undefined ? editingItems[item.id] : isEmpty;
 
                       return (
                         <tr
@@ -2369,7 +2371,10 @@ function DepartmentManager({ userId }: { userId: string }) {
                                         decision: refs.decision?.value || ''
                                       };
                                       handleUpdateDiscussionItem(item.row, updatedItem);
-                                      setEditingItems({ ...editingItems, [item.id]: false });
+                                      // editingItems에서 해당 항목 제거하여 다시 isEmpty 체크가 이루어지도록 함
+                                      const newEditingItems = { ...editingItems };
+                                      delete newEditingItems[item.id];
+                                      setEditingItems(newEditingItems);
                                     }
                                   }}
                                   className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
