@@ -757,15 +757,19 @@ export async function getDiscussionTopics(userId: string) {
   try {
     const q = query(
       collection(db, 'discussionTopics'),
-      where('userId', '==', userId),
-      orderBy('order', 'asc')
+      where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const topics = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
     }));
+
+    // JavaScript에서 order 기준으로 정렬
+    topics.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+
+    return topics;
   } catch (error) {
     console.error('업무 목록 가져오기 실패:', error);
     throw error;
