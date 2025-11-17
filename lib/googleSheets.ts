@@ -440,6 +440,54 @@ export async function renameSheetTab(
 }
 
 /**
+ * Google Sheets 시트 탭 순서 변경
+ * @param spreadsheetId 스프레드시트 ID
+ * @param sheetId 이동할 시트의 ID
+ * @param newIndex 새로운 인덱스 위치 (0부터 시작)
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function moveSheetTab(
+  spreadsheetId: string,
+  sheetId: number,
+  newIndex: number,
+  accessToken: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              updateSheetProperties: {
+                properties: {
+                  sheetId: sheetId,
+                  index: newIndex,
+                },
+                fields: 'index',
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`시트 순서 변경 실패: ${JSON.stringify(error)}`);
+    }
+  } catch (error) {
+    console.error('시트 탭 순서 변경 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * Google Sheets 시트 탭 복제
  */
 export async function duplicateSheetTab(
@@ -629,11 +677,13 @@ export async function initializeUserSheet(
     }
 
     // 8. "업무별" 시트를 복제하여 각 부서 시트 생성
+    const newDepartmentSheetIds: { name: string; sheetId: number }[] = [];
     for (const topic of topicsToAdd) {
       try {
         // "업무별" 시트 복제
         const newSheetId = await duplicateSheetTab(spreadsheetId, templateSheet.sheetId, topic.name, accessToken);
         console.log(`탭 복제 완료: ${topic.name}`);
+        newDepartmentSheetIds.push({ name: topic.name, sheetId: newSheetId });
 
         // 복제된 시트 내에서 "업무별" 텍스트를 부서 이름으로 변경
         try {
@@ -648,7 +698,37 @@ export async function initializeUserSheet(
       }
     }
 
-    // 9. 모든 탭에 초기 데이터 설정
+    // 9. "업무별" 템플릿 시트 삭제
+    try {
+      await deleteSheetTab(spreadsheetId, templateSheet.sheetId, accessToken);
+      console.log('업무별 템플릿 시트 삭제 완료');
+    } catch (error) {
+      console.error('업무별 템플릿 시트 삭제 실패:', error);
+      // 삭제 실패해도 계속 진행
+    }
+
+    // 10. 부서 시트를 6학년 다음 순서대로 배치
+    // 기본 순서: 논의 및 결정사항(0), 1학년(1), 2학년(2), 3학년(3), 4학년(4), 5학년(5), 6학년(6)
+    // 부서는 index 7부터 시작
+    const updatedTabs = await getSheetTabs(spreadsheetId, accessToken);
+
+    // topics 배열의 순서대로 부서 시트 정렬
+    for (let i = 0; i < topics.length; i++) {
+      const topicName = topics[i].name;
+      const targetTab = updatedTabs.find(tab => tab.title === topicName);
+
+      if (targetTab) {
+        try {
+          // 6학년 다음부터 순서대로 배치 (index 7, 8, 9...)
+          await moveSheetTab(spreadsheetId, targetTab.sheetId, 7 + i, accessToken);
+          console.log(`시트 순서 변경: ${topicName} → index ${7 + i}`);
+        } catch (error) {
+          console.error(`시트 순서 변경 실패 (${topicName}):`, error);
+        }
+      }
+    }
+
+    // 11. 모든 탭에 초기 데이터 설정
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
     for (const tab of finalTabs) {
       try {
