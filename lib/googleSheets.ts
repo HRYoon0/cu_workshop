@@ -792,49 +792,34 @@ export async function initializeUserSheet(
         .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        // 각 시트의 D5를 CHAR(10)으로 분리하고 시트 이름과 함께 가져오는 수식
-        // ARRAYFORMULA를 사용하여 여러 줄을 자동으로 분리
-        const sheetFormulas = sourceSheets.map(sheetName => {
-          return `IFERROR(
-            IF('${sheetName}'!D5<>"",
-              ARRAYFORMULA(
-                SPLIT('${sheetName}'!D5, CHAR(10))
-              ),
-              ""
-            ),
-            ""
-          )`;
+        // 더 간단한 수식: 각 시트의 D5를 직접 참조하고 CHAR(10)으로 분리
+        // 세로로 나열하는 방식
+        const sheetDataParts = sourceSheets.map(sheetName => {
+          return `IFERROR(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10))),)`;
         });
 
-        const sheetNameFormulas = sourceSheets.map(sheetName => {
-          return `IFERROR(
-            IF('${sheetName}'!D5<>"",
-              ARRAYFORMULA(
-                IF(LEN(TRIM(SPLIT('${sheetName}'!D5, CHAR(10))))>0, "${sheetName}", "")
-              ),
-              ""
-            ),
-            ""
-          )`;
+        const sheetNameParts = sourceSheets.map(sheetName => {
+          return `IFERROR(TRANSPOSE(IF(SPLIT('${sheetName}'!D5,CHAR(10))<>"","${sheetName}",)),)`;
         });
 
-        // 모든 시트의 데이터를 합치는 수식
-        const combinedFormula = `=IFERROR(
-          QUERY(
-            {
-              FLATTEN({${sheetFormulas.join('; ')}}),
-              FLATTEN({${sheetNameFormulas.join('; ')}})
-            },
-            "SELECT * WHERE Col1 <> '' AND TRIM(Col1) <> ''"
-          ),
-          ""
-        )`;
+        // 모든 시트의 데이터를 세로로 합치는 수식
+        const combinedFormula = `={${sheetDataParts.join(';')}}`;
+        const namesFormula = `={${sheetNameParts.join(';')}}`;
 
-        // A4에 수식 입력 (USER_ENTERED로 수식 실행)
+        // A4에 논의할 점 수식 입력
         await updateSheetRange(
           spreadsheetId,
           '논의 및 결정사항!A4',
           [[combinedFormula]],
+          accessToken,
+          'USER_ENTERED'
+        );
+
+        // B4에 시트 이름 수식 입력
+        await updateSheetRange(
+          spreadsheetId,
+          '논의 및 결정사항!B4',
+          [[namesFormula]],
           accessToken,
           'USER_ENTERED'
         );
