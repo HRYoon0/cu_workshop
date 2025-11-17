@@ -1553,9 +1553,65 @@ function DepartmentManager({ userId }: { userId: string }) {
   const loadUserSheet = async () => {
     try {
       const sheet = await getUserSheet(userId);
-      setUserSheet(sheet);
+      if (sheet) {
+        setUserSheet(sheet);
+      } else {
+        // Firestore에 없으면 Google Drive에서 검색
+        await searchSheetInDrive();
+      }
     } catch (error) {
       console.error('사용자 시트 정보 불러오기 실패:', error);
+    }
+  };
+
+  const searchSheetInDrive = async () => {
+    try {
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) return;
+
+      const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+
+      // Google Drive에서 학교 이름으로 스프레드시트 검색
+      const searchQuery = encodeURIComponent(`name='${schoolName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&fields=files(id,name,webViewLink,createdTime)&orderBy=createdTime desc`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.files && data.files.length > 0) {
+          const foundSheet = data.files[0];
+          console.log('Google Drive에서 기존 시트 발견:', foundSheet);
+
+          // Firestore에 자동 저장
+          await saveUserSheet({
+            userId,
+            sheetId: foundSheet.id,
+            sheetUrl: foundSheet.webViewLink || `https://docs.google.com/spreadsheets/d/${foundSheet.id}/edit`,
+            webAppUrl: null,
+            templateId: process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s',
+          });
+
+          // UI 업데이트
+          setUserSheet({
+            userId,
+            sheetId: foundSheet.id,
+            sheetUrl: foundSheet.webViewLink || `https://docs.google.com/spreadsheets/d/${foundSheet.id}/edit`,
+            webAppUrl: null,
+            templateId: process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s',
+            createdAt: new Date(foundSheet.createdTime),
+          });
+
+          console.log('기존 시트 자동 연결 완료');
+        }
+      }
+    } catch (error) {
+      console.error('Google Drive 검색 실패:', error);
     }
   };
 
