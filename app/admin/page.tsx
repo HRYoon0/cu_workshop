@@ -1511,6 +1511,8 @@ function DepartmentManager({ userId }: { userId: string }) {
     process: '',
     decision: ''
   });
+  const [sheetExists, setSheetExists] = useState<boolean>(false);
+  const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
 
   useEffect(() => {
     if (userId) {
@@ -1521,9 +1523,17 @@ function DepartmentManager({ userId }: { userId: string }) {
 
   useEffect(() => {
     if (userSheet?.sheetId) {
-      loadDiscussionItems();
+      checkSheetExists();
+    } else {
+      setSheetExists(false);
     }
   }, [userSheet]);
+
+  useEffect(() => {
+    if (sheetExists) {
+      loadDiscussionItems();
+    }
+  }, [sheetExists]);
 
   const loadTopics = async () => {
     try {
@@ -1543,6 +1553,45 @@ function DepartmentManager({ userId }: { userId: string }) {
       setUserSheet(sheet);
     } catch (error) {
       console.error('사용자 시트 정보 불러오기 실패:', error);
+    }
+  };
+
+  const checkSheetExists = async () => {
+    if (!userSheet?.sheetId) {
+      setSheetExists(false);
+      return;
+    }
+
+    try {
+      setIsCheckingSheet(true);
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        setSheetExists(false);
+        return;
+      }
+
+      // Google Drive API로 파일 존재 여부 확인
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${userSheet.sheetId}?fields=id,name,trashed`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // 파일이 존재하고 휴지통에 없는 경우만 true
+        setSheetExists(!data.trashed);
+      } else {
+        setSheetExists(false);
+      }
+    } catch (error) {
+      console.error('시트 존재 여부 확인 실패:', error);
+      setSheetExists(false);
+    } finally {
+      setIsCheckingSheet(false);
     }
   };
 
@@ -1651,6 +1700,9 @@ function DepartmentManager({ userId }: { userId: string }) {
         templateId,
         createdAt: new Date(),
       });
+
+      // 시트가 생성되었으므로 존재 여부를 true로 설정
+      setSheetExists(true);
 
       alert('논의 자료 시트가 생성되었습니다!\n\n시트를 열어서 확인하세요.');
     } catch (error: any) {
@@ -1880,7 +1932,15 @@ function DepartmentManager({ userId }: { userId: string }) {
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">논의 자료 관리</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-gray-800">논의 자료 관리</h2>
+            <button
+              onClick={() => setShowDepartmentModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md text-sm"
+            >
+              부서 관리
+            </button>
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             워크숍에서 논의할 주제를 관리합니다. 부서는 "부서 관리" 버튼에서 설정할 수 있습니다.
           </p>
@@ -1906,21 +1966,13 @@ function DepartmentManager({ userId }: { userId: string }) {
             </div>
           )}
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleCreateUserSheet}
-            disabled={isCreatingSheet}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isCreatingSheet ? '생성 중...' : '📋 새 시트 생성'}
-          </button>
-          <button
-            onClick={() => setShowDepartmentModal(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
-          >
-            부서 관리
-          </button>
-        </div>
+        <button
+          onClick={handleCreateUserSheet}
+          disabled={isCreatingSheet}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {isCreatingSheet ? '생성 중...' : '📋 새 시트 생성'}
+        </button>
       </div>
 
       {/* 부서 관리 모달 */}
@@ -2073,15 +2125,21 @@ function DepartmentManager({ userId }: { userId: string }) {
       )}
 
       {/* 논의 및 결정사항 테이블 */}
-      {!userSheet ? (
+      {!sheetExists ? (
         <div className="bg-white rounded-xl p-12 text-center shadow-md">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
           </div>
-          <p className="text-gray-600 text-lg font-semibold">먼저 시트를 생성해주세요</p>
-          <p className="text-gray-400 text-sm mt-2">상단의 "📋 새 시트 생성" 버튼을 눌러 내 전용 논의 자료 시트를 만들 수 있습니다.</p>
+          <p className="text-gray-600 text-lg font-semibold mb-2">시트를 생성해주세요</p>
+          <div className="text-gray-500 text-sm space-y-1">
+            <p>1. 먼저 <span className="font-semibold text-blue-600">"부서 관리"</span> 버튼을 눌러 부서를 설정하세요</p>
+            <p>2. 그 다음 <span className="font-semibold text-green-600">"📋 새 시트 생성"</span> 버튼을 눌러 시트를 만드세요</p>
+          </div>
+          {isCheckingSheet && (
+            <p className="text-gray-400 text-xs mt-4">시트 확인 중...</p>
+          )}
         </div>
       ) : (
         <>
