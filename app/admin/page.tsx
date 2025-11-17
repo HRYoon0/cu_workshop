@@ -2242,52 +2242,6 @@ function DepartmentManager({ userId }: { userId: string }) {
         </div>
       ) : (
         <>
-          {/* 새 논의 항목 추가 폼 */}
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-green-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">새 논의 항목 추가</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                value={newDiscussionItem.topic}
-                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, topic: e.target.value })}
-                placeholder="논의할 점"
-                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-              />
-              <input
-                type="text"
-                value={newDiscussionItem.gradeOrDept}
-                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, gradeOrDept: e.target.value })}
-                placeholder="학년/업무"
-                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="text"
-                value={newDiscussionItem.process}
-                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, process: e.target.value })}
-                placeholder="논의 과정"
-                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-              />
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newDiscussionItem.decision}
-                  onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, decision: e.target.value })}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddDiscussionItem()}
-                  placeholder="결정 사항"
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                />
-                <button
-                  onClick={handleAddDiscussionItem}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                >
-                  추가
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* 논의 항목 목록 */}
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="overflow-x-auto">
@@ -2315,7 +2269,7 @@ function DepartmentManager({ userId }: { userId: string }) {
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center">
                         <p className="text-gray-500 text-lg">등록된 논의 항목이 없습니다</p>
-                        <p className="text-gray-400 text-sm mt-2">위의 폼에서 새 논의 항목을 추가하세요</p>
+                        <p className="text-gray-400 text-sm mt-2">아래의 폼에서 새 논의 항목을 추가하세요</p>
                       </td>
                     </tr>
                   ) : (
@@ -2428,6 +2382,52 @@ function DepartmentManager({ userId }: { userId: string }) {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* 새 논의 항목 추가 폼 */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-green-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">새 논의 항목 추가</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <input
+                type="text"
+                value={newDiscussionItem.topic}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, topic: e.target.value })}
+                placeholder="논의할 점"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+              <input
+                type="text"
+                value={newDiscussionItem.gradeOrDept}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, gradeOrDept: e.target.value })}
+                placeholder="학년/업무"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                value={newDiscussionItem.process}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, process: e.target.value })}
+                placeholder="논의 과정"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newDiscussionItem.decision}
+                  onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, decision: e.target.value })}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddDiscussionItem()}
+                  placeholder="결정 사항"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                />
+                <button
+                  onClick={handleAddDiscussionItem}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  추가
+                </button>
+              </div>
             </div>
           </div>
 
