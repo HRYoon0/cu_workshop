@@ -11,7 +11,6 @@ import {
   onSnapshot,
   serverTimestamp,
   orderBy,
-  limit,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -666,12 +665,10 @@ export async function saveUserSheet(userSheetData: Omit<UserSheet, 'createdAt'>)
  */
 export async function getUserSheet(userId: string): Promise<UserSheet | null> {
   try {
-    // createdAt 기준으로 내림차순 정렬하여 가장 최근 시트만 가져오기
+    // userId로 모든 시트 가져오기
     const q = query(
       collection(db, 'userSheets'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(q);
 
@@ -679,11 +676,16 @@ export async function getUserSheet(userId: string): Promise<UserSheet | null> {
       return null;
     }
 
-    const doc = querySnapshot.docs[0];
-    return {
+    // JavaScript에서 createdAt 기준으로 정렬하여 가장 최근 시트 선택
+    const sheets = querySnapshot.docs.map(doc => ({
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
-    } as UserSheet;
+    } as UserSheet));
+
+    // createdAt 기준 내림차순 정렬
+    sheets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    return sheets[0];
   } catch (error) {
     console.error('사용자 시트 가져오기 실패:', error);
     throw error;

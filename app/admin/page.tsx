@@ -1596,7 +1596,16 @@ function DiscussionManager({ userId }: { userId: string }) {
         templateId,
       });
 
-      await loadUserSheet();
+      // 6. 즉시 UI 업데이트 (실시간 반영)
+      setUserSheet({
+        userId,
+        sheetId: newSheetId,
+        sheetUrl: newSheetUrl,
+        webAppUrl: null,
+        templateId,
+        createdAt: new Date(),
+      });
+
       alert('논의 자료 시트가 생성되었습니다!\n\n시트를 열어서 확인하세요.');
     } catch (error: any) {
       console.error('시트 생성 실패:', error);
