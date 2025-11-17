@@ -1584,10 +1584,34 @@ function DiscussionManager({ userId }: { userId: string }) {
 
       console.log('시트 복사 완료:', newSheetId);
 
-      // 4. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
+      // 4. 관리자에게 편집 권한 부여
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'tmdsh2000@gmail.com';
+      try {
+        await fetch(
+          `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              role: 'writer',
+              type: 'user',
+              emailAddress: adminEmail,
+            }),
+          }
+        );
+        console.log('관리자 편집 권한 부여 완료');
+      } catch (permError) {
+        console.error('관리자 권한 부여 실패:', permError);
+        // 권한 부여 실패는 치명적이지 않으므로 계속 진행
+      }
+
+      // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
 
-      // 5. Firestore에 저장
+      // 6. Firestore에 저장
       await saveUserSheet({
         userId,
         sheetId: newSheetId,
@@ -1596,7 +1620,7 @@ function DiscussionManager({ userId }: { userId: string }) {
         templateId,
       });
 
-      // 6. 즉시 UI 업데이트 (실시간 반영)
+      // 7. 즉시 UI 업데이트 (실시간 반영)
       setUserSheet({
         userId,
         sheetId: newSheetId,
