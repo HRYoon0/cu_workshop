@@ -397,6 +397,64 @@ export async function deleteSheetTab(
 }
 
 /**
+ * 시트의 특정 범위를 보호 (수정 불가능하게 설정)
+ * @param spreadsheetId 스프레드시트 ID
+ * @param sheetId 시트 ID
+ * @param startColumnIndex 시작 열 인덱스 (0부터 시작)
+ * @param endColumnIndex 끝 열 인덱스 (exclusive)
+ * @param description 보호 설명
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function protectSheetRange(
+  spreadsheetId: string,
+  sheetId: number,
+  startColumnIndex: number,
+  endColumnIndex: number,
+  description: string,
+  accessToken: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addProtectedRange: {
+                protectedRange: {
+                  range: {
+                    sheetId: sheetId,
+                    startColumnIndex: startColumnIndex,
+                    endColumnIndex: endColumnIndex,
+                  },
+                  description: description,
+                  warningOnly: true, // 경고만 표시 (완전 잠금 대신)
+                },
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`시트 보호 설정 실패: ${JSON.stringify(error)}`);
+    }
+
+    console.log('시트 범위 보호 설정 완료');
+  } catch (error) {
+    console.error('시트 범위 보호 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * Google Sheets 시트 탭 이름 변경
  */
 export async function renameSheetTab(
@@ -813,6 +871,25 @@ export async function initializeUserSheet(
         );
 
         console.log('논의 및 결정사항 자동 집계 수식 추가 완료');
+
+        // 13. "논의 및 결정사항" 시트의 A열과 B열을 보호 (수식 보호)
+        try {
+          const discussionTab = finalTabs.find(tab => tab.title === '논의 및 결정사항');
+          if (discussionTab) {
+            await protectSheetRange(
+              spreadsheetId,
+              discussionTab.sheetId,
+              0, // A열 (index 0)
+              2, // B열까지 (index 2는 exclusive, 즉 A와 B만)
+              '자동 집계 수식이 있는 영역입니다. 수정하지 마세요.',
+              accessToken
+            );
+            console.log('논의 및 결정사항 A, B열 보호 설정 완료');
+          }
+        } catch (protectError) {
+          console.error('시트 보호 설정 실패:', protectError);
+          // 보호 실패는 치명적이지 않으므로 계속 진행
+        }
       }
     } catch (error) {
       console.error('자동 집계 수식 추가 실패:', error);
