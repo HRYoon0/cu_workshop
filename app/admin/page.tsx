@@ -1569,10 +1569,8 @@ function DepartmentManager({ userId }: { userId: string }) {
       const accessToken = localStorage.getItem('googleAccessToken');
       if (!accessToken) return;
 
-      const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
-
-      // Google Drive에서 학교 이름으로 스프레드시트 검색
-      const searchQuery = encodeURIComponent(`name='${schoolName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+      // Google Drive에서 고정된 시트 이름으로 검색
+      const searchQuery = encodeURIComponent(`name='교육과정 워크숍 논의 자료' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
       const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&fields=files(id,name,webViewLink,createdTime)&orderBy=createdTime desc`,
         {
@@ -1679,7 +1677,7 @@ function DepartmentManager({ userId }: { userId: string }) {
       const schoolFolderId = await findOrCreateFolder(schoolName, accessToken);
 
       // 3. 템플릿 시트 복사 (학교 폴더에 저장)
-      const sheetName = schoolName;
+      const sheetName = '교육과정 워크숍 논의 자료';
 
       const copyResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${templateId}/copy`,
