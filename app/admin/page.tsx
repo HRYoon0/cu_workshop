@@ -1944,7 +1944,7 @@ function DepartmentManager({ userId }: { userId: string }) {
           <p className="text-sm text-gray-500 mt-1">
             워크숍에서 논의할 주제를 관리합니다. 부서는 "부서 관리" 버튼에서 설정할 수 있습니다.
           </p>
-          {userSheet && (
+          {userSheet && sheetExists && (
             <div className="mt-2">
               <a
                 href={userSheet.sheetUrl}
