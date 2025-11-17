@@ -781,6 +781,69 @@ export async function initializeUserSheet(
       }
     }
 
+    // 12. "논의 및 결정사항" 시트에 자동 집계 수식 추가
+    // 각 시트의 D5에서 논의할 점을 가져와서 A4부터 자동으로 채움
+    try {
+      // 모든 시트에서 D5를 가져오는 수식 생성
+      // 시트 이름 목록 (논의 및 결정사항 제외)
+      const sourceSheets = finalTabs
+        .filter(tab => tab.title !== '논의 및 결정사항')
+        .map(tab => tab.title);
+
+      if (sourceSheets.length > 0) {
+        // 각 시트의 D5를 CHAR(10)으로 분리하고 시트 이름과 함께 가져오는 수식
+        // ARRAYFORMULA를 사용하여 여러 줄을 자동으로 분리
+        const sheetFormulas = sourceSheets.map(sheetName => {
+          return `IFERROR(
+            IF('${sheetName}'!D5<>"",
+              ARRAYFORMULA(
+                SPLIT('${sheetName}'!D5, CHAR(10))
+              ),
+              ""
+            ),
+            ""
+          )`;
+        });
+
+        const sheetNameFormulas = sourceSheets.map(sheetName => {
+          return `IFERROR(
+            IF('${sheetName}'!D5<>"",
+              ARRAYFORMULA(
+                IF(LEN(TRIM(SPLIT('${sheetName}'!D5, CHAR(10))))>0, "${sheetName}", "")
+              ),
+              ""
+            ),
+            ""
+          )`;
+        });
+
+        // 모든 시트의 데이터를 합치는 수식
+        const combinedFormula = `=IFERROR(
+          QUERY(
+            {
+              FLATTEN({${sheetFormulas.join('; ')}}),
+              FLATTEN({${sheetNameFormulas.join('; ')}})
+            },
+            "SELECT * WHERE Col1 <> '' AND TRIM(Col1) <> ''"
+          ),
+          ""
+        )`;
+
+        // A4에 수식 입력
+        await updateSheetRange(
+          spreadsheetId,
+          '논의 및 결정사항!A4',
+          [[combinedFormula]],
+          accessToken
+        );
+
+        console.log('논의 및 결정사항 자동 집계 수식 추가 완료');
+      }
+    } catch (error) {
+      console.error('자동 집계 수식 추가 실패:', error);
+      // 수식 추가 실패는 치명적이지 않으므로 계속 진행
+    }
+
     console.log('사용자 시트 초기화 완료');
   } catch (error) {
     console.error('사용자 시트 초기화 실패:', error);
