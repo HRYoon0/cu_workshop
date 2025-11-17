@@ -118,7 +118,7 @@ export default function LoginPage() {
 
         <div className="text-sm text-gray-500 text-center mt-6 space-y-1">
           <p>처음 로그인하시는 경우 관리자의 승인이 필요합니다.</p>
-          <p className="text-xs">Google 권한은 Drive 파일 관리, Sheets 읽기/쓰기, 이미지 업로드에 사용됩니다.</p>
+          <p className="text-xs whitespace-nowrap">Google 권한: Drive 관리, Sheets 읽기/쓰기, 이미지 업로드</p>
         </div>
       </div>
     </div>
