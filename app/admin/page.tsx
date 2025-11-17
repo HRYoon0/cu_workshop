@@ -1515,6 +1515,9 @@ function DepartmentManager({ userId }: { userId: string }) {
   const [sheetExists, setSheetExists] = useState<boolean>(false);
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
 
+  // 각 행의 편집 상태를 저장할 객체
+  const [editingItems, setEditingItems] = useState<{[key: string]: boolean}>({});
+
   // 각 행의 input ref를 저장할 객체
   const inputRefs = useRef<{[key: string]: {process: HTMLInputElement | null, decision: HTMLInputElement | null}}>({});
 
@@ -2004,6 +2007,9 @@ function DepartmentManager({ userId }: { userId: string }) {
       }
 
       await updateDiscussionItem(userSheet.sheetId, row, item, accessToken);
+
+      // 목록 새로고침
+      await loadDiscussionItems();
       alert('저장되었습니다.');
     } catch (error) {
       console.error('논의 항목 수정 실패:', error);
@@ -2301,74 +2307,88 @@ function DepartmentManager({ userId }: { userId: string }) {
                       </td>
                     </tr>
                   ) : (
-                    discussionItems.map((item, index) => (
-                      <tr
-                        key={item.id}
-                        className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-green-50 transition-colors border-b border-gray-200`}
-                      >
-                        <td className="px-6 py-4 min-w-[200px]">
-                          <div className="text-gray-900 font-medium">{item.topic}</div>
-                          <p className="text-xs text-gray-400 mt-1">자동 집계</p>
-                        </td>
-                        <td className="px-6 py-4 min-w-[120px]">
-                          <div className="text-gray-700">{item.gradeOrDept}</div>
-                          <p className="text-xs text-gray-400 mt-1">자동 집계</p>
-                        </td>
-                        <td className="px-6 py-4 min-w-[250px]">
-                          <input
-                            type="text"
-                            defaultValue={item.process}
-                            ref={(input) => {
-                              if (!inputRefs.current[item.id]) {
-                                inputRefs.current[item.id] = { process: null, decision: null };
-                              }
-                              inputRefs.current[item.id].process = input;
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            placeholder="논의 과정을 입력하세요"
-                          />
-                        </td>
-                        <td className="px-6 py-4 min-w-[250px]">
-                          <input
-                            type="text"
-                            defaultValue={item.decision}
-                            ref={(input) => {
-                              if (!inputRefs.current[item.id]) {
-                                inputRefs.current[item.id] = { process: null, decision: null };
-                              }
-                              inputRefs.current[item.id].decision = input;
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            placeholder="결정 사항을 입력하세요"
-                          />
-                        </td>
-                        <td className="px-6 py-4 min-w-[180px]">
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => {
-                                const refs = inputRefs.current[item.id];
-                                if (refs) {
-                                  const updatedItem = {
-                                    process: refs.process?.value || '',
-                                    decision: refs.decision?.value || ''
-                                  };
-                                  handleUpdateDiscussionItem(item.row, updatedItem);
-                                }
-                              }}
-                              className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
-                            >
-                              저장
-                            </button>
-                            <button
-                              onClick={() => handleDeleteDiscussionItem(item.row, item.topic)}
-                              className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm whitespace-nowrap"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    discussionItems.map((item, index) => {
+                      const isEditing = editingItems[item.id] || false;
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-green-50 transition-colors border-b border-gray-200`}
+                        >
+                          <td className="px-6 py-4 min-w-[200px]">
+                            <div className="text-gray-900 font-medium">{item.topic}</div>
+                          </td>
+                          <td className="px-6 py-4 min-w-[120px]">
+                            <div className="text-gray-700">{item.gradeOrDept}</div>
+                          </td>
+                          <td className="px-6 py-4 min-w-[250px]">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                defaultValue={item.process}
+                                ref={(input) => {
+                                  if (!inputRefs.current[item.id]) {
+                                    inputRefs.current[item.id] = { process: null, decision: null };
+                                  }
+                                  inputRefs.current[item.id].process = input;
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                placeholder="논의 과정을 입력하세요"
+                              />
+                            ) : (
+                              <div className="text-gray-900">{item.process || '-'}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 min-w-[250px]">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                defaultValue={item.decision}
+                                ref={(input) => {
+                                  if (!inputRefs.current[item.id]) {
+                                    inputRefs.current[item.id] = { process: null, decision: null };
+                                  }
+                                  inputRefs.current[item.id].decision = input;
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                placeholder="결정 사항을 입력하세요"
+                              />
+                            ) : (
+                              <div className="text-gray-900">{item.decision || '-'}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 min-w-[180px]">
+                            <div className="flex gap-2 justify-center">
+                              {isEditing ? (
+                                <button
+                                  onClick={() => {
+                                    const refs = inputRefs.current[item.id];
+                                    if (refs) {
+                                      const updatedItem = {
+                                        process: refs.process?.value || '',
+                                        decision: refs.decision?.value || ''
+                                      };
+                                      handleUpdateDiscussionItem(item.row, updatedItem);
+                                      setEditingItems({ ...editingItems, [item.id]: false });
+                                    }
+                                  }}
+                                  className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
+                                >
+                                  저장
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setEditingItems({ ...editingItems, [item.id]: true })}
+                                  className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
+                                >
+                                  수정
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
