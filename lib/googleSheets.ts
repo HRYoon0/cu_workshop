@@ -194,11 +194,12 @@ export async function updateSheetRange(
   spreadsheetId: string,
   range: string,
   values: any[][],
-  accessToken: string
+  accessToken: string,
+  valueInputOption: 'RAW' | 'USER_ENTERED' = 'RAW'
 ) {
   try {
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=${valueInputOption}`,
       {
         method: 'PUT',
         headers: {
@@ -829,12 +830,13 @@ export async function initializeUserSheet(
           ""
         )`;
 
-        // A4에 수식 입력
+        // A4에 수식 입력 (USER_ENTERED로 수식 실행)
         await updateSheetRange(
           spreadsheetId,
           '논의 및 결정사항!A4',
           [[combinedFormula]],
-          accessToken
+          accessToken,
+          'USER_ENTERED'
         );
 
         console.log('논의 및 결정사항 자동 집계 수식 추가 완료');
