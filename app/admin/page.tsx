@@ -1493,6 +1493,7 @@ function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey
 
 // 논의 자료 관리 컴포넌트
 function DepartmentManager({ userId }: { userId: string }) {
+  const router = useRouter();
   const [topics, setTopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
@@ -1514,6 +1515,15 @@ function DepartmentManager({ userId }: { userId: string }) {
   });
   const [sheetExists, setSheetExists] = useState<boolean>(false);
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
+
+  // Google API 토큰 만료 시 자동 로그아웃
+  const handleTokenExpired = async () => {
+    console.log('Google 토큰이 만료되었습니다. 자동 로그아웃합니다.');
+    localStorage.removeItem('googleAccessToken');
+    await signOut(auth);
+    alert('Google 인증이 만료되었습니다.\n\n다시 로그인해주세요.');
+    router.push('/login');
+  };
 
   useEffect(() => {
     if (userId) {
@@ -1578,6 +1588,12 @@ function DepartmentManager({ userId }: { userId: string }) {
         }
       );
 
+      if (response.status === 401) {
+        // 토큰 만료 시 자동 로그아웃
+        await handleTokenExpired();
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         if (data.files && data.files.length > 0) {
@@ -1634,6 +1650,12 @@ function DepartmentManager({ userId }: { userId: string }) {
           },
         }
       );
+
+      if (response.status === 401) {
+        // 토큰 만료 시 자동 로그아웃
+        await handleTokenExpired();
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -1693,13 +1715,13 @@ function DepartmentManager({ userId }: { userId: string }) {
       );
 
       if (!copyResponse.ok) {
-        const error = await copyResponse.json();
-
-        // 401 에러면 토큰 만료
+        // 401 에러면 토큰 만료 - 자동 로그아웃
         if (copyResponse.status === 401) {
-          throw new Error('Google 인증이 만료되었습니다. 다시 로그인해주세요.');
+          await handleTokenExpired();
+          return;
         }
 
+        const error = await copyResponse.json();
         throw new Error(`시트 복사 실패: ${JSON.stringify(error)}`);
       }
 
@@ -1786,13 +1808,11 @@ function DepartmentManager({ userId }: { userId: string }) {
       console.error('시트 생성 실패:', error);
       let errorMessage = '시트 생성에 실패했습니다.';
 
-      if (error.message?.includes('액세스 토큰이 없습니다') || error.message?.includes('다시 로그인')) {
-        errorMessage = 'Google 인증이 만료되었습니다.\n\n로그아웃 후 다시 로그인해주세요.';
-      } else if (error.message?.includes('popup')) {
+      if (error.message?.includes('popup')) {
         errorMessage = '팝업이 차단되었습니다.\n\n브라우저에서 팝업을 허용하고 다시 시도해주세요.';
       } else if (error.message?.includes('cancelled')) {
         errorMessage = 'Google 인증이 취소되었습니다.';
-      } else {
+      } else if (error.message) {
         errorMessage = `시트 생성에 실패했습니다.\n\n에러: ${error.message}`;
       }
 
