@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
@@ -1506,7 +1506,6 @@ function DepartmentManager({ userId }: { userId: string }) {
   // 논의 및 결정사항 관련 상태
   const [discussionItems, setDiscussionItems] = useState<any[]>([]);
   const [isLoadingDiscussions, setIsLoadingDiscussions] = useState(false);
-  const [editingDiscussion, setEditingDiscussion] = useState<any>(null);
   const [newDiscussionItem, setNewDiscussionItem] = useState({
     topic: '',
     gradeOrDept: '',
@@ -1515,6 +1514,9 @@ function DepartmentManager({ userId }: { userId: string }) {
   });
   const [sheetExists, setSheetExists] = useState<boolean>(false);
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
+
+  // 각 행의 input ref를 저장할 객체
+  const inputRefs = useRef<{[key: string]: {process: HTMLInputElement | null, decision: HTMLInputElement | null}}>({});
 
   // Google API 토큰 만료 시 자동 로그아웃
   const handleTokenExpired = async () => {
@@ -2002,12 +2004,10 @@ function DepartmentManager({ userId }: { userId: string }) {
       }
 
       await updateDiscussionItem(userSheet.sheetId, row, item, accessToken);
-      setEditingDiscussion(null);
-      await loadDiscussionItems();
-      alert('논의 항목이 수정되었습니다.');
+      alert('저장되었습니다.');
     } catch (error) {
       console.error('논의 항목 수정 실패:', error);
-      alert('논의 항목 수정에 실패했습니다.');
+      alert('저장에 실패했습니다.');
     }
   };
 
@@ -2306,93 +2306,67 @@ function DepartmentManager({ userId }: { userId: string }) {
                         key={item.id}
                         className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-green-50 transition-colors border-b border-gray-200`}
                       >
-                        {editingDiscussion?.id === item.id ? (
-                          <>
-                            <td className="px-6 py-4">
-                              <div className="px-3 py-2 bg-gray-100 rounded text-gray-700">
-                                {item.topic}
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">자동 집계됨 (수정 불가)</p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="px-3 py-2 bg-gray-100 rounded text-gray-700">
-                                {item.gradeOrDept}
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">자동 집계됨 (수정 불가)</p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <input
-                                type="text"
-                                defaultValue={item.process}
-                                ref={(input) => {
-                                  if (input) {
-                                    (editingDiscussion as any).processInput = input;
-                                  }
-                                }}
-                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
-                                placeholder="논의 과정을 입력하세요"
-                              />
-                            </td>
-                            <td className="px-6 py-4">
-                              <input
-                                type="text"
-                                defaultValue={item.decision}
-                                ref={(input) => {
-                                  if (input) {
-                                    (editingDiscussion as any).decisionInput = input;
-                                  }
-                                }}
-                                className="w-full px-3 py-2 border-2 border-green-500 rounded text-gray-900"
-                                placeholder="결정 사항을 입력하세요"
-                              />
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2 justify-center">
-                                <button
-                                  onClick={() => {
-                                    const updatedItem = {
-                                      process: (editingDiscussion as any).processInput?.value || '',
-                                      decision: (editingDiscussion as any).decisionInput?.value || ''
-                                    };
-                                    handleUpdateDiscussionItem(item.row, updatedItem);
-                                  }}
-                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                                >
-                                  저장
-                                </button>
-                                <button
-                                  onClick={() => setEditingDiscussion(null)}
-                                  className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
-                                >
-                                  취소
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-6 py-4 text-gray-900">{item.topic}</td>
-                            <td className="px-6 py-4 text-gray-700">{item.gradeOrDept}</td>
-                            <td className="px-6 py-4 text-gray-700">{item.process}</td>
-                            <td className="px-6 py-4 text-gray-700">{item.decision}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex gap-2 justify-center">
-                                <button
-                                  onClick={() => setEditingDiscussion(item)}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                                >
-                                  수정
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteDiscussionItem(item.row, item.topic)}
-                                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                                >
-                                  삭제
-                                </button>
-                              </div>
-                            </td>
-                          </>
-                        )}
+                        <td className="px-6 py-4 min-w-[200px]">
+                          <div className="text-gray-900 font-medium">{item.topic}</div>
+                          <p className="text-xs text-gray-400 mt-1">자동 집계</p>
+                        </td>
+                        <td className="px-6 py-4 min-w-[120px]">
+                          <div className="text-gray-700">{item.gradeOrDept}</div>
+                          <p className="text-xs text-gray-400 mt-1">자동 집계</p>
+                        </td>
+                        <td className="px-6 py-4 min-w-[250px]">
+                          <input
+                            type="text"
+                            defaultValue={item.process}
+                            ref={(input) => {
+                              if (!inputRefs.current[item.id]) {
+                                inputRefs.current[item.id] = { process: null, decision: null };
+                              }
+                              inputRefs.current[item.id].process = input;
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            placeholder="논의 과정을 입력하세요"
+                          />
+                        </td>
+                        <td className="px-6 py-4 min-w-[250px]">
+                          <input
+                            type="text"
+                            defaultValue={item.decision}
+                            ref={(input) => {
+                              if (!inputRefs.current[item.id]) {
+                                inputRefs.current[item.id] = { process: null, decision: null };
+                              }
+                              inputRefs.current[item.id].decision = input;
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            placeholder="결정 사항을 입력하세요"
+                          />
+                        </td>
+                        <td className="px-6 py-4 min-w-[180px]">
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => {
+                                const refs = inputRefs.current[item.id];
+                                if (refs) {
+                                  const updatedItem = {
+                                    process: refs.process?.value || '',
+                                    decision: refs.decision?.value || ''
+                                  };
+                                  handleUpdateDiscussionItem(item.row, updatedItem);
+                                }
+                              }}
+                              className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
+                            >
+                              저장
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDiscussionItem(item.row, item.topic)}
+                              className="px-4 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm whitespace-nowrap"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
