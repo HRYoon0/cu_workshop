@@ -1837,7 +1837,15 @@ function DiscussionManager({ userId }: { userId: string }) {
               >
                 📊 최근 생성한 시트 열기
               </a>
-              <span className="text-xs text-gray-500 ml-2">(매년 새 시트를 생성할 수 있습니다)</span>
+              <span className="text-xs text-gray-500 ml-2">
+                ({new Date(userSheet.createdAt).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })} 생성)
+              </span>
             </div>
           )}
         </div>
