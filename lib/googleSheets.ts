@@ -960,7 +960,7 @@ export async function getDiscussionItems(
  */
 export async function addDiscussionItem(
   spreadsheetId: string,
-  item: { topic: string; gradeOrDept: string; process: string; decision: string },
+  item: { topic: string; gradeOrDept: string },
   accessToken: string
 ): Promise<void> {
   try {
@@ -972,9 +972,9 @@ export async function addDiscussionItem(
     // 다음 빈 행 찾기
     const nextRow = items.length > 0 ? Math.max(...items.map(i => i.row)) + 1 : 4;
 
-    // 새 데이터 추가
+    // 새 데이터 추가 (논의할 점, 학년/업무만, C,D는 빈칸)
     const range = `${tabName}!A${nextRow}:D${nextRow}`;
-    const values = [[item.topic, item.gradeOrDept, item.process, item.decision]];
+    const values = [[item.topic, item.gradeOrDept, '', '']];
 
     await updateSheetRange(spreadsheetId, range, values, accessToken);
 

@@ -1959,13 +1959,21 @@ function DepartmentManager({ userId }: { userId: string }) {
       return;
     }
 
+    if (!newDiscussionItem.gradeOrDept.trim()) {
+      alert('학년/업무를 입력해주세요.');
+      return;
+    }
+
     try {
       const accessToken = localStorage.getItem('googleAccessToken');
       if (!accessToken) {
         throw new Error('Google 액세스 토큰이 없습니다.');
       }
 
-      await addDiscussionItem(userSheet.sheetId, newDiscussionItem, accessToken);
+      await addDiscussionItem(userSheet.sheetId, {
+        topic: newDiscussionItem.topic,
+        gradeOrDept: newDiscussionItem.gradeOrDept
+      }, accessToken);
 
       // 폼 초기화
       setNewDiscussionItem({
@@ -2393,28 +2401,40 @@ function DepartmentManager({ userId }: { userId: string }) {
             </div>
           </div>
 
-          {/* 사용 안내 */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 shadow-md border-2 border-blue-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
-              <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              사용 방법
-            </h3>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p className="flex items-start">
-                <span className="font-semibold text-blue-600 mr-2">📝</span>
-                <span><strong>논의할 점 추가:</strong> Google Sheets에서 각 학년/부서 시트의 <strong>D5 셀</strong>에 논의할 점을 입력하세요. (줄바꿈으로 여러 항목 입력 가능)</span>
-              </p>
-              <p className="flex items-start">
-                <span className="font-semibold text-green-600 mr-2">✏️</span>
-                <span><strong>논의 과정 & 결정 사항:</strong> 위 표에서 <strong>"수정"</strong> 버튼을 눌러 논의 과정과 결정 사항을 직접 입력하세요.</span>
-              </p>
-              <p className="flex items-start">
-                <span className="font-semibold text-purple-600 mr-2">🔄</span>
-                <span><strong>자동 동기화:</strong> 논의할 점과 학년/업무는 시트에서 자동으로 가져오므로 여기서 수정할 수 없습니다.</span>
-              </p>
+          {/* 새 논의 항목 추가 폼 */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 shadow-md border-2 border-green-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">새 논의 항목 추가</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Google Sheets의 학년/부서 시트에 기록되지 않은 논의 항목을 추가할 수 있습니다.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                value={newDiscussionItem.topic}
+                onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, topic: e.target.value })}
+                placeholder="논의할 점"
+                className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newDiscussionItem.gradeOrDept}
+                  onChange={(e) => setNewDiscussionItem({ ...newDiscussionItem, gradeOrDept: e.target.value })}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddDiscussionItem()}
+                  placeholder="학년/업무"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                />
+                <button
+                  onClick={handleAddDiscussionItem}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  추가
+                </button>
+              </div>
             </div>
+            <p className="text-xs text-gray-500 mt-3">
+              논의 과정과 결정 사항은 추가 후 "수정" 버튼을 눌러 입력하세요.
+            </p>
           </div>
 
           {/* 안내 메시지 */}
