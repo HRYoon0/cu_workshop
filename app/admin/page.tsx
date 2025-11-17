@@ -1680,6 +1680,28 @@ function DepartmentManager({ userId }: { userId: string }) {
         // 권한 부여 실패는 치명적이지 않으므로 계속 진행
       }
 
+      // 4-1. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
+      try {
+        await fetch(
+          `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              role: 'writer',
+              type: 'anyone',
+            }),
+          }
+        );
+        console.log('링크 공유 편집 권한 부여 완료');
+      } catch (permError) {
+        console.error('링크 공유 권한 부여 실패:', permError);
+        // 권한 부여 실패는 치명적이지 않으므로 계속 진행
+      }
+
       // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
 
