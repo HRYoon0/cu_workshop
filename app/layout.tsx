@@ -10,7 +10,7 @@ const gowunDodum = Gowun_Dodum({
 
 export const metadata: Metadata = {
   title: '교육과정 워크숍',
-  description: '실시간 퀴즈 및 설문 시스템',
+  description: '실시간 의견 취합 시스템',
 }
 
 export default function RootLayout({

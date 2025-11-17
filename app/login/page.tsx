@@ -77,7 +77,7 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            교육과정 워크숍 퀴즈
+            교육과정 워크숍 시스템
           </h1>
           <p className="text-gray-600">
             Google 계정으로 로그인하세요
@@ -118,7 +118,7 @@ export default function LoginPage() {
 
         <div className="text-sm text-gray-500 text-center mt-6 space-y-1">
           <p>처음 로그인하시는 경우 관리자의 승인이 필요합니다.</p>
-          <p className="text-xs">Google Drive 권한은 이미지 업로드에 사용됩니다.</p>
+          <p className="text-xs">Google 권한은 Drive 파일 관리, Sheets 읽기/쓰기, 이미지 업로드에 사용됩니다.</p>
         </div>
       </div>
     </div>
