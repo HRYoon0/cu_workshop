@@ -1514,6 +1514,8 @@ function DepartmentManager({ userId }: { userId: string }) {
   });
   const [sheetExists, setSheetExists] = useState<boolean>(false);
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
+  const [showLinkSheetModal, setShowLinkSheetModal] = useState(false);
+  const [linkSheetUrl, setLinkSheetUrl] = useState('');
 
   useEffect(() => {
     if (userId) {
@@ -1745,6 +1747,74 @@ function DepartmentManager({ userId }: { userId: string }) {
       alert(errorMessage);
     } finally {
       setIsCreatingSheet(false);
+    }
+  };
+
+  const handleLinkExistingSheet = async () => {
+    if (!linkSheetUrl.trim()) {
+      alert('시트 URL을 입력해주세요.');
+      return;
+    }
+
+    // URL에서 시트 ID 추출
+    const match = linkSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) {
+      alert('올바른 Google Sheets URL이 아닙니다.\n\n예: https://docs.google.com/spreadsheets/d/시트ID/edit');
+      return;
+    }
+
+    const sheetId = match[1];
+
+    try {
+      // Google Drive API로 시트 존재 확인
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${sheetId}?fields=id,name,webViewLink`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('시트를 찾을 수 없습니다. URL을 확인해주세요.');
+      }
+
+      const fileData = await response.json();
+      const sheetUrl = fileData.webViewLink || `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+
+      // Firestore에 저장
+      await saveUserSheet({
+        userId,
+        sheetId,
+        sheetUrl,
+        webAppUrl: null,
+        templateId: process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s',
+      });
+
+      // UI 업데이트
+      setUserSheet({
+        userId,
+        sheetId,
+        sheetUrl,
+        webAppUrl: null,
+        templateId: process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s',
+        createdAt: new Date(),
+      });
+
+      setSheetExists(true);
+      setShowLinkSheetModal(false);
+      setLinkSheetUrl('');
+
+      alert(`시트 연결 완료!\n\n시트 이름: ${fileData.name}`);
+    } catch (error: any) {
+      console.error('시트 연결 실패:', error);
+      alert(`시트 연결 실패: ${error.message}`);
     }
   };
 
@@ -2182,6 +2252,14 @@ function DepartmentManager({ userId }: { userId: string }) {
             <p>1. 먼저 <span className="font-semibold text-blue-600">"부서 관리"</span> 버튼을 눌러 부서를 설정하세요</p>
             <p>2. 그 다음 <span className="font-semibold text-green-600">"📋 새 시트 생성"</span> 버튼을 눌러 시트를 만드세요</p>
           </div>
+          <div className="mt-4">
+            <button
+              onClick={() => setShowLinkSheetModal(true)}
+              className="text-sm text-purple-600 hover:text-purple-800 underline"
+            >
+              🔗 이미 생성한 시트가 있나요? 기존 시트 연결하기
+            </button>
+          </div>
           {isCheckingSheet && (
             <p className="text-gray-400 text-xs mt-4">시트 확인 중...</p>
           )}
@@ -2389,6 +2467,42 @@ function DepartmentManager({ userId }: { userId: string }) {
             </div>
           )}
         </>
+      )}
+
+      {/* 기존 시트 연결 모달 */}
+      {showLinkSheetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">🔗 기존 시트 연결</h3>
+            <p className="text-gray-600 text-sm mb-4">
+              이미 생성한 Google Sheets URL을 입력하세요.
+            </p>
+            <input
+              type="text"
+              value={linkSheetUrl}
+              onChange={(e) => setLinkSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleLinkExistingSheet}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold"
+              >
+                연결하기
+              </button>
+              <button
+                onClick={() => {
+                  setShowLinkSheetModal(false);
+                  setLinkSheetUrl('');
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
