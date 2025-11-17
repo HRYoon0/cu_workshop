@@ -792,20 +792,15 @@ export async function initializeUserSheet(
         .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        // 가장 단순하고 안정적인 방법: FILTER + FLATTEN 사용
-        // 각 시트의 D5를 SPLIT하고, 빈 값 제외하고, 시트 이름과 짝지음
-        const dataArrayParts: string[] = [];
-        const nameArrayParts: string[] = [];
-
-        sourceSheets.forEach(sheetName => {
-          // D5의 내용을 줄바꿈으로 분리
-          dataArrayParts.push(`IFERROR(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))),"")`);
-          // 해당하는 시트 이름 배열
-          nameArrayParts.push(`IFERROR(IF(LEN(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))))>0,"${sheetName}",""),"")`);
+        // VSTACK을 사용하여 다른 크기의 배열을 세로로 쌓기
+        // 각 시트의 D5를 SPLIT하고, 시트 이름과 함께 HSTACK으로 붙임
+        const vstackParts = sourceSheets.map(sheetName => {
+          // D5가 비어있지 않으면 SPLIT 후 시트 이름과 결합, 비어있으면 빈 행
+          return `IFERROR(IF('${sheetName}'!D5<>"",HSTACK(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))),IF(LEN(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))))>0,"${sheetName}","")),{"",""}),{"",""})`;
         });
 
-        // FILTER를 사용하여 빈 값 제거
-        const combinedFormula = `=FILTER({${dataArrayParts.join(';')},${nameArrayParts.join(';')}},LEN(TRIM({${dataArrayParts.join(';')}}))>0)`;
+        // VSTACK으로 모든 시트 데이터를 합치고, FILTER로 빈 행 제거
+        const combinedFormula = `=FILTER(VSTACK(${vstackParts.join(',')}),INDEX(VSTACK(${vstackParts.join(',')}),0,1)<>"")`;
 
         // A4에 수식 입력 (논의할 점과 시트 이름이 함께)
         await updateSheetRange(
