@@ -35,6 +35,7 @@ import {
   addSheetTab,
   deleteSheetTab,
   renameSheetTab,
+  duplicateSheetTab,
   setupSheetTabData,
   getSheetTabs,
   initializeUserSheet,
@@ -2119,6 +2120,16 @@ function DepartmentManager({ userId }: { userId: string }) {
                   </ul>
                 </div>
               )}
+
+              {/* 완료 버튼 */}
+              <div className="flex justify-end pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowDepartmentModal(false)}
+                  className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
+                >
+                  완료
+                </button>
+              </div>
             </div>
           </div>
         </div>

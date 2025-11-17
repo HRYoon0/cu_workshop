@@ -440,6 +440,105 @@ export async function renameSheetTab(
 }
 
 /**
+ * Google Sheets 시트 탭 복제
+ */
+export async function duplicateSheetTab(
+  spreadsheetId: string,
+  sourceSheetId: number,
+  newTitle: string,
+  accessToken: string
+): Promise<number> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              duplicateSheet: {
+                sourceSheetId: sourceSheetId,
+                newSheetName: newTitle,
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Google Sheets API 오류: ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    const newSheetId = data.replies[0].duplicateSheet.properties.sheetId;
+    return newSheetId;
+  } catch (error) {
+    console.error('시트 탭 복제 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 특정 시트 내에서 텍스트를 찾아서 바꾸기
+ * @param spreadsheetId 스프레드시트 ID
+ * @param sheetId 대상 시트의 ID (탭 ID)
+ * @param findText 찾을 텍스트
+ * @param replaceText 바꿀 텍스트
+ * @param accessToken Google OAuth 액세스 토큰
+ */
+export async function replaceTextInSheet(
+  spreadsheetId: string,
+  sheetId: number,
+  findText: string,
+  replaceText: string,
+  accessToken: string
+): Promise<void> {
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              findReplace: {
+                find: findText,
+                replacement: replaceText,
+                sheetId: sheetId,
+                matchEntireCell: false,
+                matchCase: true,
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`텍스트 바꾸기 실패: ${JSON.stringify(error)}`);
+    }
+
+    const data = await response.json();
+    const replaceCount = data.replies?.[0]?.findReplace?.occurrencesChanged || 0;
+    console.log(`'${findText}' → '${replaceText}' 변경: ${replaceCount}건`);
+  } catch (error) {
+    console.error('텍스트 바꾸기 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 시트 탭에 초기 데이터 설정 (학교명, 업무명 등)
  */
 export async function setupSheetTabData(
@@ -495,25 +594,31 @@ export async function initializeUserSheet(
     // 1. 현재 시트의 모든 탭 가져오기
     const currentTabs = await getSheetTabs(spreadsheetId, accessToken);
 
-    // 2. 기본 탭 ("논의 및 결정사항", "1학년"~"6학년") 제외하고 업무별 탭 찾기
+    // 2. "업무별" 템플릿 시트 찾기
+    const templateSheet = currentTabs.find(tab => tab.title === '업무별');
+    if (!templateSheet) {
+      throw new Error('템플릿 시트 "업무별"을 찾을 수 없습니다.');
+    }
+
+    // 3. 기본 탭 ("논의 및 결정사항", "1학년"~"6학년", "업무별") 제외하고 기존 부서 탭 찾기
     const protectedTabNames = ['논의 및 결정사항', '1학년', '2학년', '3학년', '4학년', '5학년', '6학년', '업무별'];
     const existingTopicTabs = currentTabs.filter(tab => !protectedTabNames.includes(tab.title));
 
-    // 3. 필요한 업무 탭 목록
+    // 4. 필요한 부서 탭 목록
     const requiredTopicNames = topics.map(t => t.name);
 
-    // 4. 삭제할 탭 찾기 (존재하지만 필요 없는 탭)
+    // 5. 삭제할 탭 찾기 (존재하지만 필요 없는 탭)
     const tabsToDelete = existingTopicTabs.filter(
       tab => !requiredTopicNames.includes(tab.title)
     );
 
-    // 5. 추가할 탭 찾기 (필요하지만 존재하지 않는 탭)
+    // 6. 추가할 탭 찾기 (필요하지만 존재하지 않는 탭)
     const existingTopicNames = existingTopicTabs.map(t => t.title);
     const topicsToAdd = topics.filter(
       topic => !existingTopicNames.includes(topic.name) && !protectedTabNames.includes(topic.name)
     );
 
-    // 6. 불필요한 탭 삭제
+    // 7. 불필요한 탭 삭제
     for (const tab of tabsToDelete) {
       try {
         await deleteSheetTab(spreadsheetId, tab.sheetId, accessToken);
@@ -523,17 +628,27 @@ export async function initializeUserSheet(
       }
     }
 
-    // 7. 필요한 탭 추가
+    // 8. "업무별" 시트를 복제하여 각 부서 시트 생성
     for (const topic of topicsToAdd) {
       try {
-        await addSheetTab(spreadsheetId, topic.name, accessToken);
-        console.log(`탭 추가됨: ${topic.name}`);
+        // "업무별" 시트 복제
+        const newSheetId = await duplicateSheetTab(spreadsheetId, templateSheet.sheetId, topic.name, accessToken);
+        console.log(`탭 복제 완료: ${topic.name}`);
+
+        // 복제된 시트 내에서 "업무별" 텍스트를 부서 이름으로 변경
+        try {
+          await replaceTextInSheet(spreadsheetId, newSheetId, '업무별', topic.name, accessToken);
+          console.log(`시트 내 텍스트 변경 완료: 업무별 → ${topic.name}`);
+        } catch (replaceError) {
+          console.error(`텍스트 변경 실패 (${topic.name}):`, replaceError);
+          // 텍스트 변경 실패는 치명적이지 않으므로 계속 진행
+        }
       } catch (error) {
-        console.error(`탭 추가 실패 (${topic.name}):`, error);
+        console.error(`탭 복제 실패 (${topic.name}):`, error);
       }
     }
 
-    // 8. 모든 탭에 초기 데이터 설정
+    // 9. 모든 탭에 초기 데이터 설정
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
     for (const tab of finalTabs) {
       try {
@@ -548,7 +663,7 @@ export async function initializeUserSheet(
           accessToken
         );
 
-        // 학년/업무 탭인 경우 E1:E2에 탭 이름 (학년명 또는 업무명)
+        // 학년/업무/부서 탭인 경우 E1:E2에 탭 이름
         if (!tab.title.includes('논의 및 결정사항')) {
           await updateSheetRange(
             spreadsheetId,
