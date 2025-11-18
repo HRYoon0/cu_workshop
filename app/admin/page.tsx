@@ -15,6 +15,7 @@ import {
   updateSurvey,
   createQuizSession,
   createSurveySession,
+  createSurveyItemsSession,
   isApprovedUser,
   getPendingUsers,
   approveUser,
@@ -960,11 +961,13 @@ function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) =
 
 // 설문 관리 컴포넌트 (간소화 버전 - 주제 없이 설문만 관리)
 function SurveyManager({ userId }: { userId: string }) {
+  const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasSheet, setHasSheet] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -1028,20 +1031,50 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
+  const handleStartSurvey = async () => {
+    try {
+      setIsStarting(true);
+      const sessionId = await createSurveyItemsSession(userId);
+      router.push(`/admin/survey-session/${sessionId}`);
+    } catch (error: any) {
+      console.error('설문 세션 생성 실패:', error);
+      alert(error.message || '설문 세션 생성에 실패했습니다.');
+      setIsStarting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
-        <button
-          onClick={() => {
-            setShowItemForm(!showItemForm);
-            if (showItemForm) setEditingItem(null);
-          }}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
-        >
-          {showItemForm ? '취소' : '+ 새 설문 추가'}
-        </button>
+        <div className="flex gap-3">
+          {items.length > 0 && (
+            <button
+              onClick={handleStartSurvey}
+              disabled={isStarting}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isStarting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  시작 중...
+                </>
+              ) : (
+                '설문 시작하기'
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setShowItemForm(!showItemForm);
+              if (showItemForm) setEditingItem(null);
+            }}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
+          >
+            {showItemForm ? '취소' : '+ 새 설문 추가'}
+          </button>
+        </div>
       </div>
 
       {/* 설문 항목 생성/수정 폼 */}

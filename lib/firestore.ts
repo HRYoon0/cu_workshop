@@ -416,7 +416,7 @@ export async function getSurveys(userId: string) {
 }
 
 /**
- * 설문 세션 생성
+ * 설문 세션 생성 (단일 설문 - 레거시)
  */
 export async function createSurveySession(surveyId: string) {
   try {
@@ -435,11 +435,42 @@ export async function createSurveySession(surveyId: string) {
 }
 
 /**
+ * 설문 세션 생성 (여러 설문 항목 - 퀴즈처럼 진행)
+ * userId의 모든 설문 항목을 가져와서 세션 생성
+ */
+export async function createSurveyItemsSession(userId: string) {
+  try {
+    // 사용자의 모든 설문 항목 가져오기
+    const surveyItems = await getAllSurveyItemsByUser(userId);
+
+    if (surveyItems.length === 0) {
+      throw new Error('생성된 설문 항목이 없습니다.');
+    }
+
+    // 세션 생성
+    const docRef = await addDoc(collection(db, 'surveySessions'), {
+      userId,
+      surveyItems, // 모든 설문 항목 저장
+      currentItemIndex: 0, // 현재 진행 중인 설문 항목 인덱스
+      status: 'waiting', // waiting, active, showing_result, finished
+      participants: [],
+      responses: [], // 현재 항목의 응답들
+      allResponses: {}, // 모든 항목의 응답들 { itemId: [responses] }
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('설문 세션 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 설문 세션 상태 업데이트
  */
 export async function updateSurveySessionStatus(
   sessionId: string,
-  status: 'waiting' | 'active' | 'finished'
+  status: 'waiting' | 'active' | 'showing_result' | 'finished'
 ) {
   try {
     const sessionRef = doc(db, 'surveySessions', sessionId);
@@ -454,6 +485,61 @@ export async function updateSurveySessionStatus(
     await updateDoc(sessionRef, updateData);
   } catch (error) {
     console.error('설문 세션 상태 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 세션의 현재 항목 인덱스 업데이트 (퀴즈의 updateQuizSessionQuestion과 유사)
+ */
+export async function updateSurveySessionItem(
+  sessionId: string,
+  itemIndex: number
+) {
+  try {
+    const sessionRef = doc(db, 'surveySessions', sessionId);
+    await updateDoc(sessionRef, {
+      currentItemIndex: itemIndex,
+      responses: [], // 새 항목으로 이동 시 응답 초기화
+      status: 'active' // 항목 시작 시 active 상태로
+    });
+  } catch (error) {
+    console.error('설문 항목 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 현재 항목의 응답을 allResponses에 저장하고 다음 항목으로 이동
+ */
+export async function saveCurrentResponsesAndMoveNext(
+  sessionId: string,
+  currentItemId: string,
+  currentItemIndex: number
+) {
+  try {
+    const sessionRef = doc(db, 'surveySessions', sessionId);
+    const sessionSnap = await getDoc(sessionRef);
+
+    if (!sessionSnap.exists()) {
+      throw new Error('세션을 찾을 수 없습니다.');
+    }
+
+    const sessionData = sessionSnap.data();
+    const currentResponses = sessionData.responses || [];
+    const allResponses = sessionData.allResponses || {};
+
+    // 현재 항목의 응답을 allResponses에 저장
+    allResponses[currentItemId] = currentResponses;
+
+    await updateDoc(sessionRef, {
+      allResponses,
+      currentItemIndex: currentItemIndex + 1,
+      responses: [], // 다음 항목을 위해 응답 초기화
+      status: 'active'
+    });
+  } catch (error) {
+    console.error('응답 저장 및 다음 항목 이동 실패:', error);
     throw error;
   }
 }
