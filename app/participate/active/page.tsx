@@ -21,6 +21,8 @@ function ActiveParticipateContent() {
 
   // 이전 세션 ID를 추적하기 위한 ref
   const previousSessionIdRef = useRef<string | null>(null);
+  // 세션이 null이 되기 직전의 세션 ID를 저장 (재시작 감지용)
+  const lastKnownSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -40,9 +42,13 @@ function ActiveParticipateContent() {
 
         console.log('이전 세션 ID:', previousSessionId);
         console.log('새 세션 ID:', newSessionId);
+        console.log('마지막 알려진 세션 ID:', lastKnownSessionIdRef.current);
 
-        // 세션이 변경되었는지 확인 (이전 세션이 있고, ID가 다른 경우)
-        if (previousSessionId && newSessionId !== previousSessionId) {
+        // 세션이 변경되었는지 확인
+        // 1. 이전 세션이 있고 ID가 다른 경우
+        // 2. 이전 세션은 null이지만 마지막 알려진 세션과 다른 경우 (재시작)
+        if ((previousSessionId && newSessionId !== previousSessionId) ||
+            (!previousSessionId && lastKnownSessionIdRef.current && newSessionId !== lastKnownSessionIdRef.current)) {
           console.log('✅ 세션 변경 감지! 제출 상태 초기화');
           setSubmitted(false);
           setFreeOpinion('');
@@ -51,8 +57,10 @@ function ActiveParticipateContent() {
 
         // 현재 세션 ID를 이전 세션 ID로 저장
         previousSessionIdRef.current = newSessionId;
+        lastKnownSessionIdRef.current = newSessionId;
       } else {
-        console.log('❌ 세션 없음 - 초기화');
+        console.log('❌ 세션 없음');
+        // 세션이 null이 되어도 lastKnownSessionIdRef는 유지 (재시작 감지를 위해)
         previousSessionIdRef.current = null;
       }
 
