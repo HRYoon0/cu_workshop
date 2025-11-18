@@ -98,10 +98,13 @@ export interface SurveySession {
 
 export interface SurveyResponse {
   participantId: string;
-  participantName: string;
+  answer: number | string; // multiple: number (index), text: string, other: 'other'
+  otherText?: string; // used when answer === 'other'
+  timestamp?: Date;
+  // Legacy fields for backward compatibility
+  participantName?: string;
   scaleValue?: number; // -2 ~ +2
   textValue?: string;
-  timestamp: Date;
 }
 
 // 참여자 타입

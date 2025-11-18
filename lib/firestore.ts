@@ -578,7 +578,7 @@ export async function submitSurveyResponse(
           await saveSurveyResultToSheet({
             sessionId,
             surveyTitle,
-            participantName: response.participantName,
+            participantName: response.participantName || '',
             scaleValue: response.scaleValue,
             textValue: response.textValue,
             timestamp: response.timestamp || new Date(),
@@ -594,7 +594,7 @@ export async function submitSurveyResponse(
             await updateDoc(sessionRef, {
               responses: filteredResponses,
             });
-            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제:', response.participantName);
+            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제:', response.participantName || '');
           }
         } catch (err) {
           console.log('구글 시트 저장 실패, Firebase에 응답 유지:', err);
@@ -603,6 +603,68 @@ export async function submitSurveyResponse(
     }
   } catch (error) {
     console.error('설문 응답 제출 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 세션 가져오기 (일회성)
+ */
+export async function getSurveySession(sessionId: string) {
+  try {
+    const sessionRef = doc(db, 'surveySessions', sessionId);
+    const sessionSnap = await getDoc(sessionRef);
+
+    if (!sessionSnap.exists()) {
+      throw new Error('세션을 찾을 수 없습니다.');
+    }
+
+    const data = sessionSnap.data();
+    return {
+      id: sessionSnap.id,
+      ...data,
+      startTime: (data.startTime as Timestamp)?.toDate(),
+      endTime: (data.endTime as Timestamp)?.toDate(),
+      createdAt: (data.createdAt as Timestamp)?.toDate(),
+    };
+  } catch (error) {
+    console.error('설문 세션 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 세션에 참가자 추가
+ */
+export async function addParticipantToSurveySession(
+  sessionId: string,
+  participant: { id: string; nickname: string }
+) {
+  try {
+    const sessionRef = doc(db, 'surveySessions', sessionId);
+    const sessionSnap = await getDoc(sessionRef);
+
+    if (!sessionSnap.exists()) {
+      throw new Error('세션을 찾을 수 없습니다.');
+    }
+
+    const currentParticipants = sessionSnap.data().participants || [];
+
+    // 이미 참가한 경우 중복 방지
+    const exists = currentParticipants.some((p: any) => p.id === participant.id);
+    if (exists) {
+      return;
+    }
+
+    await updateDoc(sessionRef, {
+      participants: [...currentParticipants, {
+        ...participant,
+        joinedAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp()
+      }]
+    });
+  } catch (error) {
+    console.error('참가자 추가 실패:', error);
     throw error;
   }
 }
