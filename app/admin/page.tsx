@@ -1550,6 +1550,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
   const [currentOpinionSession, setCurrentOpinionSession] = useState<any>(null);
   const [opinions, setOpinions] = useState<any[]>([]);
   const [isStartingOpinionSession, setIsStartingOpinionSession] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Google API 토큰 만료 시 자동 로그아웃
   const handleTokenExpired = async () => {
@@ -2724,97 +2725,158 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       {/* 의견 수집 세션 모달 */}
       {showOpinionSessionModal && currentOpinionSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">의견 수집 진행 중</h3>
-            <div className="mb-6">
-              <p className="text-gray-700 font-semibold mb-2">논의할 점</p>
-              <p className="text-gray-600">{selectedDiscussionItem?.topic}</p>
-            </div>
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              {/* 헤더 - 제목과 QR 코드 */}
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-3">의견 수집 진행 중</h3>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p className="text-sm text-blue-700 mb-1">논의할 점</p>
+                    <p className="text-blue-900 font-bold text-lg">{selectedDiscussionItem?.topic}</p>
+                  </div>
+                </div>
 
-            {/* QR 코드 (고정 URL) */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 text-center">
-              <p className="text-gray-700 font-semibold mb-4">참여자는 이 QR 코드를 스캔하세요</p>
-              <p className="text-sm text-blue-600 mb-3">모든 논의 사항에서 동일한 QR 코드를 사용합니다</p>
-              <div className="flex justify-center mb-4">
-                <QRCodeSVG
-                  value={`${window.location.origin}/participate/active?uid=${userId}`}
-                  size={200}
-                />
+                {/* 작은 QR 코드 (오른쪽 상단) */}
+                <div
+                  onClick={() => setShowQRModal(true)}
+                  className="ml-6 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  title="클릭하여 QR 코드 확대"
+                >
+                  <div className="bg-white p-3 rounded-lg shadow-md border-2 border-blue-200">
+                    <QRCodeSVG
+                      value={`${window.location.origin}/participate/active?uid=${userId}`}
+                      size={100}
+                    />
+                    <p className="text-xs text-center text-gray-600 mt-2">클릭하여 확대</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-500 break-all">
-                {`${window.location.origin}/participate/active?uid=${userId}`}
-              </p>
-            </div>
 
-            {/* 실시간 결과 */}
-            <div className="mb-6">
-              <h4 className="font-bold text-gray-800 mb-3">실시간 결과 ({opinions.length}명 참여)</h4>
-              {currentOpinionSession.type === 'free' ? (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {opinions.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">아직 제출된 의견이 없습니다.</p>
-                  ) : (
-                    opinions.map((op, idx) => (
-                      <div key={idx} className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-                        <p className="text-gray-800">{op.content}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {(() => {
-                    const counts = { '+2': 0, '+1': 0, '0': 0, '-1': 0, '-2': 0 };
-                    opinions.forEach((op) => {
-                      const key = op.value > 0 ? `+${op.value}` : String(op.value);
-                      counts[key as keyof typeof counts]++;
-                    });
-                    return (
-                      <>
-                        <div className="flex justify-between items-center bg-green-100 p-3 rounded">
-                          <span className="text-green-900 font-semibold">적극 찬성 (+2)</span>
-                          <span className="font-bold text-green-900">{counts['+2']}명</span>
+              {/* 실시간 결과 (크게 표시) */}
+              <div className="mb-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">실시간 결과 ({opinions.length}명 참여)</h4>
+                {currentOpinionSession.type === 'free' ? (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {opinions.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8 text-lg">아직 제출된 의견이 없습니다.</p>
+                    ) : (
+                      opinions.map((op, idx) => (
+                        <div key={idx} className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                          <p className="text-gray-800 text-base">{op.content}</p>
                         </div>
-                        <div className="flex justify-between items-center bg-green-50 p-3 rounded">
-                          <span className="text-green-800 font-semibold">찬성 (+1)</span>
-                          <span className="font-bold text-green-800">{counts['+1']}명</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-gray-100 p-3 rounded">
-                          <span className="text-gray-900 font-semibold">보통 (0)</span>
-                          <span className="font-bold text-gray-900">{counts['0']}명</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-red-50 p-3 rounded">
-                          <span className="text-red-800 font-semibold">반대 (-1)</span>
-                          <span className="font-bold text-red-800">{counts['-1']}명</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-red-100 p-3 rounded">
-                          <span className="text-red-900 font-semibold">적극 반대 (-2)</span>
-                          <span className="font-bold text-red-900">{counts['-2']}명</span>
-                        </div>
-                        {opinions.length > 0 && (
-                          <div className="flex justify-between items-center bg-blue-100 p-3 rounded mt-3">
-                            <span className="font-bold text-blue-900">평균</span>
-                            <span className="font-bold text-blue-900">
-                              {(opinions.reduce((sum, op) => sum + op.value, 0) / opinions.length).toFixed(2)}
-                            </span>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(() => {
+                      const counts = { '+2': 0, '+1': 0, '0': 0, '-1': 0, '-2': 0 };
+                      opinions.forEach((op) => {
+                        const key = op.value > 0 ? `+${op.value}` : String(op.value);
+                        counts[key as keyof typeof counts]++;
+                      });
+                      return (
+                        <>
+                          <div className="flex justify-between items-center bg-green-100 p-4 rounded-lg">
+                            <span className="text-green-900 font-semibold text-lg">적극 찬성 (+2)</span>
+                            <span className="font-bold text-green-900 text-xl">{counts['+2']}명</span>
                           </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
+                          <div className="flex justify-between items-center bg-green-50 p-4 rounded-lg">
+                            <span className="text-green-800 font-semibold text-lg">찬성 (+1)</span>
+                            <span className="font-bold text-green-800 text-xl">{counts['+1']}명</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-gray-100 p-4 rounded-lg">
+                            <span className="text-gray-900 font-semibold text-lg">보통 (0)</span>
+                            <span className="font-bold text-gray-900 text-xl">{counts['0']}명</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-red-50 p-4 rounded-lg">
+                            <span className="text-red-800 font-semibold text-lg">반대 (-1)</span>
+                            <span className="font-bold text-red-800 text-xl">{counts['-1']}명</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-red-100 p-4 rounded-lg">
+                            <span className="text-red-900 font-semibold text-lg">적극 반대 (-2)</span>
+                            <span className="font-bold text-red-900 text-xl">{counts['-2']}명</span>
+                          </div>
+                          {opinions.length > 0 && (
+                            <div className="flex justify-between items-center bg-blue-100 p-4 rounded-lg mt-4">
+                              <span className="font-bold text-blue-900 text-lg">평균</span>
+                              <span className="font-bold text-blue-900 text-2xl">
+                                {(opinions.reduce((sum, op) => sum + op.value, 0) / opinions.length).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
 
-            <button
-              onClick={handleEndOpinionSession}
-              className="w-full bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 transition-colors font-semibold"
-            >
-              의견 수집 종료
-            </button>
+              {/* 하단 버튼 */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (confirm('의견 수집을 취소하시겠습니까?\n\n현재까지 수집된 의견은 저장되지 않습니다.')) {
+                      updateOpinionSessionStatus(currentOpinionSession.id, 'closed');
+                      deleteOpinionSession(currentOpinionSession.id);
+                      setShowOpinionSessionModal(false);
+                      setCurrentOpinionSession(null);
+                      setOpinions([]);
+                    }
+                  }}
+                  className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors font-semibold"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleEndOpinionSession}
+                  className="flex-1 bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                >
+                  의견 수집 종료
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* QR 코드 확대 모달 */}
+          {showQRModal && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]"
+              onClick={() => setShowQRModal(false)}
+            >
+              <div
+                className="bg-white rounded-3xl p-8 max-w-md w-full mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">참여자용 QR 코드</h3>
+                <p className="text-sm text-blue-600 mb-6 text-center">모든 논의 사항에서 동일한 QR 코드를 사용합니다</p>
+
+                <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+                  <div className="inline-block p-4 bg-white rounded-lg shadow-md mx-auto">
+                    <QRCodeSVG
+                      value={`${window.location.origin}/participate/active?uid=${userId}`}
+                      size={280}
+                      level="H"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-500 break-all text-center mb-6">
+                  {`${window.location.origin}/participate/active?uid=${userId}`}
+                </p>
+
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
