@@ -1553,9 +1553,9 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
   const [editingProcess, setEditingProcess] = useState<{[key: string]: boolean}>({});
   const [editingDecision, setEditingDecision] = useState<{[key: string]: boolean}>({});
 
-  // 각 행의 input ref를 저장할 객체
-  const processRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
-  const decisionRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
+  // 각 행의 textarea ref를 저장할 객체
+  const processRefs = useRef<{[key: string]: HTMLTextAreaElement | null}>({});
+  const decisionRefs = useRef<{[key: string]: HTMLTextAreaElement | null}>({});
 
   // 의견 수집 관련 상태
   const [selectedDiscussionItem, setSelectedDiscussionItem] = useState<any>(null);
@@ -2206,8 +2206,8 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
           counts[key as keyof typeof counts]++;
         });
         const total = opinions.length;
-        const average = total > 0 ? (opinions.reduce((sum, op) => sum + op.value, 0) / total).toFixed(2) : '0';
-        resultText = `총 ${total}명 참여\n적극 찬성: ${counts['+2']}명, 찬성: ${counts['+1']}명, 보통: ${counts['0']}명, 반대: ${counts['-1']}명, 적극 반대: ${counts['-2']}명\n평균: ${average}`;
+        const totalScore = opinions.reduce((sum, op) => sum + op.value, 0);
+        resultText = `총 ${total}명 참여\n적극 찬성: ${counts['+2']}명, 찬성: ${counts['+1']}명, 보통: ${counts['0']}명, 반대: ${counts['-1']}명, 적극 반대: ${counts['-2']}명\n총점: ${totalScore}`;
       }
 
       // 현재 논의 과정에 결과 추가
@@ -2528,12 +2528,12 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                             <div className="flex gap-2 items-center">
                               {isEditingProcess ? (
                                 <>
-                                  <input
-                                    type="text"
+                                  <textarea
                                     defaultValue={item.process}
-                                    ref={(input) => {
-                                      processRefs.current[item.id] = input;
+                                    ref={(textarea) => {
+                                      processRefs.current[item.id] = textarea;
                                     }}
+                                    rows={4}
                                     className="flex-1 px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                     placeholder="논의 과정을 입력하세요"
                                   />
@@ -2557,7 +2557,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                                 </>
                               ) : (
                                 <>
-                                  <div className="flex-1 text-gray-900">{item.process || '-'}</div>
+                                  <div className="flex-1 text-gray-900 whitespace-pre-line">{item.process || '-'}</div>
                                   <button
                                     onClick={() => setEditingProcess({ ...editingProcess, [item.id]: true })}
                                     className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
@@ -2572,12 +2572,12 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                             <div className="flex gap-2 items-center">
                               {isEditingDecision ? (
                                 <>
-                                  <input
-                                    type="text"
+                                  <textarea
                                     defaultValue={item.decision}
-                                    ref={(input) => {
-                                      decisionRefs.current[item.id] = input;
+                                    ref={(textarea) => {
+                                      decisionRefs.current[item.id] = textarea;
                                     }}
+                                    rows={4}
                                     className="flex-1 px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                     placeholder="결정 사항을 입력하세요"
                                   />
@@ -2601,7 +2601,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                                 </>
                               ) : (
                                 <>
-                                  <div className="flex-1 text-gray-900">{item.decision || '-'}</div>
+                                  <div className="flex-1 text-gray-900 whitespace-pre-line">{item.decision || '-'}</div>
                                   <button
                                     onClick={() => setEditingDecision({ ...editingDecision, [item.id]: true })}
                                     className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
@@ -2829,9 +2829,9 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                           </div>
                           {opinions.length > 0 && (
                             <div className="flex justify-between items-center bg-blue-100 p-4 rounded-lg mt-4">
-                              <span className="font-bold text-blue-900 text-lg">평균</span>
+                              <span className="font-bold text-blue-900 text-lg">총점</span>
                               <span className="font-bold text-blue-900 text-2xl">
-                                {(opinions.reduce((sum, op) => sum + op.value, 0) / opinions.length).toFixed(2)}
+                                {opinions.reduce((sum, op) => sum + op.value, 0)}
                               </span>
                             </div>
                           )}
