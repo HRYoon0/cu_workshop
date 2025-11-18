@@ -36,6 +36,30 @@ export interface QuizAnswer {
 }
 
 // 설문 관련 타입
+
+// 설문 주제 (큰 제목)
+export interface SurveyTopic {
+  id: string;
+  title: string; // 주제 제목 (예: "내년도 교육과정 방향성")
+  userId: string;
+  createdAt: Date;
+}
+
+// 개별 설문 항목
+export interface SurveyItem {
+  id: string;
+  topicId: string; // 어떤 주제에 속하는지
+  question: string; // 질문 내용
+  type: 'multiple' | 'text'; // 선다형 또는 서술형
+  options?: string[]; // 선다형인 경우 선택지들
+  allowOther?: boolean; // 선다형에서 "기타" 단답형 허용 여부
+  studentResultImageUrl?: string; // 학생 설문 결과 이미지 URL (선택사항)
+  parentResultImageUrl?: string; // 학부모 설문 결과 이미지 URL (선택사항)
+  order: number; // 정렬 순서
+  createdAt: Date;
+}
+
+// 기존 Survey 타입 (하위 호환성 유지)
 export interface Survey {
   id: string;
   title: string;

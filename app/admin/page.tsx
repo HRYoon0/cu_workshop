@@ -32,7 +32,15 @@ import {
   updateOpinionSessionStatus,
   getActiveOpinionSession,
   deleteOpinionSession,
-  cleanOldUserSheetHistory
+  cleanOldUserSheetHistory,
+  createSurveyTopic,
+  getSurveyTopics,
+  updateSurveyTopic,
+  deleteSurveyTopic,
+  createSurveyItem,
+  getSurveyItems,
+  updateSurveyItem,
+  deleteSurveyItem
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -585,598 +593,473 @@ function QuizManager({ userId }: { userId: string }) {
   );
 }
 
-// 설문 관리 컴포넌트
+
+// 새로운 설문 관리 컴포넌트
+
+// 설문 관리 컴포넌트 (주제 중심)
 function SurveyManager({ userId }: { userId: string }) {
-  const [surveys, setSurveys] = useState<any[]>([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingSurvey, setEditingSurvey] = useState<any>(null);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<any>(null);
+  const [showTopicForm, setShowTopicForm] = useState(false);
+  const [newTopicTitle, setNewTopicTitle] = useState('');
+  const [editingTopic, setEditingTopic] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Firebase에서 설문 목록 불러오기
   useEffect(() => {
     if (userId) {
-      loadSurveys();
+      loadTopics();
     }
   }, [userId]);
 
-  const loadSurveys = async () => {
+  const loadTopics = async () => {
     try {
       setIsLoading(true);
-      const surveyList = await getSurveys(userId);
-      setSurveys(surveyList);
+      const topicList = await getSurveyTopics(userId);
+      setTopics(topicList);
     } catch (error) {
-      console.error('설문 목록 불러오기 실패:', error);
+      console.error('설문 주제 목록 불러오기 실패:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSurveyCreated = (survey: any) => {
-    setSurveys([...surveys, survey]);
-    // QR 코드를 표시하기 위해 폼을 닫지 않음
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTopicTitle.trim()) return;
+
+    try {
+      const topicId = await createSurveyTopic(newTopicTitle.trim(), userId);
+      await loadTopics();
+      setNewTopicTitle('');
+      setShowTopicForm(false);
+      alert('설문 주제가 생성되었습니다.');
+    } catch (error) {
+      console.error('설문 주제 생성 실패:', error);
+      alert('설문 주제 생성에 실패했습니다.');
+    }
   };
 
-  const handleSurveyUpdated = (updatedSurvey: any) => {
-    setSurveys(surveys.map((s: any) => s.id === updatedSurvey.id ? updatedSurvey : s));
-    setEditingSurvey(null);
-    setShowCreateForm(false);
+  const handleUpdateTopic = async (topicId: string, newTitle: string) => {
+    try {
+      await updateSurveyTopic(topicId, newTitle);
+      await loadTopics();
+      setEditingTopic(null);
+      alert('설문 주제가 수정되었습니다.');
+    } catch (error) {
+      console.error('설문 주제 수정 실패:', error);
+      alert('설문 주제 수정에 실패했습니다.');
+    }
   };
 
-  const handleSurveyEdit = (survey: any) => {
-    setEditingSurvey(survey);
-    setShowCreateForm(true);
-  };
-
-  const handleSurveyDelete = async (surveyId: string) => {
-    if (!confirm('이 설문을 삭제하시겠습니까?')) {
+  const handleDeleteTopic = async (topicId: string) => {
+    if (!confirm('이 설문 주제와 모든 하위 설문 항목을 삭제하시겠습니까?')) {
       return;
     }
 
     try {
-      await deleteSurvey(surveyId);
-      setSurveys(surveys.filter(s => s.id !== surveyId));
-      // 생성/수정 폼이 열려있으면 닫기
-      setShowCreateForm(false);
-      setEditingSurvey(null);
+      await deleteSurveyTopic(topicId);
+      await loadTopics();
+      if (selectedTopic?.id === topicId) {
+        setSelectedTopic(null);
+      }
+      alert('설문 주제가 삭제되었습니다.');
     } catch (error) {
-      console.error('설문 삭제 실패:', error);
-      alert('설문 삭제에 실패했습니다.');
+      console.error('설문 주제 삭제 실패:', error);
+      alert('설문 주제 삭제에 실패했습니다.');
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* 새 설문 생성 버튼 */}
+      {/* 헤더 */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">설문 목록</h2>
+        <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
         <button
-          onClick={() => {
-            setShowCreateForm(!showCreateForm);
-            if (showCreateForm) setEditingSurvey(null);
-          }}
+          onClick={() => setShowTopicForm(!showTopicForm)}
           className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
         >
-          {showCreateForm ? '취소' : '+ 새 설문 만들기'}
+          {showTopicForm ? '취소' : '+ 새 설문 주제 만들기'}
         </button>
       </div>
 
-      {/* 설문 생성/수정 폼 */}
-      {showCreateForm && (
-        <SurveyCreateForm
-          onClose={() => {
-            setShowCreateForm(false);
-            setEditingSurvey(null);
-          }}
-          onCreated={handleSurveyCreated}
-          onUpdated={handleSurveyUpdated}
+      {/* 새 주제 생성 폼 */}
+      {showTopicForm && (
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">새 설문 주제 만들기</h3>
+          <form onSubmit={handleCreateTopic} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                주제 제목
+              </label>
+              <input
+                type="text"
+                value={newTopicTitle}
+                onChange={(e) => setNewTopicTitle(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                placeholder="예: 내년도 교육과정 방향성"
+                required
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              >
+                생성하기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTopicForm(false);
+                  setNewTopicTitle('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              >
+                취소
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 주제 목록 */}
+      {isLoading ? (
+        <div className="bg-white rounded-xl p-12 text-center">
+          <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 text-lg">설문 주제 목록을 불러오는 중...</p>
+        </div>
+      ) : topics.length === 0 ? (
+        <div className="bg-white rounded-xl p-12 text-center">
+          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+          </div>
+          <p className="text-gray-500 text-lg">아직 생성된 설문 주제가 없습니다</p>
+          <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문 주제를 만들어보세요!</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {topics.map((topic: any) => (
+            <div key={topic.id} className="bg-white rounded-xl shadow-md">
+              {editingTopic?.id === topic.id ? (
+                // 수정 모드
+                <div className="p-6">
+                  <input
+                    type="text"
+                    defaultValue={topic.title}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleUpdateTopic(topic.id, (e.target as HTMLInputElement).value);
+                      } else if (e.key === 'Escape') {
+                        setEditingTopic(null);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border-2 border-green-500 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 text-xl font-bold"
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => {
+                        const input = document.querySelector<HTMLInputElement>('input[type="text"]:focus');
+                        if (input) {
+                          handleUpdateTopic(topic.id, input.value);
+                        }
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      저장
+                    </button>
+                    <button
+                      onClick={() => setEditingTopic(null)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // 보기 모드
+                <>
+                  <div className="p-6 flex justify-between items-center border-b border-gray-200">
+                    <h3 className="text-xl font-bold text-gray-800">{topic.title}</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingTopic(topic)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => setSelectedTopic(selectedTopic?.id === topic.id ? null : topic)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        {selectedTopic?.id === topic.id ? '닫기' : '설문 항목 관리'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTopic(topic.id)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                  {selectedTopic?.id === topic.id && (
+                    <SurveyItemsManager topicId={topic.id} userId={userId} />
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 설문 항목 관리 컴포넌트
+function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadItems();
+  }, [topicId]);
+
+  const loadItems = async () => {
+    try {
+      setIsLoading(true);
+      const itemList = await getSurveyItems(topicId);
+      setItems(itemList);
+    } catch (error) {
+      console.error('설문 항목 목록 불러오기 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleItemCreated = () => {
+    loadItems();
+    setShowItemForm(false);
+  };
+
+  const handleItemUpdated = () => {
+    loadItems();
+    setEditingItem(null);
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('이 설문 항목을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await deleteSurveyItem(itemId);
+      await loadItems();
+      alert('설문 항목이 삭제되었습니다.');
+    } catch (error) {
+      console.error('설문 항목 삭제 실패:', error);
+      alert('설문 항목 삭제에 실패했습니다.');
+    }
+  };
+
+  return (
+    <div className="p-6 bg-gray-50">
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="text-lg font-bold text-gray-800">설문 항목 목록</h4>
+        <button
+          onClick={() => setShowItemForm(!showItemForm)}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+        >
+          {showItemForm ? '취소' : '+ 설문 항목 추가'}
+        </button>
+      </div>
+
+      {showItemForm && (
+        <SurveyItemForm
+          topicId={topicId}
           userId={userId}
-          editingSurvey={editingSurvey}
+          onSaved={handleItemCreated}
+          onCancel={() => setShowItemForm(false)}
         />
       )}
 
-      {/* 설문 목록 */}
-      {!showCreateForm && (
-        <div className="grid gap-4">
-          {isLoading ? (
-            <div className="bg-white rounded-xl p-12 text-center">
-              <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-500 text-lg">설문 목록을 불러오는 중...</p>
-            </div>
-          ) : surveys.length === 0 ? (
-            <div className="bg-white rounded-xl p-12 text-center">
-              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-              </div>
-              <p className="text-gray-500 text-lg">아직 생성된 설문이 없습니다</p>
-              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
-            </div>
-          ) : (
-            surveys.map((survey: any) => (
-              <SurveyCard key={survey.id} survey={survey} onEdit={handleSurveyEdit} onDelete={handleSurveyDelete} />
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 퀴즈 생성/수정 폼
-function QuizCreateForm({
-  onClose,
-  onCreated,
-  onUpdated,
-  userId,
-  editingQuiz
-}: {
-  onClose: () => void;
-  onCreated: (quiz: any) => void;
-  onUpdated?: (quiz: any) => void;
-  userId: string;
-  editingQuiz?: any;
-}) {
-  const isEditMode = !!editingQuiz;
-  const [title, setTitle] = useState(editingQuiz?.title || '');
-  const [questionIdCounter, setQuestionIdCounter] = useState(editingQuiz?.questions?.length || 1);
-  const [questions, setQuestions] = useState(
-    editingQuiz?.questions?.map((q: any, idx: number) => ({
-      id: idx,
-      question: q.question,
-      options: q.options,
-      correctAnswer: q.correctAnswer,
-      timeLimit: q.timeLimit,
-      imageUrl: q.imageUrl || '',
-    })) || [
-      {
-        id: 0,
-        question: '',
-        options: ['', '', '', ''],
-        correctAnswer: 0,
-        timeLimit: 10,
-        imageUrl: '',
-      }
-    ]
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-
-  const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      {
-        id: questionIdCounter,
-        question: '',
-        options: ['', '', '', ''],
-        correctAnswer: 0,
-        timeLimit: 10,
-        imageUrl: '',
-      }
-    ]);
-    setQuestionIdCounter(questionIdCounter + 1);
-  };
-
-  const removeQuestion = (index: number) => {
-    if (questions.length > 1) {
-      setQuestions(questions.filter((_q: any, i: number) => i !== index));
-    }
-  };
-
-  const updateQuestion = (index: number, field: string, value: any) => {
-    setQuestions(questions.map((q: any, idx: number) => {
-      if (idx === index) {
-        return {
-          ...q,
-          [field]: value
-        };
-      }
-      return q;
-    }));
-  };
-
-  const updateOption = (qIndex: number, optionIndex: number, value: string) => {
-    setQuestions(questions.map((q: any, idx: number) => {
-      if (idx === qIndex) {
-        return {
-          ...q,
-          options: q.options.map((opt: any, optIdx: number) =>
-            optIdx === optionIndex ? value : opt
-          )
-        };
-      }
-      return q;
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      setIsSubmitting(true);
-
-      // Firebase에 퀴즈 저장/업데이트 (임시 ID 제거)
-      const cleanQuestions = questions.map(({ id, ...rest }: any) => rest);
-
-      if (isEditMode && editingQuiz) {
-        // 수정 모드
-        await updateQuiz(editingQuiz.id, {
-          title,
-          questions: cleanQuestions,
-        });
-
-        const updatedQuiz = {
-          ...editingQuiz,
-          title,
-          questions: cleanQuestions,
-        };
-
-        if (onUpdated) {
-          onUpdated(updatedQuiz);
-        }
-
-        // 성공 메시지 표시
-        setShowSuccessMessage(true);
-
-        // 2초 후 폼 닫기
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-      } else {
-        // 생성 모드
-        const quizId = await createQuiz({
-          title,
-          questions: cleanQuestions,
-        }, userId);
-
-        const quiz = {
-          id: quizId,
-          title,
-          questions: cleanQuestions,
-          createdAt: new Date()
-        };
-
-        onCreated(quiz);
-
-        // 성공 메시지 표시
-        setShowSuccessMessage(true);
-
-        // 2초 후 폼 닫기
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-      }
-    } catch (error) {
-      console.error(isEditMode ? '퀴즈 수정 실패:' : '퀴즈 생성 실패:', error);
-      alert(isEditMode ? '퀴즈 수정에 실패했습니다. 다시 시도해주세요.' : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp max-h-[80vh] overflow-y-auto relative">
-      {/* 성공 메시지 오버레이 */}
-      {showSuccessMessage && (
-        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '퀴즈 수정 완료!' : '퀴즈 생성 완료!'}</h3>
-            <p className="text-gray-600 mt-2">{title}</p>
-          </div>
-        </div>
+      {editingItem && (
+        <SurveyItemForm
+          topicId={topicId}
+          userId={userId}
+          editingItem={editingItem}
+          onSaved={handleItemUpdated}
+          onCancel={() => setEditingItem(null)}
+        />
       )}
 
-      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '퀴즈 수정하기' : '새 퀴즈 만들기'}</h3>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            퀴즈 제목
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-            placeholder="예: 2024 교육과정 이해도 점검"
-            required
-          />
+      {isLoading ? (
+        <div className="text-center py-8">
+          <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">설문 항목을 불러오는 중...</p>
         </div>
-
-        <div className="space-y-4">
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
-          </div>
-
-          {questions.map((q: any, qIndex: number) => (
-            <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-3">
-                <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
-                {questions.length > 1 && (
+      ) : items.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">아직 생성된 설문 항목이 없습니다</p>
+          <p className="text-gray-400 mt-2 text-sm">위의 버튼을 클릭하여 설문 항목을 추가하세요!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item: any) => (
+            <div key={item.id} className="bg-white rounded-lg p-4 shadow">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                      item.type === 'multiple' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {item.type === 'multiple' ? '선다형' : '서술형'}
+                    </span>
+                    {item.allowOther && (
+                      <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-100 text-orange-700">
+                        기타 의견 허용
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-900 font-medium">{item.question}</p>
+                  {item.type === 'multiple' && item.options && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.options.map((option: string, idx: number) => (
+                        <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                          {idx + 1}. {option}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {(item.studentResultImageUrl || item.parentResultImageUrl) && (
+                    <div className="mt-2 flex gap-2 text-sm text-gray-500">
+                      {item.studentResultImageUrl && <span>📊 학생 결과 이미지</span>}
+                      {item.parentResultImageUrl && <span>📊 학부모 결과 이미지</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 ml-4">
                   <button
-                    type="button"
-                    onClick={() => removeQuestion(qIndex)}
-                    className="text-red-500 hover:text-red-700 text-sm font-semibold"
+                    onClick={() => setEditingItem(item)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                   >
                     삭제
                   </button>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    질문 내용
-                  </label>
-                  <textarea
-                    value={q.question}
-                    onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                    rows={2}
-                    placeholder="질문을 입력하세요"
-                    required
-                  />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    선택지 (4개)
-                  </label>
-                  {q.options.map((option: any, optIndex: number) => (
-                    <div key={optIndex} className="flex items-center space-x-2 mb-2">
-                      <input
-                        type="radio"
-                        name={`correctAnswer-${q.id}`}
-                        checked={q.correctAnswer === optIndex}
-                        onChange={() => updateQuestion(qIndex, 'correctAnswer', optIndex)}
-                        className="w-4 h-4 text-blue-600"
-                      />
-                      <input
-                        type="text"
-                        value={option}
-                        onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                        placeholder={`선택지 ${optIndex + 1}`}
-                        required
-                      />
-                    </div>
-                  ))}
-                  <p className="text-xs text-gray-500 mt-1">라디오 버튼을 클릭하여 정답을 선택하세요</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    제한 시간 (초)
-                  </label>
-                  <input
-                    type="number"
-                    value={q.timeLimit}
-                    onChange={(e) => updateQuestion(qIndex, 'timeLimit', parseInt(e.target.value))}
-                    min="5"
-                    max="60"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                  />
-                </div>
-
-                <ImageUploader
-                  key={`image-uploader-${q.id}`}
-                  uploaderId={`image-upload-${q.id}`}
-                  onImageUploaded={(imageUrl) => updateQuestion(qIndex, 'imageUrl', imageUrl)}
-                  currentImageUrl={q.imageUrl}
-                />
               </div>
             </div>
           ))}
-
-          {/* 질문 추가 버튼 */}
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 hover:border-blue-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
-          >
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            질문 추가하기
-          </button>
         </div>
-
-        <div className="flex space-x-3 pt-4">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '퀴즈 수정' : '퀴즈 생성')}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            취소
-          </button>
-        </div>
-      </form>
+      )}
     </div>
   );
 }
 
-// 설문 생성/수정 폼
-function SurveyCreateForm({
-  onClose,
-  onCreated,
-  onUpdated,
+// 설문 항목 추가/수정 폼
+function SurveyItemForm({
+  topicId,
   userId,
-  editingSurvey
+  editingItem,
+  onSaved,
+  onCancel
 }: {
-  onClose: () => void;
-  onCreated: (survey: any) => void;
-  onUpdated?: (survey: any) => void;
+  topicId: string;
   userId: string;
-  editingSurvey?: any;
+  editingItem?: any;
+  onSaved: () => void;
+  onCancel: () => void;
 }) {
-  const isEditMode = !!editingSurvey;
-  const [title, setTitle] = useState(editingSurvey?.title || '');
-  const [question, setQuestion] = useState(editingSurvey?.question || '');
-  const [type, setType] = useState<'scale' | 'text'>(editingSurvey?.type || 'scale');
-  const [timeLimit, setTimeLimit] = useState(editingSurvey?.timeLimit || 60);
-  const [imageUrl, setImageUrl] = useState(editingSurvey?.imageUrl || '');
-  const [studentResultImageUrl, setStudentResultImageUrl] = useState(editingSurvey?.studentResultImageUrl || '');
-  const [parentResultImageUrl, setParentResultImageUrl] = useState(editingSurvey?.parentResultImageUrl || '');
-
-  // 학생 결과 데이터
-  const [studentResultData, setStudentResultData] = useState({
-    stronglyAgree: editingSurvey?.studentResultData?.stronglyAgree || 0,
-    agree: editingSurvey?.studentResultData?.agree || 0,
-    neutral: editingSurvey?.studentResultData?.neutral || 0,
-    disagree: editingSurvey?.studentResultData?.disagree || 0,
-    stronglyDisagree: editingSurvey?.studentResultData?.stronglyDisagree || 0,
-  });
-
-  // 학부모 결과 데이터
-  const [parentResultData, setParentResultData] = useState({
-    stronglyAgree: editingSurvey?.parentResultData?.stronglyAgree || 0,
-    agree: editingSurvey?.parentResultData?.agree || 0,
-    neutral: editingSurvey?.parentResultData?.neutral || 0,
-    disagree: editingSurvey?.parentResultData?.disagree || 0,
-    stronglyDisagree: editingSurvey?.parentResultData?.stronglyDisagree || 0,
-  });
-
+  const isEditMode = !!editingItem;
+  const [question, setQuestion] = useState(editingItem?.question || '');
+  const [type, setType] = useState<'multiple' | 'text'>(editingItem?.type || 'multiple');
+  const [options, setOptions] = useState<string[]>(editingItem?.options || ['', '', '', '']);
+  const [allowOther, setAllowOther] = useState(editingItem?.allowOther || false);
+  const [studentResultImageUrl, setStudentResultImageUrl] = useState(editingItem?.studentResultImageUrl || '');
+  const [parentResultImageUrl, setParentResultImageUrl] = useState(editingItem?.parentResultImageUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!question.trim()) {
+      alert('질문을 입력해주세요.');
+      return;
+    }
+
+    if (type === 'multiple') {
+      const filledOptions = options.filter(opt => opt.trim());
+      if (filledOptions.length < 2) {
+        alert('선다형은 최소 2개의 선택지가 필요합니다.');
+        return;
+      }
+    }
+
     try {
       setIsSubmitting(true);
 
-      if (isEditMode && editingSurvey) {
-        // 수정 모드
-        await updateSurvey(editingSurvey.id, {
-          title,
-          question,
-          type,
-          timeLimit,
-          imageUrl,
-          studentResultImageUrl,
-          parentResultImageUrl,
-          studentResultData,
-          parentResultData,
-        });
+      const itemData = {
+        topicId,
+        question: question.trim(),
+        type,
+        ...(type === 'multiple' && {
+          options: options.filter(opt => opt.trim()),
+          allowOther
+        }),
+        studentResultImageUrl: studentResultImageUrl || null,
+        parentResultImageUrl: parentResultImageUrl || null,
+        order: isEditMode ? editingItem.order : Date.now()
+      };
 
-        const updatedSurvey = {
-          ...editingSurvey,
-          title,
-          question,
-          type,
-          timeLimit,
-          imageUrl,
-          studentResultImageUrl,
-          parentResultImageUrl,
-          studentResultData,
-          parentResultData,
-        };
-
-        if (onUpdated) {
-          onUpdated(updatedSurvey);
-        }
-
-        // 성공 메시지 표시
-        setShowSuccessMessage(true);
-
-        // 2초 후 폼 닫기
-        setTimeout(() => {
-          onClose();
-        }, 2000);
+      if (isEditMode) {
+        await updateSurveyItem(editingItem.id, itemData);
+        alert('설문 항목이 수정되었습니다.');
       } else {
-        // 생성 모드
-        const surveyId = await createSurvey({
-          title,
-          question,
-          type,
-          timeLimit,
-          imageUrl,
-          studentResultImageUrl,
-          parentResultImageUrl,
-          studentResultData,
-          parentResultData,
-        }, userId);
-
-        const survey = {
-          id: surveyId,
-          title,
-          question,
-          type,
-          timeLimit,
-          imageUrl,
-          studentResultImageUrl,
-          parentResultImageUrl,
-          studentResultData,
-          parentResultData,
-          createdAt: new Date()
-        };
-
-        onCreated(survey);
-
-        // 성공 메시지 표시
-        setShowSuccessMessage(true);
-
-        // 2초 후 폼 닫기
-        setTimeout(() => {
-          onClose();
-        }, 2000);
+        await createSurveyItem(itemData);
+        alert('설문 항목이 추가되었습니다.');
       }
+
+      onSaved();
     } catch (error) {
-      console.error(isEditMode ? '설문 수정 실패:' : '설문 생성 실패:', error);
-      alert(isEditMode ? '설문 수정에 실패했습니다. 다시 시도해주세요.' : '설문 생성에 실패했습니다. 다시 시도해주세요.');
+      console.error('설문 항목 저장 실패:', error);
+      alert('설문 항목 저장에 실패했습니다.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
+  const addOption = () => {
+    setOptions([...options, '']);
+  };
+
+  const removeOption = (index: number) => {
+    if (options.length > 2) {
+      setOptions(options.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateOption = (index: number, value: string) => {
+    setOptions(options.map((opt, i) => i === index ? value : opt));
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp relative">
-      {/* 성공 메시지 오버레이 */}
-      {showSuccessMessage && (
-        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '설문 수정 완료!' : '설문 생성 완료!'}</h3>
-            <p className="text-gray-600 mt-2">{title}</p>
-          </div>
-        </div>
-      )}
-
-      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '설문 수정하기' : '새 설문 만들기'}</h3>
+    <div className="bg-white rounded-lg p-6 shadow-lg mb-4 border-2 border-green-500">
+      <h4 className="text-lg font-bold text-gray-800 mb-4">
+        {isEditMode ? '설문 항목 수정' : '새 설문 항목 추가'}
+      </h4>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 질문 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            설문 제목
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="예: 내년도 교육과정 방향성"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            질문
+            질문 내용
           </label>
           <textarea
             value={question}
@@ -1188,6 +1071,7 @@ function SurveyCreateForm({
           />
         </div>
 
+        {/* 유형 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             설문 유형
@@ -1197,12 +1081,12 @@ function SurveyCreateForm({
               <input
                 type="radio"
                 name="type"
-                value="scale"
-                checked={type === 'scale'}
-                onChange={() => setType('scale')}
+                value="multiple"
+                checked={type === 'multiple'}
+                onChange={() => setType('multiple')}
                 className="w-4 h-4 text-green-600"
               />
-              <span className="text-gray-900">5점 척도 (적극 찬성 ~ 적극 반대)</span>
+              <span className="text-gray-900">선다형</span>
             </label>
             <label className="flex items-center space-x-2">
               <input
@@ -1218,183 +1102,93 @@ function SurveyCreateForm({
           </div>
         </div>
 
+        {/* 선다형 옵션 */}
+        {type === 'multiple' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              선택지
+            </label>
+            <div className="space-y-2">
+              {options.map((option, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={option}
+                    onChange={(e) => updateOption(index, e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                    placeholder={`선택지 ${index + 1}`}
+                  />
+                  {options.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addOption}
+              className="mt-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              + 선택지 추가
+            </button>
+
+            {/* 기타 의견 허용 */}
+            <div className="mt-4">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={allowOther}
+                  onChange={(e) => setAllowOther(e.target.checked)}
+                  className="w-4 h-4 text-green-600"
+                />
+                <span className="text-gray-900">기타 의견 (단답형) 허용</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* 결과 이미지 업로드 (선택사항) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            제한 시간 (초)
+            학생 설문 결과 이미지 (선택사항)
           </label>
-          <input
-            type="number"
-            value={timeLimit}
-            onChange={(e) => setTimeLimit(parseInt(e.target.value))}
-            min="10"
-            max="300"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+          <ImageUploader
+            onUploadSuccess={(url) => setStudentResultImageUrl(url)}
+            currentImageUrl={studentResultImageUrl}
+            folder={`survey_images`}
           />
         </div>
 
-        <ImageUploader
-          onImageUploaded={setImageUrl}
-          currentImageUrl={imageUrl}
-        />
-
-        <div className="border-t pt-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">📊 비교 결과 이미지 (선택사항)</h4>
-          <p className="text-xs text-gray-500 mb-3">학생/학부모 대상 설문 결과를 미리 업로드하면 교사 설문 결과와 함께 비교할 수 있습니다.</p>
-
-          <div className="space-y-6">
-            {/* 학생 결과 */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <label className="block text-sm font-semibold text-blue-900 mb-2">
-                👦 학생 대상 설문 결과
-              </label>
-              <ImageUploader
-                onImageUploaded={setStudentResultImageUrl}
-                currentImageUrl={studentResultImageUrl}
-                uploaderId="student-result-upload"
-                folderName="설문 이미지"
-              />
-
-              <div className="mt-4">
-                <p className="text-xs text-gray-600 mb-2">구글폼 결과 데이터 (선택사항, Google Sheets 비교용)</p>
-                <div className="grid grid-cols-5 gap-2">
-                  <div>
-                    <label className="text-xs text-gray-600">적극 찬성</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={studentResultData.stronglyAgree}
-                      onChange={(e) => setStudentResultData({...studentResultData, stronglyAgree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">찬성</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={studentResultData.agree}
-                      onChange={(e) => setStudentResultData({...studentResultData, agree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">보통</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={studentResultData.neutral}
-                      onChange={(e) => setStudentResultData({...studentResultData, neutral: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">반대</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={studentResultData.disagree}
-                      onChange={(e) => setStudentResultData({...studentResultData, disagree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">적극 반대</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={studentResultData.stronglyDisagree}
-                      onChange={(e) => setStudentResultData({...studentResultData, stronglyDisagree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-gray-900"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 학부모 결과 */}
-            <div className="bg-purple-50 rounded-lg p-4">
-              <label className="block text-sm font-semibold text-purple-900 mb-2">
-                👨‍👩‍👧 학부모 대상 설문 결과
-              </label>
-              <ImageUploader
-                onImageUploaded={setParentResultImageUrl}
-                currentImageUrl={parentResultImageUrl}
-                uploaderId="parent-result-upload"
-                folderName="설문 이미지"
-              />
-
-              <div className="mt-4">
-                <p className="text-xs text-gray-600 mb-2">구글폼 결과 데이터 (선택사항, Google Sheets 비교용)</p>
-                <div className="grid grid-cols-5 gap-2">
-                  <div>
-                    <label className="text-xs text-gray-600">적극 찬성</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentResultData.stronglyAgree}
-                      onChange={(e) => setParentResultData({...parentResultData, stronglyAgree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">찬성</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentResultData.agree}
-                      onChange={(e) => setParentResultData({...parentResultData, agree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">보통</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentResultData.neutral}
-                      onChange={(e) => setParentResultData({...parentResultData, neutral: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">반대</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentResultData.disagree}
-                      onChange={(e) => setParentResultData({...parentResultData, disagree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">적극 반대</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={parentResultData.stronglyDisagree}
-                      onChange={(e) => setParentResultData({...parentResultData, stronglyDisagree: parseInt(e.target.value) || 0})}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-gray-900"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            학부모 설문 결과 이미지 (선택사항)
+          </label>
+          <ImageUploader
+            onUploadSuccess={(url) => setParentResultImageUrl(url)}
+            currentImageUrl={parentResultImageUrl}
+            folder={`survey_images`}
+          />
         </div>
 
-        <div className="flex space-x-3 pt-4">
+        {/* 버튼 */}
+        <div className="flex gap-3 pt-4">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '설문 수정' : '설문 생성')}
+            {isSubmitting ? '저장 중...' : (isEditMode ? '수정하기' : '추가하기')}
           </button>
           <button
             type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
           >
             취소
           </button>
@@ -1403,116 +1197,6 @@ function SurveyCreateForm({
     </div>
   );
 }
-
-// 퀴즈 카드 컴포넌트
-function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) => void; onDelete: (id: string) => void }) {
-  const router = useRouter();
-  const [isStarting, setIsStarting] = useState(false);
-
-  const handleStart = async () => {
-    try {
-      setIsStarting(true);
-      const sessionId = await createQuizSession(quiz.id);
-      router.push(`/admin/session/${sessionId}`);
-    } catch (error) {
-      console.error('세션 생성 실패:', error);
-      alert('세션 생성에 실패했습니다.');
-      setIsStarting(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-      <div className="flex justify-between items-start gap-6">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
-          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-            <span>❓ {quiz.questions?.length || 0}개 질문</span>
-            <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col space-y-2">
-          <button
-            onClick={handleStart}
-            disabled={isStarting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-          >
-            {isStarting ? '생성 중...' : '시작하기'}
-          </button>
-          <button
-            onClick={() => onEdit(quiz)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
-          >
-            수정
-          </button>
-          <button
-            onClick={() => onDelete(quiz.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-          >
-            삭제
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 설문 카드 컴포넌트
-function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey: any) => void; onDelete: (id: string) => void }) {
-  const router = useRouter();
-  const [isStarting, setIsStarting] = useState(false);
-
-  const handleStart = async () => {
-    try {
-      setIsStarting(true);
-      const sessionId = await createSurveySession(survey.id);
-      router.push(`/admin/survey-session/${sessionId}`);
-    } catch (error) {
-      console.error('세션 생성 실패:', error);
-      alert('세션 생성에 실패했습니다.');
-      setIsStarting(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
-      <div className="flex justify-between items-start gap-6">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-gray-800">{survey.title}</h3>
-          <p className="text-gray-600 mt-2">{survey.question}</p>
-          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
-            <span>⏱ {survey.timeLimit}초</span>
-            <span>📊 {survey.type === 'scale' ? '5점 척도' : '서술형'}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col space-y-2">
-          <button
-            onClick={handleStart}
-            disabled={isStarting}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
-          >
-            {isStarting ? '생성 중...' : '시작하기'}
-          </button>
-          <button
-            onClick={() => onEdit(survey)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
-          >
-            수정
-          </button>
-          <button
-            onClick={() => onDelete(survey.id)}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
-          >
-            삭제
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // 논의 자료 관리 컴포넌트
 function DepartmentManager({ userId }: { userId: string | undefined }) {
   const router = useRouter();

@@ -4,13 +4,26 @@ import { useState, useRef, useEffect } from 'react';
 import { uploadImageToDrive, getGoogleAccessToken, optimizeImage } from '@/lib/googleDrive';
 
 interface ImageUploaderProps {
-  onImageUploaded: (imageUrl: string) => void;
+  onImageUploaded?: (imageUrl: string) => void;
+  onUploadSuccess?: (imageUrl: string) => void; // 별칭 지원
   currentImageUrl?: string;
   uploaderId?: string;
   folderName?: string; // 구글 드라이브 내 서브폴더명 (기본값: '이미지')
+  folder?: string; // folderName의 별칭
 }
 
-export default function ImageUploader({ onImageUploaded, currentImageUrl, uploaderId = 'image-upload', folderName = '이미지' }: ImageUploaderProps) {
+export default function ImageUploader({
+  onImageUploaded,
+  onUploadSuccess,
+  currentImageUrl,
+  uploaderId = 'image-upload',
+  folderName,
+  folder
+}: ImageUploaderProps) {
+  // 콜백 함수 통합
+  const handleUpload = onUploadSuccess || onImageUploaded || (() => {});
+  // 폴더 이름 통합
+  const targetFolder = folder || folderName || '이미지';
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -48,7 +61,7 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, upload
       const reader = new FileReader();
       reader.onload = (e) => {
         const localUrl = e.target?.result as string;
-        onImageUploaded(localUrl); // 로컬 미리보기 먼저 표시
+        handleUpload(localUrl); // 로컬 미리보기 먼저 표시
       };
       reader.readAsDataURL(file);
 
@@ -69,32 +82,32 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, upload
       // 4. Google Drive에 업로드
       let imageUrl: string;
       try {
-        imageUrl = await uploadImageToDrive(fileToUpload, token, folderName);
+        imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder);
       } catch (uploadError: any) {
         // 토큰 만료 시 재요청
         if (uploadError.message?.includes('401') || uploadError.message?.includes('unauthorized')) {
           token = await getGoogleAccessToken();
           setAccessToken(token);
           localStorage.setItem('googleAccessToken', token);
-          imageUrl = await uploadImageToDrive(fileToUpload, token, folderName);
+          imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder);
         } else {
           throw uploadError;
         }
       }
 
       // 5. Google Drive URL로 업데이트
-      onImageUploaded(imageUrl);
+      handleUpload(imageUrl);
     } catch (err: any) {
       console.error('이미지 업로드 실패:', err);
       setError(err.message || '이미지 업로드에 실패했습니다.');
-      onImageUploaded('');
+      handleUpload('');
     } finally {
       setUploading(false);
     }
   };
 
   const handleRemoveImage = () => {
-    onImageUploaded('');
+    handleUpload('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

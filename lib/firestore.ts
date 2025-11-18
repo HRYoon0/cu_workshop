@@ -1199,3 +1199,145 @@ export async function deleteOpinionSession(sessionId: string) {
     throw error;
   }
 }
+
+// ===== 설문 주제 및 항목 관련 함수 =====
+
+/**
+ * 새 설문 주제 생성
+ */
+export async function createSurveyTopic(title: string, userId: string) {
+  try {
+    const docRef = await addDoc(collection(db, 'surveyTopics'), {
+      title,
+      userId,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('설문 주제 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 특정 사용자의 설문 주제 가져오기
+ */
+export async function getSurveyTopics(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'surveyTopics'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    }));
+  } catch (error) {
+    console.error('설문 주제 목록 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 주제 수정
+ */
+export async function updateSurveyTopic(topicId: string, title: string) {
+  try {
+    const topicRef = doc(db, 'surveyTopics', topicId);
+    await updateDoc(topicRef, {
+      title,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('설문 주제 수정 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 주제 삭제 (하위 항목도 함께 삭제)
+ */
+export async function deleteSurveyTopic(topicId: string) {
+  try {
+    // 먼저 하위 항목들 삭제
+    const itemsQuery = query(collection(db, 'surveyItems'), where('topicId', '==', topicId));
+    const itemsSnapshot = await getDocs(itemsQuery);
+    const deletePromises = itemsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+
+    // 주제 삭제
+    await deleteDoc(doc(db, 'surveyTopics', topicId));
+  } catch (error) {
+    console.error('설문 주제 삭제 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 새 설문 항목 생성
+ */
+export async function createSurveyItem(itemData: Omit<any, 'id' | 'createdAt'>) {
+  try {
+    const docRef = await addDoc(collection(db, 'surveyItems'), {
+      ...itemData,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('설문 항목 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 특정 주제의 설문 항목들 가져오기
+ */
+export async function getSurveyItems(topicId: string) {
+  try {
+    const q = query(
+      collection(db, 'surveyItems'),
+      where('topicId', '==', topicId),
+      orderBy('order', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    }));
+  } catch (error) {
+    console.error('설문 항목 목록 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 항목 수정
+ */
+export async function updateSurveyItem(itemId: string, itemData: any) {
+  try {
+    const itemRef = doc(db, 'surveyItems', itemId);
+    await updateDoc(itemRef, {
+      ...itemData,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('설문 항목 수정 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 항목 삭제
+ */
+export async function deleteSurveyItem(itemId: string) {
+  try {
+    await deleteDoc(doc(db, 'surveyItems', itemId));
+  } catch (error) {
+    console.error('설문 항목 삭제 실패:', error);
+    throw error;
+  }
+}
