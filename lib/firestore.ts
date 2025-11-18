@@ -1315,6 +1315,28 @@ export async function getSurveyItems(topicId: string) {
 }
 
 /**
+ * 사용자의 모든 설문 항목들 가져오기 (주제 없이)
+ */
+export async function getAllSurveyItemsByUser(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'surveyItems'),
+      where('userId', '==', userId),
+      orderBy('order', 'asc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    }));
+  } catch (error) {
+    console.error('설문 항목 목록 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 설문 항목 수정
  */
 export async function updateSurveyItem(itemId: string, itemData: any) {
