@@ -446,22 +446,18 @@ export async function createGoogleSheet(
 
 /**
  * 설문 결과 전용 시트 생성
- * @param userName 사용자 이름
+ * @param sheetTitle 시트 제목
  * @param accessToken Google OAuth 액세스 토큰
  * @returns 시트 ID와 URL
  */
 export async function createSurveyResultSheet(
-  userName: string,
+  sheetTitle: string,
   accessToken: string
 ): Promise<{ id: string; url: string }> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
     const schoolName = getSchoolName();
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
-
-    // 2. 설문 결과 시트 생성
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const sheetTitle = `설문결과_${userName}_${today}`;
 
     const createResponse = await fetch(
       'https://www.googleapis.com/drive/v3/files',
