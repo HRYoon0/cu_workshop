@@ -2773,29 +2773,29 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                     return (
                       <>
                         <div className="flex justify-between items-center bg-green-100 p-3 rounded">
-                          <span>적극 찬성 (+2)</span>
-                          <span className="font-bold">{counts['+2']}명</span>
+                          <span className="text-green-900 font-semibold">적극 찬성 (+2)</span>
+                          <span className="font-bold text-green-900">{counts['+2']}명</span>
                         </div>
                         <div className="flex justify-between items-center bg-green-50 p-3 rounded">
-                          <span>찬성 (+1)</span>
-                          <span className="font-bold">{counts['+1']}명</span>
+                          <span className="text-green-800 font-semibold">찬성 (+1)</span>
+                          <span className="font-bold text-green-800">{counts['+1']}명</span>
                         </div>
                         <div className="flex justify-between items-center bg-gray-100 p-3 rounded">
-                          <span>보통 (0)</span>
-                          <span className="font-bold">{counts['0']}명</span>
+                          <span className="text-gray-900 font-semibold">보통 (0)</span>
+                          <span className="font-bold text-gray-900">{counts['0']}명</span>
                         </div>
                         <div className="flex justify-between items-center bg-red-50 p-3 rounded">
-                          <span>반대 (-1)</span>
-                          <span className="font-bold">{counts['-1']}명</span>
+                          <span className="text-red-800 font-semibold">반대 (-1)</span>
+                          <span className="font-bold text-red-800">{counts['-1']}명</span>
                         </div>
                         <div className="flex justify-between items-center bg-red-100 p-3 rounded">
-                          <span>적극 반대 (-2)</span>
-                          <span className="font-bold">{counts['-2']}명</span>
+                          <span className="text-red-900 font-semibold">적극 반대 (-2)</span>
+                          <span className="font-bold text-red-900">{counts['-2']}명</span>
                         </div>
                         {opinions.length > 0 && (
                           <div className="flex justify-between items-center bg-blue-100 p-3 rounded mt-3">
-                            <span className="font-bold">평균</span>
-                            <span className="font-bold">
+                            <span className="font-bold text-blue-900">평균</span>
+                            <span className="font-bold text-blue-900">
                               {(opinions.reduce((sum, op) => sum + op.value, 0) / opinions.length).toFixed(2)}
                             </span>
                           </div>
