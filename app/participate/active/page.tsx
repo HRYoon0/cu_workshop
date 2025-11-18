@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getActiveOpinionSessionByUserId, submitOpinion, subscribeToActiveOpinionSessionByUserId, subscribeToOpinions } from '@/lib/firestore';
 
-export default function ActiveParticipatePage() {
+function ActiveParticipateContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('uid') || process.env.NEXT_PUBLIC_ADMIN_UID || '';
 
@@ -209,5 +209,20 @@ export default function ActiveParticipatePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ActiveParticipatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <ActiveParticipateContent />
+    </Suspense>
   );
 }
