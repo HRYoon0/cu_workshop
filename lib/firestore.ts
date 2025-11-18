@@ -883,19 +883,32 @@ export async function createOpinionSession(
   userId: string
 ) {
   try {
+    console.log('🚀 createOpinionSession 시작');
+    console.log('  - sessionData:', sessionData);
+    console.log('  - userId:', userId);
+
     // 기존 활성 세션이 있으면 먼저 종료
+    console.log('📌 기존 활성 세션 종료 시도...');
     await closeActiveOpinionSessionByUser(userId);
 
-    const docRef = await addDoc(collection(db, 'opinionSessions'), {
+    console.log('📝 새 세션 문서 생성 중...');
+    const newSessionData = {
       ...sessionData,
       userId,
       status: 'active',
       isActive: true, // 활성 세션 표시
       createdAt: serverTimestamp(),
-    });
+    };
+    console.log('  - 생성할 데이터:', newSessionData);
+
+    const docRef = await addDoc(collection(db, 'opinionSessions'), newSessionData);
+    console.log('✅ 세션 생성 완료! ID:', docRef.id);
+
     return docRef.id;
   } catch (error) {
-    console.error('의견 수집 세션 생성 실패:', error);
+    console.error('❌ 의견 수집 세션 생성 실패:', error);
+    console.error('  - 에러 타입:', typeof error);
+    console.error('  - 에러 객체:', error);
     throw error;
   }
 }
@@ -980,31 +993,38 @@ export async function getActiveOpinionSessionByUserId(userId: string) {
  */
 export async function closeActiveOpinionSessionByUser(userId: string) {
   try {
+    console.log('🔄 closeActiveOpinionSessionByUser 시작, userId:', userId);
+
     const q = query(
       collection(db, 'opinionSessions'),
       where('userId', '==', userId),
       where('isActive', '==', true)
     );
+
+    console.log('🔍 활성 세션 검색 중...');
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-      console.log('종료할 활성 세션이 없습니다.');
+      console.log('✅ 종료할 활성 세션이 없습니다.');
       return;
     }
 
+    console.log(`📝 ${querySnapshot.size}개의 활성 세션 발견, 종료 중...`);
+
     // 모든 활성 세션 종료 (보통 1개만 있어야 함)
-    const updatePromises = querySnapshot.docs.map(doc =>
-      updateDoc(doc.ref, {
+    const updatePromises = querySnapshot.docs.map(doc => {
+      console.log('  - 세션 종료:', doc.id);
+      return updateDoc(doc.ref, {
         status: 'closed',
         isActive: false,
         closedAt: serverTimestamp(),
-      })
-    );
+      });
+    });
 
     await Promise.all(updatePromises);
-    console.log(`${querySnapshot.size}개의 활성 세션이 자동 종료되었습니다.`);
+    console.log(`✅ ${querySnapshot.size}개의 활성 세션이 자동 종료되었습니다.`);
   } catch (error) {
-    console.error('활성 세션 종료 실패:', error);
+    console.error('❌ 활성 세션 종료 실패:', error);
     throw error;
   }
 }

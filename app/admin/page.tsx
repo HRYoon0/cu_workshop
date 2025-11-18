@@ -2075,49 +2075,72 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
   // 의견 수집 시작
   const handleStartOpinionSession = async (type: 'free' | 'scale') => {
+    console.log('=== 의견 수집 시작 ===');
+    console.log('userId:', userId);
+    console.log('selectedDiscussionItem:', selectedDiscussionItem);
+    console.log('userSheet:', userSheet);
+    console.log('type:', type);
+
     // userId 확인
     if (!userId) {
+      console.error('❌ userId가 없습니다');
       alert('로그인 정보가 없습니다. 다시 로그인해주세요.');
       return;
     }
 
     if (!selectedDiscussionItem) {
+      console.error('❌ selectedDiscussionItem이 없습니다');
       alert('논의 항목을 선택해주세요.');
       return;
     }
 
     if (!userSheet?.sheetId) {
+      console.error('❌ userSheet.sheetId가 없습니다');
       alert('시트 정보가 없습니다. 페이지를 새로고침해주세요.');
       return;
     }
 
     try {
       setIsStartingOpinionSession(true);
+      console.log('✅ 검증 통과, createOpinionSession 호출 중...');
 
-      const sessionId = await createOpinionSession(
-        {
-          discussionItemId: selectedDiscussionItem.id,
-          discussionTopic: selectedDiscussionItem.topic,
-          discussionRow: selectedDiscussionItem.row,
-          type,
-          sheetId: userSheet.sheetId,
-        },
-        userId
-      );
+      const sessionData = {
+        discussionItemId: selectedDiscussionItem.id,
+        discussionTopic: selectedDiscussionItem.topic,
+        discussionRow: selectedDiscussionItem.row,
+        type,
+        sheetId: userSheet.sheetId,
+      };
+      console.log('세션 데이터:', sessionData);
+
+      const sessionId = await createOpinionSession(sessionData, userId);
+      console.log('✅ 세션 생성 성공! sessionId:', sessionId);
 
       setCurrentOpinionSession({ id: sessionId, type });
       setShowOpinionTypeModal(false);
       setShowOpinionSessionModal(true);
 
       // 실시간 의견 구독 시작
+      console.log('의견 구독 시작...');
       const unsubscribe = subscribeToOpinions(sessionId, (newOpinions) => {
+        console.log('새 의견 수신:', newOpinions.length, '개');
         setOpinions(newOpinions);
       });
 
       return unsubscribe;
     } catch (error) {
-      console.error('의견 수집 세션 생성 실패:', error);
-      alert('의견 수집을 시작할 수 없습니다.\n\n' + (error as Error).message);
+      console.error('❌ 의견 수집 세션 생성 실패:', error);
+      console.error('에러 상세:', error);
+
+      // 에러 메시지를 더 자세히 표시
+      let errorMessage = '의견 수집을 시작할 수 없습니다.';
+      if (error instanceof Error) {
+        errorMessage += '\n\n에러: ' + error.message;
+        if (error.stack) {
+          console.error('스택:', error.stack);
+        }
+      }
+      alert(errorMessage);
     } finally {
       setIsStartingOpinionSession(false);
     }
