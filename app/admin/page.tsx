@@ -103,6 +103,20 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router]);
 
+  // 모달이 열릴 때 배경 스크롤 방지
+  useEffect(() => {
+    if (showSchoolNameModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showSchoolNameModal]);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -1584,7 +1598,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
   // 모달이 열릴 때 배경 스크롤 방지
   useEffect(() => {
-    if (showOpinionSessionModal || showQRModal || showSchoolNameModal || showOpinionTypeModal || showDepartmentModal) {
+    if (showOpinionSessionModal || showQRModal || showOpinionTypeModal || showDepartmentModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -1594,7 +1608,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showOpinionSessionModal, showQRModal, showSchoolNameModal, showOpinionTypeModal, showDepartmentModal]);
+  }, [showOpinionSessionModal, showQRModal, showOpinionTypeModal, showDepartmentModal]);
 
   const loadTopics = async () => {
     try {
