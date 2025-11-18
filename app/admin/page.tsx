@@ -1065,7 +1065,7 @@ function SurveyManager({ userId }: { userId: string }) {
           <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-500 text-lg">설문 목록을 불러오는 중...</p>
         </div>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && !showItemForm ? (
         <div className="bg-white rounded-xl p-12 text-center">
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1285,13 +1285,93 @@ function SurveyItemForm({
 }) {
   const isEditMode = !!editingItem;
   const [sheetTitle, setSheetTitle] = useState(editingItem?.sheetTitle || '');
-  const [question, setQuestion] = useState(editingItem?.question || '');
-  const [type, setType] = useState<'multiple' | 'text'>(editingItem?.type || 'multiple');
-  const [options, setOptions] = useState<string[]>(editingItem?.options || ['', '', '', '']);
-  const [allowOther, setAllowOther] = useState(editingItem?.allowOther || false);
-  const [studentResultImageUrl, setStudentResultImageUrl] = useState(editingItem?.studentResultImageUrl || '');
-  const [parentResultImageUrl, setParentResultImageUrl] = useState(editingItem?.parentResultImageUrl || '');
+  const [questionIdCounter, setQuestionIdCounter] = useState(1);
+  const [questions, setQuestions] = useState(
+    editingItem ? [{
+      id: 0,
+      question: editingItem.question || '',
+      type: editingItem.type || 'multiple',
+      options: editingItem.options || ['', '', '', ''],
+      allowOther: editingItem.allowOther || false,
+      studentResultImageUrl: editingItem.studentResultImageUrl || '',
+      parentResultImageUrl: editingItem.parentResultImageUrl || ''
+    }] : [{
+      id: 0,
+      question: '',
+      type: 'multiple' as 'multiple' | 'text',
+      options: ['', '', '', ''],
+      allowOther: false,
+      studentResultImageUrl: '',
+      parentResultImageUrl: ''
+    }]
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addQuestion = () => {
+    setQuestions([
+      ...questions,
+      {
+        id: questionIdCounter,
+        question: '',
+        type: 'multiple' as 'multiple' | 'text',
+        options: ['', '', '', ''],
+        allowOther: false,
+        studentResultImageUrl: '',
+        parentResultImageUrl: ''
+      }
+    ]);
+    setQuestionIdCounter(questionIdCounter + 1);
+  };
+
+  const removeQuestion = (index: number) => {
+    if (questions.length > 1) {
+      setQuestions(questions.filter((_q: any, i: number) => i !== index));
+    }
+  };
+
+  const updateQuestion = (index: number, field: string, value: any) => {
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === index) {
+        return { ...q, [field]: value };
+      }
+      return q;
+    }));
+  };
+
+  const updateOption = (qIndex: number, optionIndex: number, value: string) => {
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === qIndex) {
+        return {
+          ...q,
+          options: q.options.map((opt: any, optIdx: number) =>
+            optIdx === optionIndex ? value : opt
+          )
+        };
+      }
+      return q;
+    }));
+  };
+
+  const addOption = (qIndex: number) => {
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === qIndex) {
+        return { ...q, options: [...q.options, ''] };
+      }
+      return q;
+    }));
+  };
+
+  const removeOption = (qIndex: number, optionIndex: number) => {
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === qIndex && q.options.length > 2) {
+        return {
+          ...q,
+          options: q.options.filter((_: any, optIdx: number) => optIdx !== optionIndex)
+        };
+      }
+      return q;
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1302,16 +1382,20 @@ function SurveyItemForm({
       return;
     }
 
-    if (!question.trim()) {
-      alert('질문을 입력해주세요.');
-      return;
-    }
-
-    if (type === 'multiple') {
-      const filledOptions = options.filter(opt => opt.trim());
-      if (filledOptions.length < 2) {
-        alert('선다형은 최소 2개의 선택지가 필요합니다.');
+    // 질문 검증
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.question.trim()) {
+        alert(`질문 ${i + 1}의 내용을 입력해주세요.`);
         return;
+      }
+
+      if (q.type === 'multiple') {
+        const filledOptions = q.options.filter((opt: string) => opt.trim());
+        if (filledOptions.length < 2) {
+          alert(`질문 ${i + 1}의 선택지는 최소 2개가 필요합니다.`);
+          return;
+        }
       }
     }
 
@@ -1343,31 +1427,50 @@ function SurveyItemForm({
         }
       }
 
-      const itemData = {
-        ...(topicId && { topicId }),
-        userId,
-        ...(sheetTitle && { sheetTitle: sheetTitle.trim() }),
-        question: question.trim(),
-        type,
-        ...(type === 'multiple' && {
-          options: options.filter(opt => opt.trim()),
-          allowOther
-        }),
-        studentResultImageUrl: studentResultImageUrl || null,
-        parentResultImageUrl: parentResultImageUrl || null,
-        order: isEditMode ? editingItem.order : Date.now()
-      };
-
       if (isEditMode) {
+        // 수정 모드 - 하나의 항목만 수정
+        const itemData = {
+          ...(topicId && { topicId }),
+          userId,
+          ...(sheetTitle && { sheetTitle: sheetTitle.trim() }),
+          question: questions[0].question.trim(),
+          type: questions[0].type,
+          ...(questions[0].type === 'multiple' && {
+            options: questions[0].options.filter((opt: string) => opt.trim()),
+            allowOther: questions[0].allowOther
+          }),
+          studentResultImageUrl: questions[0].studentResultImageUrl || null,
+          parentResultImageUrl: questions[0].parentResultImageUrl || null,
+          order: editingItem.order
+        };
         await updateSurveyItem(editingItem.id, itemData);
         alert('설문 항목이 수정되었습니다.');
         onUpdated();
       } else {
-        await createSurveyItem(itemData);
+        // 생성 모드 - 모든 질문 저장
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          const itemData = {
+            ...(topicId && { topicId }),
+            userId,
+            ...(sheetTitle && i === 0 && { sheetTitle: sheetTitle.trim() }), // 첫 질문에만 시트 제목 포함
+            question: q.question.trim(),
+            type: q.type,
+            ...(q.type === 'multiple' && {
+              options: q.options.filter((opt: string) => opt.trim()),
+              allowOther: q.allowOther
+            }),
+            studentResultImageUrl: q.studentResultImageUrl || null,
+            parentResultImageUrl: q.parentResultImageUrl || null,
+            order: Date.now() + i // 순서 보장
+          };
+          await createSurveyItem(itemData);
+        }
+
         if (hasSheet) {
-          alert('설문 항목이 추가되었습니다.');
+          alert(`${questions.length}개의 설문 항목이 추가되었습니다.`);
         } else {
-          alert('설문 항목과 시트가 생성되었습니다.');
+          alert(`설문 시트와 ${questions.length}개의 항목이 생성되었습니다.`);
         }
         onCreated();
       }
@@ -1379,26 +1482,12 @@ function SurveyItemForm({
     }
   };
 
-  const addOption = () => {
-    setOptions([...options, '']);
-  };
-
-  const removeOption = (index: number) => {
-    if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateOption = (index: number, value: string) => {
-    setOptions(options.map((opt, i) => i === index ? value : opt));
-  };
-
   return (
-    <div className="bg-white rounded-lg p-6 shadow-lg mb-4 border-2 border-green-500">
+    <div className="bg-white rounded-lg p-6 shadow-lg mb-4 border-2 border-green-500 max-h-[80vh] overflow-y-auto">
       <h4 className="text-lg font-bold text-gray-800 mb-4">
         {isEditMode ? '설문 항목 수정' : '새 설문 항목 추가'}
       </h4>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* 시트 제목 (시트가 없고 생성 모드일 때만 표시) */}
         {!isEditMode && !hasSheet && (
           <div>
@@ -1428,124 +1517,164 @@ function SurveyItemForm({
           </div>
         )}
 
-        {/* 질문 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            질문 내용
-          </label>
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            rows={3}
-            placeholder="설문 질문을 입력하세요"
-            required
-          />
-        </div>
-
-        {/* 유형 선택 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            설문 유형
-          </label>
-          <div className="space-y-2">
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="type"
-                value="multiple"
-                checked={type === 'multiple'}
-                onChange={() => setType('multiple')}
-                className="w-4 h-4 text-green-600"
-              />
-              <span className="text-gray-900">선다형</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name="type"
-                value="text"
-                checked={type === 'text'}
-                onChange={() => setType('text')}
-                className="w-4 h-4 text-green-600"
-              />
-              <span className="text-gray-900">서술형</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 선다형 옵션 */}
-        {type === 'multiple' && (
+        {/* 질문 목록 */}
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              선택지
-            </label>
-            <div className="space-y-2">
-              {options.map((option, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => updateOption(index, e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-                    placeholder={`선택지 ${index + 1}`}
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
+          </div>
+
+          {questions.map((q: any, qIndex: number) => (
+            <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div className="flex justify-between items-center mb-3">
+                <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
+                {questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(qIndex)}
+                    className="text-red-500 hover:text-red-700 text-sm font-semibold"
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {/* 질문 내용 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    질문 내용
+                  </label>
+                  <textarea
+                    value={q.question}
+                    onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                    rows={2}
+                    placeholder="설문 질문을 입력하세요"
+                    required
                   />
-                  {options.length > 2 && (
+                </div>
+
+                {/* 유형 선택 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    설문 유형
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name={`type-${q.id}`}
+                        value="multiple"
+                        checked={q.type === 'multiple'}
+                        onChange={() => updateQuestion(qIndex, 'type', 'multiple')}
+                        className="w-4 h-4 text-green-600"
+                      />
+                      <span className="text-gray-900">선다형</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name={`type-${q.id}`}
+                        value="text"
+                        checked={q.type === 'text'}
+                        onChange={() => updateQuestion(qIndex, 'type', 'text')}
+                        className="w-4 h-4 text-green-600"
+                      />
+                      <span className="text-gray-900">서술형</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 선다형 옵션 */}
+                {q.type === 'multiple' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      선택지
+                    </label>
+                    <div className="space-y-2">
+                      {q.options.map((option: string, optIndex: number) => (
+                        <div key={optIndex} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={option}
+                            onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+                            placeholder={`선택지 ${optIndex + 1}`}
+                          />
+                          {q.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOption(qIndex, optIndex)}
+                              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => removeOption(index)}
-                      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      onClick={() => addOption(qIndex)}
+                      className="mt-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
                     >
-                      삭제
+                      + 선택지 추가
                     </button>
-                  )}
+
+                    {/* 기타 의견 허용 */}
+                    <div className="mt-3">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={q.allowOther}
+                          onChange={(e) => updateQuestion(qIndex, 'allowOther', e.target.checked)}
+                          className="w-4 h-4 text-green-600"
+                        />
+                        <span className="text-gray-900">기타 의견 (단답형) 허용</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 결과 이미지 업로드 (선택사항) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    👨‍👩‍👧 학부모 설문 결과 이미지 (선택사항)
+                  </label>
+                  <ImageUploader
+                    onUploadSuccess={(url) => updateQuestion(qIndex, 'parentResultImageUrl', url)}
+                    currentImageUrl={q.parentResultImageUrl}
+                    folder={`survey_images`}
+                  />
                 </div>
-              ))}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    👦 학생 설문 결과 이미지 (선택사항)
+                  </label>
+                  <ImageUploader
+                    onUploadSuccess={(url) => updateQuestion(qIndex, 'studentResultImageUrl', url)}
+                    currentImageUrl={q.studentResultImageUrl}
+                    folder={`survey_images`}
+                  />
+                </div>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={addOption}
-              className="mt-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              + 선택지 추가
-            </button>
+          ))}
 
-            {/* 기타 의견 허용 */}
-            <div className="mt-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={allowOther}
-                  onChange={(e) => setAllowOther(e.target.checked)}
-                  className="w-4 h-4 text-green-600"
-                />
-                <span className="text-gray-900">기타 의견 (단답형) 허용</span>
-              </label>
+          {/* 질문 추가 버튼 */}
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="w-full py-4 border-2 border-dashed border-green-400 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 hover:border-green-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+          >
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
             </div>
-          </div>
-        )}
-
-        {/* 결과 이미지 업로드 (선택사항) - 학부모 먼저 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            👨‍👩‍👧 학부모 설문 결과 이미지 (선택사항)
-          </label>
-          <ImageUploader
-            onUploadSuccess={(url) => setParentResultImageUrl(url)}
-            currentImageUrl={parentResultImageUrl}
-            folder={`survey_images`}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            👦 학생 설문 결과 이미지 (선택사항)
-          </label>
-          <ImageUploader
-            onUploadSuccess={(url) => setStudentResultImageUrl(url)}
-            currentImageUrl={studentResultImageUrl}
-            folder={`survey_images`}
-          />
+            질문 추가하기
+          </button>
         </div>
 
         {/* 버튼 */}
@@ -1560,7 +1689,8 @@ function SurveyItemForm({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             취소
           </button>
