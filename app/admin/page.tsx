@@ -1388,7 +1388,7 @@ function SurveyItemForm({
               value={sheetTitle}
               onChange={(e) => setSheetTitle(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-              placeholder="예: 2024 학부모 만족도 설문"
+              placeholder="예: 2025 교사 교육과정 설문"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
