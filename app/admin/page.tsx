@@ -1535,11 +1535,13 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
   const [sheetExists, setSheetExists] = useState<boolean>(false);
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
 
-  // 각 행의 편집 상태를 저장할 객체
-  const [editingItems, setEditingItems] = useState<{[key: string]: boolean}>({});
+  // 각 행의 편집 상태를 저장할 객체 (논의 과정과 결정 사항을 독립적으로 관리)
+  const [editingProcess, setEditingProcess] = useState<{[key: string]: boolean}>({});
+  const [editingDecision, setEditingDecision] = useState<{[key: string]: boolean}>({});
 
   // 각 행의 input ref를 저장할 객체
-  const inputRefs = useRef<{[key: string]: {process: HTMLInputElement | null, decision: HTMLInputElement | null}}>({});
+  const processRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
+  const decisionRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
 
   // 의견 수집 관련 상태
   const [selectedDiscussionItem, setSelectedDiscussionItem] = useState<any>(null);
@@ -2476,9 +2478,11 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                     </tr>
                   ) : (
                     discussionItems.map((item, index) => {
-                      // 비어있는 항목은 기본적으로 편집 모드, 입력된 항목은 보기 모드
-                      const isEmpty = !item.process && !item.decision;
-                      const isEditing = editingItems[item.id] !== undefined ? editingItems[item.id] : isEmpty;
+                      // 각 필드별로 독립적으로 편집 모드 확인
+                      const isProcessEmpty = !item.process;
+                      const isDecisionEmpty = !item.decision;
+                      const isEditingProcess = editingProcess[item.id] !== undefined ? editingProcess[item.id] : isProcessEmpty;
+                      const isEditingDecision = editingDecision[item.id] !== undefined ? editingDecision[item.id] : isDecisionEmpty;
 
                       return (
                         <tr
@@ -2492,40 +2496,92 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                             <div className="text-gray-700">{item.gradeOrDept}</div>
                           </td>
                           <td className="px-6 py-4 min-w-[250px]">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                defaultValue={item.process}
-                                ref={(input) => {
-                                  if (!inputRefs.current[item.id]) {
-                                    inputRefs.current[item.id] = { process: null, decision: null };
-                                  }
-                                  inputRefs.current[item.id].process = input;
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                placeholder="논의 과정을 입력하세요"
-                              />
-                            ) : (
-                              <div className="text-gray-900">{item.process || '-'}</div>
-                            )}
+                            <div className="flex gap-2 items-center">
+                              {isEditingProcess ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    defaultValue={item.process}
+                                    ref={(input) => {
+                                      processRefs.current[item.id] = input;
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                    placeholder="논의 과정을 입력하세요"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const input = processRefs.current[item.id];
+                                      if (input) {
+                                        handleUpdateDiscussionItem(item.row, {
+                                          process: input.value || ''
+                                        });
+                                        // 편집 모드 종료
+                                        const newEditing = { ...editingProcess };
+                                        delete newEditing[item.id];
+                                        setEditingProcess(newEditing);
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
+                                  >
+                                    저장
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex-1 text-gray-900">{item.process || '-'}</div>
+                                  <button
+                                    onClick={() => setEditingProcess({ ...editingProcess, [item.id]: true })}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
+                                  >
+                                    수정
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 min-w-[250px]">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                defaultValue={item.decision}
-                                ref={(input) => {
-                                  if (!inputRefs.current[item.id]) {
-                                    inputRefs.current[item.id] = { process: null, decision: null };
-                                  }
-                                  inputRefs.current[item.id].decision = input;
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                placeholder="결정 사항을 입력하세요"
-                              />
-                            ) : (
-                              <div className="text-gray-900">{item.decision || '-'}</div>
-                            )}
+                            <div className="flex gap-2 items-center">
+                              {isEditingDecision ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    defaultValue={item.decision}
+                                    ref={(input) => {
+                                      decisionRefs.current[item.id] = input;
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                    placeholder="결정 사항을 입력하세요"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const input = decisionRefs.current[item.id];
+                                      if (input) {
+                                        handleUpdateDiscussionItem(item.row, {
+                                          decision: input.value || ''
+                                        });
+                                        // 편집 모드 종료
+                                        const newEditing = { ...editingDecision };
+                                        delete newEditing[item.id];
+                                        setEditingDecision(newEditing);
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
+                                  >
+                                    저장
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex-1 text-gray-900">{item.decision || '-'}</div>
+                                  <button
+                                    onClick={() => setEditingDecision({ ...editingDecision, [item.id]: true })}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
+                                  >
+                                    수정
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 min-w-[120px]">
                             <div className="flex gap-2 justify-center">
@@ -2540,36 +2596,14 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-4 min-w-[180px]">
+                          <td className="px-6 py-4 min-w-[100px]">
                             <div className="flex gap-2 justify-center">
-                              {isEditing ? (
-                                <button
-                                  onClick={() => {
-                                    const refs = inputRefs.current[item.id];
-                                    if (refs) {
-                                      const updatedItem = {
-                                        process: refs.process?.value || '',
-                                        decision: refs.decision?.value || ''
-                                      };
-                                      handleUpdateDiscussionItem(item.row, updatedItem);
-                                      // editingItems에서 해당 항목 제거하여 다시 isEmpty 체크가 이루어지도록 함
-                                      const newEditingItems = { ...editingItems };
-                                      delete newEditingItems[item.id];
-                                      setEditingItems(newEditingItems);
-                                    }
-                                  }}
-                                  className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm whitespace-nowrap"
-                                >
-                                  저장
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => setEditingItems({ ...editingItems, [item.id]: true })}
-                                  className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
-                                >
-                                  수정
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleDeleteDiscussionItem(item.row, item.topic)}
+                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm whitespace-nowrap"
+                              >
+                                삭제
+                              </button>
                             </div>
                           </td>
                         </tr>
