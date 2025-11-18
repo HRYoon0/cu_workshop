@@ -2617,17 +2617,18 @@ function DepartmentManager({ userId }: { userId: string }) {
               <p className="text-gray-600">{selectedDiscussionItem?.topic}</p>
             </div>
 
-            {/* QR 코드 */}
+            {/* QR 코드 (고정 URL) */}
             <div className="bg-gray-50 rounded-lg p-6 mb-6 text-center">
               <p className="text-gray-700 font-semibold mb-4">참여자는 이 QR 코드를 스캔하세요</p>
+              <p className="text-sm text-blue-600 mb-3">모든 논의 사항에서 동일한 QR 코드를 사용합니다</p>
               <div className="flex justify-center mb-4">
                 <QRCodeSVG
-                  value={`${window.location.origin}/participate/${currentOpinionSession.id}`}
+                  value={`${window.location.origin}/participate/active?uid=${userId}`}
                   size={200}
                 />
               </div>
               <p className="text-sm text-gray-500 break-all">
-                {`${window.location.origin}/participate/${currentOpinionSession.id}`}
+                {`${window.location.origin}/participate/active?uid=${userId}`}
               </p>
             </div>
 

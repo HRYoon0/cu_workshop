@@ -883,10 +883,14 @@ export async function createOpinionSession(
   userId: string
 ) {
   try {
+    // 기존 활성 세션이 있으면 먼저 종료
+    await closeActiveOpinionSessionByUser(userId);
+
     const docRef = await addDoc(collection(db, 'opinionSessions'), {
       ...sessionData,
       userId,
       status: 'active',
+      isActive: true, // 활성 세션 표시
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -932,11 +936,75 @@ export async function updateOpinionSessionStatus(
 
     if (status === 'closed') {
       updateData.closedAt = serverTimestamp();
+      updateData.isActive = false; // 비활성화
     }
 
     await updateDoc(sessionRef, updateData);
   } catch (error) {
     console.error('의견 수집 세션 상태 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자의 활성 의견 수집 세션 가져오기 (고정 URL용)
+ */
+export async function getActiveOpinionSessionByUserId(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'opinionSessions'),
+      where('userId', '==', userId),
+      where('isActive', '==', true)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+      closedAt: (doc.data().closedAt as Timestamp)?.toDate(),
+    };
+  } catch (error) {
+    console.error('활성 세션 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자의 활성 세션 종료 (새 세션 시작 전)
+ */
+export async function closeActiveOpinionSessionByUser(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'opinionSessions'),
+      where('userId', '==', userId),
+      where('isActive', '==', true)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      console.log('종료할 활성 세션이 없습니다.');
+      return;
+    }
+
+    // 모든 활성 세션 종료 (보통 1개만 있어야 함)
+    const updatePromises = querySnapshot.docs.map(doc =>
+      updateDoc(doc.ref, {
+        status: 'closed',
+        isActive: false,
+        closedAt: serverTimestamp(),
+      })
+    );
+
+    await Promise.all(updatePromises);
+    console.log(`${querySnapshot.size}개의 활성 세션이 자동 종료되었습니다.`);
+  } catch (error) {
+    console.error('활성 세션 종료 실패:', error);
     throw error;
   }
 }
@@ -1016,6 +1084,33 @@ export function subscribeToOpinions(sessionId: string, callback: (opinions: any[
       submittedAt: (doc.data().submittedAt as Timestamp)?.toDate() || new Date(),
     }));
     callback(opinions);
+  });
+}
+
+/**
+ * 사용자의 활성 세션 실시간 구독 (고정 URL용)
+ */
+export function subscribeToActiveOpinionSessionByUserId(userId: string, callback: (session: any | null) => void) {
+  const q = query(
+    collection(db, 'opinionSessions'),
+    where('userId', '==', userId),
+    where('isActive', '==', true)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      callback(null);
+      return;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    callback({
+      id: doc.id,
+      ...data,
+      createdAt: (data.createdAt as Timestamp)?.toDate(),
+      closedAt: (data.closedAt as Timestamp)?.toDate(),
+    });
   });
 }
 
