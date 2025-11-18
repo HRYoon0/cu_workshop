@@ -555,6 +555,32 @@ export async function deleteSurvey(surveyId: string) {
   }
 }
 
+/**
+ * 퀴즈 세션 삭제 (Firestore 용량 절약)
+ */
+export async function deleteQuizSession(sessionId: string) {
+  try {
+    await deleteDoc(doc(db, 'quizSessions', sessionId));
+    console.log('퀴즈 세션이 삭제되었습니다:', sessionId);
+  } catch (error) {
+    console.error('퀴즈 세션 삭제 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 설문 세션 삭제 (Firestore 용량 절약)
+ */
+export async function deleteSurveySession(sessionId: string) {
+  try {
+    await deleteDoc(doc(db, 'surveySessions', sessionId));
+    console.log('설문 세션이 삭제되었습니다:', sessionId);
+  } catch (error) {
+    console.error('설문 세션 삭제 실패:', error);
+    throw error;
+  }
+}
+
 // ===== 사용자 관리 함수 =====
 
 /**
@@ -724,6 +750,43 @@ export async function getAllUserSheets(): Promise<UserSheet[]> {
     })) as UserSheet[];
   } catch (error) {
     console.error('모든 사용자 시트 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 오래된 사용자 시트 히스토리 정리 (최근 것만 유지)
+ */
+export async function cleanOldUserSheetHistory(userId: string) {
+  try {
+    const q = query(
+      collection(db, 'userSheets'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.size <= 1) {
+      console.log('히스토리가 1개 이하이므로 정리할 필요 없음');
+      return;
+    }
+
+    // 날짜 기준 정렬
+    const sheets = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    }));
+
+    sheets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // 가장 최근 것 제외하고 나머지 삭제
+    const deletePromises = sheets.slice(1).map(sheet =>
+      deleteDoc(doc(db, 'userSheets', sheet.id))
+    );
+
+    await Promise.all(deletePromises);
+    console.log(`${deletePromises.length}개의 오래된 시트 히스토리가 삭제되었습니다.`);
+  } catch (error) {
+    console.error('시트 히스토리 정리 실패:', error);
     throw error;
   }
 }

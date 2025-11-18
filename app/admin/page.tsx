@@ -31,7 +31,8 @@ import {
   subscribeToOpinions,
   updateOpinionSessionStatus,
   getActiveOpinionSession,
-  deleteOpinionSession
+  deleteOpinionSession,
+  cleanOldUserSheetHistory
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -1628,6 +1629,9 @@ function DepartmentManager({ userId }: { userId: string }) {
             templateId: process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s',
           });
 
+          // 오래된 시트 히스토리 정리 (Firestore 용량 절약)
+          await cleanOldUserSheetHistory(userId);
+
           // UI 업데이트
           setUserSheet({
             userId,
@@ -1808,6 +1812,9 @@ function DepartmentManager({ userId }: { userId: string }) {
         webAppUrl: null,
         templateId,
       });
+
+      // 오래된 시트 히스토리 정리 (Firestore 용량 절약)
+      await cleanOldUserSheetHistory(userId);
 
       // 7. 즉시 UI 업데이트 (실시간 반영)
       setUserSheet({
