@@ -41,7 +41,8 @@ import {
   getSurveyItems,
   getAllSurveyItemsByUser,
   updateSurveyItem,
-  deleteSurveyItem
+  deleteSurveyItem,
+  getUserSurveySheet
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -963,12 +964,24 @@ function SurveyManager({ userId }: { userId: string }) {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSheet, setHasSheet] = useState(false);
 
   useEffect(() => {
     if (userId) {
       loadItems();
+      checkSheet();
     }
   }, [userId]);
+
+  const checkSheet = async () => {
+    try {
+      const sheet = await getUserSurveySheet(userId);
+      setHasSheet(!!sheet);
+    } catch (error) {
+      console.error('시트 확인 실패:', error);
+      setHasSheet(false);
+    }
+  };
 
   const loadItems = async () => {
     try {
@@ -984,6 +997,7 @@ function SurveyManager({ userId }: { userId: string }) {
 
   const handleItemCreated = () => {
     loadItems();
+    checkSheet(); // 시트가 생성되었을 수 있으므로 다시 확인
     setShowItemForm(false);
     setEditingItem(null);
   };
@@ -1037,6 +1051,7 @@ function SurveyManager({ userId }: { userId: string }) {
           onCreated={handleItemCreated}
           onUpdated={handleItemUpdated}
           editingItem={editingItem}
+          hasSheet={hasSheet}
           onClose={() => {
             setShowItemForm(false);
             setEditingItem(null);
@@ -1257,6 +1272,7 @@ function SurveyItemForm({
   onCreated,
   onUpdated,
   onClose,
+  hasSheet,
   topicId
 }: {
   userId: string;
@@ -1264,6 +1280,7 @@ function SurveyItemForm({
   onCreated: () => void;
   onUpdated: () => void;
   onClose: () => void;
+  hasSheet?: boolean;
   topicId?: string;
 }) {
   const isEditMode = !!editingItem;
@@ -1279,7 +1296,8 @@ function SurveyItemForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isEditMode && !sheetTitle.trim()) {
+    // 시트가 없고 생성 모드일 때만 시트 제목 검증
+    if (!isEditMode && !hasSheet && !sheetTitle.trim()) {
       alert('시트 제목을 입력해주세요.');
       return;
     }
@@ -1300,8 +1318,8 @@ function SurveyItemForm({
     try {
       setIsSubmitting(true);
 
-      // 생성 모드일 때만 시트 생성
-      if (!isEditMode) {
+      // 시트가 없고 생성 모드일 때만 시트 생성
+      if (!isEditMode && !hasSheet) {
         try {
           const { getGoogleAccessToken } = await import('@/lib/googleDrive');
           const { createSurveyResultSheet } = await import('@/lib/googleDrive');
@@ -1346,7 +1364,11 @@ function SurveyItemForm({
         onUpdated();
       } else {
         await createSurveyItem(itemData);
-        alert('설문 항목과 시트가 생성되었습니다.');
+        if (hasSheet) {
+          alert('설문 항목이 추가되었습니다.');
+        } else {
+          alert('설문 항목과 시트가 생성되었습니다.');
+        }
         onCreated();
       }
     } catch (error) {
@@ -1377,8 +1399,8 @@ function SurveyItemForm({
         {isEditMode ? '설문 항목 수정' : '새 설문 항목 추가'}
       </h4>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* 시트 제목 (생성 모드에서만 표시) */}
-        {!isEditMode && (
+        {/* 시트 제목 (시트가 없고 생성 모드일 때만 표시) */}
+        {!isEditMode && !hasSheet && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               📊 시트 제목 (필수)
@@ -1393,6 +1415,15 @@ function SurveyItemForm({
             />
             <p className="text-xs text-gray-500 mt-1">
               이 제목으로 구글 시트가 학교 폴더에 생성됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 시트가 이미 있을 때 안내 메시지 */}
+        {!isEditMode && hasSheet && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              ✅ 설문 시트가 이미 생성되어 있습니다. 아래 질문을 추가하면 같은 시트에 저장됩니다.
             </p>
           </div>
         )}
