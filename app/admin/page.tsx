@@ -1517,16 +1517,16 @@ function SurveyItemForm({
           </div>
         )}
 
-        {/* 질문 목록 */}
+        {/* 설문 목록 */}
         <div className="space-y-4">
           <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">설문 목록 ({questions.length}개)</h4>
           </div>
 
           {questions.map((q: any, qIndex: number) => (
             <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
-                <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
+                <h5 className="font-semibold text-gray-800">설문 {qIndex + 1}</h5>
                 {questions.length > 1 && (
                   <button
                     type="button"
@@ -1539,10 +1539,10 @@ function SurveyItemForm({
               </div>
 
               <div className="space-y-3">
-                {/* 질문 내용 */}
+                {/* 설문 내용 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    질문 내용
+                    설문 내용
                   </label>
                   <textarea
                     value={q.question}
@@ -1662,7 +1662,7 @@ function SurveyItemForm({
             </div>
           ))}
 
-          {/* 질문 추가 버튼 */}
+          {/* 설문 추가 버튼 */}
           <button
             type="button"
             onClick={addQuestion}
@@ -1673,7 +1673,7 @@ function SurveyItemForm({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            질문 추가하기
+            설문 추가하기
           </button>
         </div>
 
@@ -1684,7 +1684,7 @@ function SurveyItemForm({
             disabled={isSubmitting}
             className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? '저장 중...' : (isEditMode ? '수정하기' : '추가하기')}
+            {isSubmitting ? '저장 중...' : (isEditMode ? '수정하기' : '설문 생성하기')}
           </button>
           <button
             type="button"
