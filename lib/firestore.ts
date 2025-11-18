@@ -984,3 +984,40 @@ export async function getActiveOpinionSession(discussionItemId: string, userId: 
     throw error;
   }
 }
+
+/**
+ * 의견 수집 세션의 모든 의견 삭제 (Firestore 용량 절약)
+ */
+export async function deleteAllOpinionsInSession(sessionId: string) {
+  try {
+    const opinionsRef = collection(db, 'opinionSessions', sessionId, 'opinions');
+    const querySnapshot = await getDocs(opinionsRef);
+
+    // 모든 의견 문서 삭제
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+
+    console.log(`${querySnapshot.docs.length}개의 의견이 삭제되었습니다.`);
+  } catch (error) {
+    console.error('의견 삭제 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 수집 세션 삭제 (종료 후 정리)
+ */
+export async function deleteOpinionSession(sessionId: string) {
+  try {
+    // 먼저 모든 의견 삭제
+    await deleteAllOpinionsInSession(sessionId);
+
+    // 세션 문서 삭제
+    await deleteDoc(doc(db, 'opinionSessions', sessionId));
+
+    console.log('의견 수집 세션이 삭제되었습니다.');
+  } catch (error) {
+    console.error('세션 삭제 실패:', error);
+    throw error;
+  }
+}

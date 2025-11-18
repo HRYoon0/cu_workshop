@@ -30,7 +30,8 @@ import {
   getOpinions,
   subscribeToOpinions,
   updateOpinionSessionStatus,
-  getActiveOpinionSession
+  getActiveOpinionSession,
+  deleteOpinionSession
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -2127,6 +2128,11 @@ function DepartmentManager({ userId }: { userId: string }) {
         { process: newProcess, decision: selectedDiscussionItem.decision || '' },
         accessToken
       );
+
+      // Firestore 용량 절약을 위해 세션과 의견 데이터 삭제
+      // (결과는 이미 Google Sheets에 저장됨)
+      await deleteOpinionSession(currentOpinionSession.id);
+      console.log('Firestore 의견 데이터 정리 완료');
 
       alert('의견 수집이 종료되었습니다. 결과가 논의 과정에 추가되었습니다.');
       setShowOpinionSessionModal(false);
