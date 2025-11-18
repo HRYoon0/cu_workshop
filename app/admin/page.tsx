@@ -593,62 +593,6 @@ function QuizManager({ userId }: { userId: string }) {
   );
 }
 
-// 퀴즈 카드 컴포넌트
-function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) => void; onDelete: (quizId: string) => void }) {
-  return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="text-xl font-bold text-gray-800 mb-2">{quiz.title}</h3>
-          <p className="text-gray-600 mb-4">{quiz.description || '설명 없음'}</p>
-          <div className="flex gap-2 flex-wrap">
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-              문제 {quiz.questions?.length || 0}개
-            </span>
-            {quiz.questions?.[0]?.timeLimit && (
-              <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
-                제한시간 {quiz.questions[0].timeLimit}초
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 ml-4">
-          <button
-            onClick={() => onEdit(quiz)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            수정
-          </button>
-          <button
-            onClick={() => onDelete(quiz.id)}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            삭제
-          </button>
-        </div>
-      </div>
-
-      {/* 퀴즈 문제 미리보기 */}
-      {quiz.questions && quiz.questions.length > 0 && (
-        <div className="mt-4 border-t pt-4">
-          <p className="text-sm text-gray-500 mb-2">문제 미리보기:</p>
-          <div className="space-y-2">
-            {quiz.questions.slice(0, 3).map((q: any, idx: number) => (
-              <div key={idx} className="text-sm text-gray-700">
-                <span className="font-semibold">{idx + 1}.</span> {q.question}
-              </div>
-            ))}
-            {quiz.questions.length > 3 && (
-              <p className="text-sm text-gray-400">...외 {quiz.questions.length - 3}개</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 퀴즈 생성/수정 폼 컴포넌트
 function QuizCreateForm({
   onClose,
   onCreated,
@@ -658,283 +602,357 @@ function QuizCreateForm({
 }: {
   onClose: () => void;
   onCreated: (quiz: any) => void;
-  onUpdated: (quiz: any) => void;
+  onUpdated?: (quiz: any) => void;
   userId: string;
-  editingQuiz: any;
+  editingQuiz?: any;
 }) {
   const isEditMode = !!editingQuiz;
   const [title, setTitle] = useState(editingQuiz?.title || '');
-  const [description, setDescription] = useState(editingQuiz?.description || '');
-  const [timeLimit, setTimeLimit] = useState(editingQuiz?.questions?.[0]?.timeLimit || 30);
-  const [questions, setQuestions] = useState<any[]>(editingQuiz?.questions || [{ question: '', options: ['', '', '', ''], correctAnswer: 0, imageUrl: '' }]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!title.trim()) {
-      alert('퀴즈 제목을 입력해주세요.');
-      return;
-    }
-
-    const validQuestions = questions.filter(q =>
-      q.question.trim() &&
-      q.options.filter((opt: string) => opt.trim()).length >= 2
-    );
-
-    if (validQuestions.length === 0) {
-      alert('최소 1개의 유효한 문제가 필요합니다.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      const quizData = {
-        title: title.trim(),
-        questions: validQuestions.map(q => ({
-          question: q.question.trim(),
-          options: q.options.filter((opt: string) => opt.trim()),
-          correctAnswer: q.correctAnswer,
-          timeLimit: timeLimit,
-          imageUrl: q.imageUrl || ''
-        }))
-      };
-
-      if (isEditMode) {
-        await updateQuiz(editingQuiz.id, quizData);
-        onUpdated({ ...quizData, id: editingQuiz.id });
-        alert('퀴즈가 수정되었습니다.');
-      } else {
-        const quizId = await createQuiz(quizData, userId);
-        const sessionId = await createQuizSession(quizId);
-        setCreatedSessionId(sessionId);
-        onCreated({ ...quizData, id: quizId });
-        alert('퀴즈가 생성되었습니다.');
+  const [questionIdCounter, setQuestionIdCounter] = useState(editingQuiz?.questions?.length || 1);
+  const [questions, setQuestions] = useState(
+    editingQuiz?.questions?.map((q: any, idx: number) => ({
+      id: idx,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      timeLimit: q.timeLimit,
+      imageUrl: q.imageUrl || '',
+    })) || [
+      {
+        id: 0,
+        question: '',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        timeLimit: 10,
+        imageUrl: '',
       }
-    } catch (error) {
-      console.error('퀴즈 저장 실패:', error);
-      alert('퀴즈 저장에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    ]
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const addQuestion = () => {
-    setQuestions([...questions, { question: '', options: ['', '', '', ''], correctAnswer: 0, imageUrl: '' }]);
+    setQuestions([
+      ...questions,
+      {
+        id: questionIdCounter,
+        question: '',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        timeLimit: 10,
+        imageUrl: '',
+      }
+    ]);
+    setQuestionIdCounter(questionIdCounter + 1);
   };
 
   const removeQuestion = (index: number) => {
     if (questions.length > 1) {
-      setQuestions(questions.filter((_, i) => i !== index));
+      setQuestions(questions.filter((_q: any, i: number) => i !== index));
     }
   };
 
   const updateQuestion = (index: number, field: string, value: any) => {
-    setQuestions(questions.map((q, i) => i === index ? { ...q, [field]: value } : q));
-  };
-
-  const updateOption = (qIndex: number, optIndex: number, value: string) => {
-    setQuestions(questions.map((q, i) => {
-      if (i === qIndex) {
-        const newOptions = [...q.options];
-        newOptions[optIndex] = value;
-        return { ...q, options: newOptions };
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === index) {
+        return {
+          ...q,
+          [field]: value
+        };
       }
       return q;
     }));
   };
 
+  const updateOption = (qIndex: number, optionIndex: number, value: string) => {
+    setQuestions(questions.map((q: any, idx: number) => {
+      if (idx === qIndex) {
+        return {
+          ...q,
+          options: q.options.map((opt: any, optIdx: number) =>
+            optIdx === optionIndex ? value : opt
+          )
+        };
+      }
+      return q;
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      setIsSubmitting(true);
+
+      // Firebase에 퀴즈 저장/업데이트 (임시 ID 제거)
+      const cleanQuestions = questions.map(({ id, ...rest }: any) => rest);
+
+      if (isEditMode && editingQuiz) {
+        // 수정 모드
+        await updateQuiz(editingQuiz.id, {
+          title,
+          questions: cleanQuestions,
+        });
+
+        const updatedQuiz = {
+          ...editingQuiz,
+          title,
+          questions: cleanQuestions,
+        };
+
+        if (onUpdated) {
+          onUpdated(updatedQuiz);
+        }
+
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
+
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      } else {
+        // 생성 모드
+        const quizId = await createQuiz({
+          title,
+          questions: cleanQuestions,
+        }, userId);
+
+        const quiz = {
+          id: quizId,
+          title,
+          questions: cleanQuestions,
+          createdAt: new Date()
+        };
+
+        onCreated(quiz);
+
+        // 성공 메시지 표시
+        setShowSuccessMessage(true);
+
+        // 2초 후 폼 닫기
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error(isEditMode ? '퀴즈 수정 실패:' : '퀴즈 생성 실패:', error);
+      alert(isEditMode ? '퀴즈 수정에 실패했습니다. 다시 시도해주세요.' : '퀴즈 생성에 실패했습니다. 다시 시도해주세요.');
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-500">
-      <h3 className="text-2xl font-bold text-gray-800 mb-6">
-        {isEditMode ? '퀴즈 수정' : '새 퀴즈 만들기'}
-      </h3>
-
-      {createdSessionId ? (
-        // QR 코드 표시
-        <div className="text-center py-8">
-          <h4 className="text-xl font-bold text-gray-800 mb-4">퀴즈가 생성되었습니다!</h4>
-          <p className="text-gray-600 mb-6">참가자들에게 아래 QR 코드를 공유하세요</p>
-
-          <div className="inline-block p-6 bg-gray-50 rounded-xl mb-6">
-            <QRCodeSVG
-              value={`${window.location.origin}/participate/${createdSessionId}`}
-              size={256}
-              level="H"
-            />
-          </div>
-
-          <p className="text-sm text-gray-500 break-all mb-6">
-            {`${window.location.origin}/participate/${createdSessionId}`}
-          </p>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => window.open(`/admin/session/${createdSessionId}`, '_blank')}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-            >
-              세션 관리 페이지로 이동
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-            >
-              닫기
-            </button>
+    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp max-h-[80vh] overflow-y-auto relative">
+      {/* 성공 메시지 오버레이 */}
+      {showSuccessMessage && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '퀴즈 수정 완료!' : '퀴즈 생성 완료!'}</h3>
+            <p className="text-gray-600 mt-2">{title}</p>
           </div>
         </div>
-      ) : (
-        // 퀴즈 입력 폼
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 제목 */}
+      )}
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '퀴즈 수정하기' : '새 퀴즈 만들기'}</h3>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            퀴즈 제목
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+            placeholder="예: 2024 교육과정 이해도 점검"
+            required
+          />
+        </div>
+
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              퀴즈 제목
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-              placeholder="예: 교육과정 이해도 퀴즈"
-              required
-            />
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">질문 목록 ({questions.length}개)</h4>
           </div>
 
-          {/* 설명 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              설명 (선택사항)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-              rows={2}
-              placeholder="퀴즈에 대한 간단한 설명"
-            />
-          </div>
+          {questions.map((q: any, qIndex: number) => (
+            <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div className="flex justify-between items-center mb-3">
+                <h5 className="font-semibold text-gray-800">질문 {qIndex + 1}</h5>
+                {questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(qIndex)}
+                    className="text-red-500 hover:text-red-700 text-sm font-semibold"
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
 
-          {/* 제한시간 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              문제당 제한시간 (초)
-            </label>
-            <input
-              type="number"
-              value={timeLimit}
-              onChange={(e) => setTimeLimit(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-              min="10"
-              max="300"
-            />
-          </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    질문 내용
+                  </label>
+                  <textarea
+                    value={q.question}
+                    onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    rows={2}
+                    placeholder="질문을 입력하세요"
+                    required
+                  />
+                </div>
 
-          {/* 문제 목록 */}
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <label className="text-sm font-medium text-gray-700">
-                문제 목록
-              </label>
-              <button
-                type="button"
-                onClick={addQuestion}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                + 문제 추가
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {questions.map((q, qIndex) => (
-                <div key={qIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-semibold text-gray-800">문제 {qIndex + 1}</h4>
-                    {questions.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeQuestion(qIndex)}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={q.question}
-                      onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
-                      placeholder="문제를 입력하세요"
-                    />
-
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-700">선택지</p>
-                      {q.options.map((opt: string, optIndex: number) => (
-                        <div key={optIndex} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={q.correctAnswer === optIndex}
-                            onChange={() => updateQuestion(qIndex, 'correctAnswer', optIndex)}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <input
-                            type="text"
-                            value={opt}
-                            onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
-                            placeholder={`선택지 ${optIndex + 1}`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        이미지 URL (선택사항)
-                      </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    선택지 (4개)
+                  </label>
+                  {q.options.map((option: any, optIndex: number) => (
+                    <div key={optIndex} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="radio"
+                        name={`correctAnswer-${q.id}`}
+                        checked={q.correctAnswer === optIndex}
+                        onChange={() => updateQuestion(qIndex, 'correctAnswer', optIndex)}
+                        className="w-4 h-4 text-blue-600"
+                      />
                       <input
                         type="text"
-                        value={q.imageUrl}
-                        onChange={(e) => updateQuestion(qIndex, 'imageUrl', e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900"
-                        placeholder="https://..."
+                        value={option}
+                        onChange={(e) => updateOption(qIndex, optIndex, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                        placeholder={`선택지 ${optIndex + 1}`}
+                        required
                       />
                     </div>
-                  </div>
+                  ))}
+                  <p className="text-xs text-gray-500 mt-1">라디오 버튼을 클릭하여 정답을 선택하세요</p>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* 버튼 */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? '저장 중...' : (isEditMode ? '수정하기' : '생성하기')}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-            >
-              취소
-            </button>
-          </div>
-        </form>
-      )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    제한 시간 (초)
+                  </label>
+                  <input
+                    type="number"
+                    value={q.timeLimit}
+                    onChange={(e) => updateQuestion(qIndex, 'timeLimit', parseInt(e.target.value))}
+                    min="5"
+                    max="60"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  />
+                </div>
+
+                <ImageUploader
+                  key={`image-uploader-${q.id}`}
+                  uploaderId={`image-upload-${q.id}`}
+                  onImageUploaded={(imageUrl) => updateQuestion(qIndex, 'imageUrl', imageUrl)}
+                  currentImageUrl={q.imageUrl}
+                />
+              </div>
+            </div>
+          ))}
+
+          {/* 질문 추가 버튼 */}
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="w-full py-4 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 hover:border-blue-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+          >
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            질문 추가하기
+          </button>
+        </div>
+
+        <div className="flex space-x-3 pt-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '퀴즈 수정' : '퀴즈 생성')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            취소
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
+// 설문 생성/수정 폼
+
+function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) => void; onDelete: (id: string) => void }) {
+  const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStart = async () => {
+    try {
+      setIsStarting(true);
+      const sessionId = await createQuizSession(quiz.id);
+      router.push(`/admin/session/${sessionId}`);
+    } catch (error) {
+      console.error('세션 생성 실패:', error);
+      alert('세션 생성에 실패했습니다.');
+      setIsStarting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
+      <div className="flex justify-between items-start gap-6">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-800">{quiz.title}</h3>
+          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+            <span>❓ {quiz.questions?.length || 0}개 질문</span>
+            <span>⏱ 평균 {quiz.questions?.[0]?.timeLimit || 10}초</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={handleStart}
+            disabled={isStarting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+          >
+            {isStarting ? '생성 중...' : '시작하기'}
+          </button>
+          <button
+            onClick={() => onEdit(quiz)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
+          >
+            수정
+          </button>
+          <button
+            onClick={() => onDelete(quiz.id)}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 설문 카드 컴포넌트
 
 // 새로운 설문 관리 컴포넌트
 
