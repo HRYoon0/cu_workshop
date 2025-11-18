@@ -2476,9 +2476,16 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         <button
           onClick={handleCreateUserSheet}
           disabled={isCreatingSheet}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          {isCreatingSheet ? '생성 중...' : '📋 새 시트 생성'}
+          {isCreatingSheet ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              생성 중...
+            </>
+          ) : (
+            '📋 새 시트 생성'
+          )}
         </button>
       </div>
 
@@ -2655,7 +2662,16 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
             <p>2. 그 다음 <span className="font-semibold text-green-600">"📋 새 시트 생성"</span> 버튼을 눌러 시트를 만드세요</p>
           </div>
           {isCheckingSheet && (
-            <p className="text-gray-400 text-xs mt-4">시트 확인 중...</p>
+            <div className="flex items-center justify-center gap-2 text-gray-400 text-xs mt-4">
+              <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+              <p>시트 확인 중...</p>
+            </div>
+          )}
+          {isCreatingSheet && (
+            <div className="flex items-center justify-center gap-2 text-green-600 text-sm mt-4">
+              <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="font-semibold">시트 생성 중입니다. 잠시만 기다려주세요...</p>
+            </div>
           )}
         </div>
       ) : (
