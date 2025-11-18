@@ -52,5 +52,19 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null;
     }
+
+    // 의견 수집 세션
+    match /opinionSessions/{sessionId} {
+      allow read: if true; // 참여자도 읽기 가능
+      allow create, update: if request.auth != null; // 인증된 사용자만 생성/수정
+      allow delete: if request.auth != null; // 인증된 사용자만 삭제
+
+      // 의견 서브컬렉션
+      match /opinions/{opinionId} {
+        allow read: if true; // 참여자도 읽기 가능 (실시간 통계)
+        allow create: if true; // 참여자도 의견 제출 가능
+        allow delete: if request.auth != null; // 인증된 사용자만 삭제
+      }
+    }
   }
 }
