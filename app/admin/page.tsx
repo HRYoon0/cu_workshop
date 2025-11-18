@@ -25,11 +25,17 @@ import {
   deleteDepartment,
   getAllUserSheets,
   getUserSheet,
-  saveUserSheet
+  saveUserSheet,
+  createOpinionSession,
+  getOpinions,
+  subscribeToOpinions,
+  updateOpinionSessionStatus,
+  getActiveOpinionSession
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
 import { renameSchoolFolder, findOrCreateFolder } from '@/lib/googleDrive';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   updateSchoolNameInAllTabs,
   addSheetTab,
@@ -1521,6 +1527,13 @@ function DepartmentManager({ userId }: { userId: string }) {
   // 각 행의 input ref를 저장할 객체
   const inputRefs = useRef<{[key: string]: {process: HTMLInputElement | null, decision: HTMLInputElement | null}}>({});
 
+  // 의견 수집 관련 상태
+  const [selectedDiscussionItem, setSelectedDiscussionItem] = useState<any>(null);
+  const [showOpinionTypeModal, setShowOpinionTypeModal] = useState(false);
+  const [showOpinionSessionModal, setShowOpinionSessionModal] = useState(false);
+  const [currentOpinionSession, setCurrentOpinionSession] = useState<any>(null);
+  const [opinions, setOpinions] = useState<any[]>([]);
+
   // Google API 토큰 만료 시 자동 로그아웃
   const handleTokenExpired = async () => {
     console.log('Google 토큰이 만료되었습니다. 자동 로그아웃합니다.');
@@ -2039,6 +2052,93 @@ function DepartmentManager({ userId }: { userId: string }) {
     }
   };
 
+  // 의견 수집 시작
+  const handleStartOpinionSession = async (type: 'free' | 'scale') => {
+    if (!selectedDiscussionItem || !userSheet?.sheetId) return;
+
+    try {
+      const sessionId = await createOpinionSession(
+        {
+          discussionItemId: selectedDiscussionItem.id,
+          discussionTopic: selectedDiscussionItem.topic,
+          discussionRow: selectedDiscussionItem.row,
+          type,
+          sheetId: userSheet.sheetId,
+        },
+        userId
+      );
+
+      setCurrentOpinionSession({ id: sessionId, type });
+      setShowOpinionTypeModal(false);
+      setShowOpinionSessionModal(true);
+
+      // 실시간 의견 구독 시작
+      const unsubscribe = subscribeToOpinions(sessionId, (newOpinions) => {
+        setOpinions(newOpinions);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('의견 수집 세션 생성 실패:', error);
+      alert('의견 수집을 시작할 수 없습니다.');
+    }
+  };
+
+  // 의견 수집 종료
+  const handleEndOpinionSession = async () => {
+    if (!currentOpinionSession || !userSheet?.sheetId) return;
+
+    if (!confirm('의견 수집을 종료하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await updateOpinionSessionStatus(currentOpinionSession.id, 'closed');
+
+      // 결과를 논의 과정에 추가
+      const accessToken = localStorage.getItem('googleAccessToken');
+      if (!accessToken) {
+        throw new Error('Google 액세스 토큰이 없습니다.');
+      }
+
+      let resultText = '';
+      if (currentOpinionSession.type === 'free') {
+        // 자유 의견은 모든 의견을 나열
+        resultText = opinions.map((op, idx) => `${idx + 1}. ${op.content}`).join('\n');
+      } else {
+        // 찬반형은 통계 요약
+        const counts = { '+2': 0, '+1': 0, '0': 0, '-1': 0, '-2': 0 };
+        opinions.forEach((op) => {
+          const key = op.value > 0 ? `+${op.value}` : String(op.value);
+          counts[key as keyof typeof counts]++;
+        });
+        const total = opinions.length;
+        const average = total > 0 ? (opinions.reduce((sum, op) => sum + op.value, 0) / total).toFixed(2) : '0';
+        resultText = `총 ${total}명 참여\n적극 찬성: ${counts['+2']}명, 찬성: ${counts['+1']}명, 보통: ${counts['0']}명, 반대: ${counts['-1']}명, 적극 반대: ${counts['-2']}명\n평균: ${average}`;
+      }
+
+      // 현재 논의 과정에 결과 추가
+      const currentProcess = selectedDiscussionItem.process || '';
+      const newProcess = currentProcess + (currentProcess ? '\n\n' : '') + `[의견 수집 결과]\n${resultText}`;
+
+      await updateDiscussionItem(
+        userSheet.sheetId,
+        selectedDiscussionItem.row,
+        { process: newProcess, decision: selectedDiscussionItem.decision || '' },
+        accessToken
+      );
+
+      alert('의견 수집이 종료되었습니다. 결과가 논의 과정에 추가되었습니다.');
+      setShowOpinionSessionModal(false);
+      setCurrentOpinionSession(null);
+      setOpinions([]);
+      await loadDiscussionItems();
+    } catch (error) {
+      console.error('의견 수집 종료 실패:', error);
+      alert('의견 수집 종료에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -2364,8 +2464,8 @@ function DepartmentManager({ userId }: { userId: string }) {
                             <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => {
-                                  // 의견 수집 시작 로직
-                                  alert('의견 수집 기능 구현 예정');
+                                  setSelectedDiscussionItem(item);
+                                  setShowOpinionTypeModal(true);
                                 }}
                                 className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm whitespace-nowrap"
                               >
@@ -2462,6 +2562,130 @@ function DepartmentManager({ userId }: { userId: string }) {
             </div>
           )}
         </>
+      )}
+
+      {/* 의견 유형 선택 모달 */}
+      {showOpinionTypeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">의견 수집 유형 선택</h3>
+            <p className="text-gray-600 mb-6">어떤 방식으로 의견을 수집하시겠습니까?</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => handleStartOpinionSession('free')}
+                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+              >
+                자유 의견 제출
+              </button>
+              <button
+                onClick={() => handleStartOpinionSession('scale')}
+                className="w-full bg-green-600 text-white py-4 px-6 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
+              >
+                찬반형 선택
+              </button>
+              <button
+                onClick={() => setShowOpinionTypeModal(false)}
+                className="w-full bg-gray-400 text-white py-3 px-6 rounded-lg hover:bg-gray-500 transition-colors font-semibold"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 의견 수집 세션 모달 */}
+      {showOpinionSessionModal && currentOpinionSession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">의견 수집 진행 중</h3>
+            <div className="mb-6">
+              <p className="text-gray-700 font-semibold mb-2">논의할 점</p>
+              <p className="text-gray-600">{selectedDiscussionItem?.topic}</p>
+            </div>
+
+            {/* QR 코드 */}
+            <div className="bg-gray-50 rounded-lg p-6 mb-6 text-center">
+              <p className="text-gray-700 font-semibold mb-4">참여자는 이 QR 코드를 스캔하세요</p>
+              <div className="flex justify-center mb-4">
+                <QRCodeSVG
+                  value={`${window.location.origin}/participate/${currentOpinionSession.id}`}
+                  size={200}
+                />
+              </div>
+              <p className="text-sm text-gray-500 break-all">
+                {`${window.location.origin}/participate/${currentOpinionSession.id}`}
+              </p>
+            </div>
+
+            {/* 실시간 결과 */}
+            <div className="mb-6">
+              <h4 className="font-bold text-gray-800 mb-3">실시간 결과 ({opinions.length}명 참여)</h4>
+              {currentOpinionSession.type === 'free' ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {opinions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">아직 제출된 의견이 없습니다.</p>
+                  ) : (
+                    opinions.map((op, idx) => (
+                      <div key={idx} className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                        <p className="text-gray-800">{op.content}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(() => {
+                    const counts = { '+2': 0, '+1': 0, '0': 0, '-1': 0, '-2': 0 };
+                    opinions.forEach((op) => {
+                      const key = op.value > 0 ? `+${op.value}` : String(op.value);
+                      counts[key as keyof typeof counts]++;
+                    });
+                    return (
+                      <>
+                        <div className="flex justify-between items-center bg-green-100 p-3 rounded">
+                          <span>적극 찬성 (+2)</span>
+                          <span className="font-bold">{counts['+2']}명</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-green-50 p-3 rounded">
+                          <span>찬성 (+1)</span>
+                          <span className="font-bold">{counts['+1']}명</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-gray-100 p-3 rounded">
+                          <span>보통 (0)</span>
+                          <span className="font-bold">{counts['0']}명</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-red-50 p-3 rounded">
+                          <span>반대 (-1)</span>
+                          <span className="font-bold">{counts['-1']}명</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-red-100 p-3 rounded">
+                          <span>적극 반대 (-2)</span>
+                          <span className="font-bold">{counts['-2']}명</span>
+                        </div>
+                        {opinions.length > 0 && (
+                          <div className="flex justify-between items-center bg-blue-100 p-3 rounded mt-3">
+                            <span className="font-bold">평균</span>
+                            <span className="font-bold">
+                              {(opinions.reduce((sum, op) => sum + op.value, 0) / opinions.length).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleEndOpinionSession}
+              className="w-full bg-red-600 text-white py-3 px-6 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+            >
+              의견 수집 종료
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
