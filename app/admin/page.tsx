@@ -1442,25 +1442,25 @@ function SurveyItemForm({
           </div>
         )}
 
-        {/* 결과 이미지 업로드 (선택사항) */}
+        {/* 결과 이미지 업로드 (선택사항) - 학부모 먼저 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            학생 설문 결과 이미지 (선택사항)
+            👨‍👩‍👧 학부모 설문 결과 이미지 (선택사항)
           </label>
           <ImageUploader
-            onUploadSuccess={(url) => setStudentResultImageUrl(url)}
-            currentImageUrl={studentResultImageUrl}
+            onUploadSuccess={(url) => setParentResultImageUrl(url)}
+            currentImageUrl={parentResultImageUrl}
             folder={`survey_images`}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            학부모 설문 결과 이미지 (선택사항)
+            👦 학생 설문 결과 이미지 (선택사항)
           </label>
           <ImageUploader
-            onUploadSuccess={(url) => setParentResultImageUrl(url)}
-            currentImageUrl={parentResultImageUrl}
+            onUploadSuccess={(url) => setStudentResultImageUrl(url)}
+            currentImageUrl={studentResultImageUrl}
             folder={`survey_images`}
           />
         </div>
