@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse, UserSheet, Department } from './types';
-import { saveQuizResultToSheet, saveSurveyResultToSheet } from './googleSheets';
+import { saveSurveyResultToSheet } from './googleSheets';
 
 // ===== 퀴즈 관련 함수 =====
 
@@ -315,19 +315,6 @@ export async function submitQuizAnswer(
       });
 
       console.log('답안 제출 성공:', answer.participantName, '문제', answer.questionIndex + 1);
-
-      // 구글 시트에도 저장 (비동기, 에러 무시)
-      if (quizTitle) {
-        saveQuizResultToSheet({
-          sessionId,
-          quizTitle,
-          participantName: answer.participantName,
-          answer: answer.answer,
-          isCorrect: answer.isCorrect,
-          responseTime: answer.responseTime,
-          timestamp: answer.timestamp || new Date(),
-        }, userId).catch(err => console.log('구글 시트 저장 생략:', err));
-      }
     }
   } catch (error) {
     console.error('답안 제출 실패:', error);
