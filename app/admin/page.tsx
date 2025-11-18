@@ -1500,7 +1500,7 @@ function SurveyCard({ survey, onEdit, onDelete }: { survey: any; onEdit: (survey
 }
 
 // 논의 자료 관리 컴포넌트
-function DepartmentManager({ userId }: { userId: string }) {
+function DepartmentManager({ userId }: { userId: string | undefined }) {
   const router = useRouter();
   const [topics, setTopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1510,6 +1510,18 @@ function DepartmentManager({ userId }: { userId: string }) {
   const [newTopicName, setNewTopicName] = useState('');
   const [userSheet, setUserSheet] = useState<any>(null);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+
+  // userId가 없으면 로딩 화면 표시
+  if (!userId) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4">
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-2xl p-8 text-center">
+          <p className="text-yellow-800 text-lg font-semibold">로그인 정보를 불러오는 중...</p>
+          <p className="text-yellow-600 text-sm mt-2">잠시만 기다려주세요.</p>
+        </div>
+      </div>
+    );
+  }
 
   // 논의 및 결정사항 관련 상태
   const [discussionItems, setDiscussionItems] = useState<any[]>([]);
@@ -1535,6 +1547,7 @@ function DepartmentManager({ userId }: { userId: string }) {
   const [showOpinionSessionModal, setShowOpinionSessionModal] = useState(false);
   const [currentOpinionSession, setCurrentOpinionSession] = useState<any>(null);
   const [opinions, setOpinions] = useState<any[]>([]);
+  const [isStartingOpinionSession, setIsStartingOpinionSession] = useState(false);
 
   // Google API 토큰 만료 시 자동 로그아웃
   const handleTokenExpired = async () => {
@@ -2062,9 +2075,25 @@ function DepartmentManager({ userId }: { userId: string }) {
 
   // 의견 수집 시작
   const handleStartOpinionSession = async (type: 'free' | 'scale') => {
-    if (!selectedDiscussionItem || !userSheet?.sheetId) return;
+    // userId 확인
+    if (!userId) {
+      alert('로그인 정보가 없습니다. 다시 로그인해주세요.');
+      return;
+    }
+
+    if (!selectedDiscussionItem) {
+      alert('논의 항목을 선택해주세요.');
+      return;
+    }
+
+    if (!userSheet?.sheetId) {
+      alert('시트 정보가 없습니다. 페이지를 새로고침해주세요.');
+      return;
+    }
 
     try {
+      setIsStartingOpinionSession(true);
+
       const sessionId = await createOpinionSession(
         {
           discussionItemId: selectedDiscussionItem.id,
@@ -2088,7 +2117,9 @@ function DepartmentManager({ userId }: { userId: string }) {
       return unsubscribe;
     } catch (error) {
       console.error('의견 수집 세션 생성 실패:', error);
-      alert('의견 수집을 시작할 수 없습니다.');
+      alert('의견 수집을 시작할 수 없습니다.\n\n' + (error as Error).message);
+    } finally {
+      setIsStartingOpinionSession(false);
     }
   };
 
@@ -2583,22 +2614,49 @@ function DepartmentManager({ userId }: { userId: string }) {
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
             <h3 className="text-2xl font-bold text-gray-800 mb-4">의견 수집 유형 선택</h3>
             <p className="text-gray-600 mb-6">어떤 방식으로 의견을 수집하시겠습니까?</p>
+
+            {isStartingOpinionSession && (
+              <div className="mb-4 text-center">
+                <div className="inline-flex items-center justify-center space-x-2">
+                  <div className="w-5 h-5 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                  <span className="text-gray-600">의견 수집 세션 시작 중...</span>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <button
                 onClick={() => handleStartOpinionSession('free')}
-                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+                disabled={isStartingOpinionSession}
+                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                자유 의견 제출
+                {isStartingOpinionSession ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    처리 중...
+                  </>
+                ) : (
+                  '자유 의견 제출'
+                )}
               </button>
               <button
                 onClick={() => handleStartOpinionSession('scale')}
-                className="w-full bg-green-600 text-white py-4 px-6 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg"
+                disabled={isStartingOpinionSession}
+                className="w-full bg-green-600 text-white py-4 px-6 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                찬반형 선택
+                {isStartingOpinionSession ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    처리 중...
+                  </>
+                ) : (
+                  '찬반형 선택'
+                )}
               </button>
               <button
                 onClick={() => setShowOpinionTypeModal(false)}
-                className="w-full bg-gray-400 text-white py-3 px-6 rounded-lg hover:bg-gray-500 transition-colors font-semibold"
+                disabled={isStartingOpinionSession}
+                className="w-full bg-gray-400 text-white py-3 px-6 rounded-lg hover:bg-gray-500 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 취소
               </button>
