@@ -445,6 +445,93 @@ export async function createGoogleSheet(
 }
 
 /**
+ * 설문 결과 전용 시트 생성
+ * @param userName 사용자 이름
+ * @param accessToken Google OAuth 액세스 토큰
+ * @returns 시트 ID와 URL
+ */
+export async function createSurveyResultSheet(
+  userName: string,
+  accessToken: string
+): Promise<{ id: string; url: string }> {
+  try {
+    // 1. 학교 이름 폴더 찾기/생성
+    const schoolName = getSchoolName();
+    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
+
+    // 2. 설문 결과 시트 생성
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const sheetTitle = `설문결과_${userName}_${today}`;
+
+    const createResponse = await fetch(
+      'https://www.googleapis.com/drive/v3/files',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: sheetTitle,
+          mimeType: 'application/vnd.google-apps.spreadsheet',
+          parents: [workshopFolderId], // 학교 폴더에 저장
+        }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      throw new Error(`설문 결과 시트 생성 실패: ${error}`);
+    }
+
+    const createData = await createResponse.json();
+    const sheetId = createData.id;
+
+    // 3. 시트를 공개로 설정 (링크를 아는 사람만 편집 가능)
+    await fetch(
+      `https://www.googleapis.com/drive/v3/files/${sheetId}/permissions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'writer', // 편집 권한
+          type: 'anyone',
+        }),
+      }
+    );
+
+    // 4. 시트에 초기 헤더 설정 (Google Sheets API 사용)
+    const headerResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:F1?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: [['세션 ID', '설문 제목', '참여자 이름', '척도 값', '텍스트 응답', '응답 시간']],
+        }),
+      }
+    );
+
+    if (!headerResponse.ok) {
+      console.warn('헤더 설정 실패 (시트는 생성됨):', await headerResponse.text());
+    }
+
+    // 5. 시트 URL 반환
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
+    return { id: sheetId, url: sheetUrl };
+  } catch (error) {
+    console.error('설문 결과 시트 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
  * 이미지 최적화 (선택사항)
  * 큰 이미지를 리사이징하여 용량 절감
  */

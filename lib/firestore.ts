@@ -1372,3 +1372,72 @@ export async function deleteSurveyItem(itemId: string) {
     throw error;
   }
 }
+
+// ===== 설문 시트 관련 함수 =====
+
+/**
+ * 사용자의 설문 결과 시트 정보 가져오기
+ */
+export async function getUserSurveySheet(userId: string): Promise<{ sheetId: string; sheetUrl: string } | null> {
+  try {
+    const q = query(
+      collection(db, 'userSurveySheets'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      sheetId: doc.data().sheetId,
+      sheetUrl: doc.data().sheetUrl,
+    };
+  } catch (error) {
+    console.error('설문 시트 정보 가져오기 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * 사용자의 설문 결과 시트 정보 저장
+ */
+export async function setUserSurveySheet(
+  userId: string,
+  sheetId: string,
+  sheetUrl: string
+): Promise<void> {
+  try {
+    // 기존 설문 시트가 있는지 확인
+    const existing = await getUserSurveySheet(userId);
+
+    if (existing) {
+      // 기존 문서 업데이트
+      const q = query(
+        collection(db, 'userSurveySheets'),
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      const docRef = querySnapshot.docs[0].ref;
+
+      await updateDoc(docRef, {
+        sheetId,
+        sheetUrl,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      // 새 문서 생성
+      await addDoc(collection(db, 'userSurveySheets'), {
+        userId,
+        sheetId,
+        sheetUrl,
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.error('설문 시트 정보 저장 실패:', error);
+    throw error;
+  }
+}

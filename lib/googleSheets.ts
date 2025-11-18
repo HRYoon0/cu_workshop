@@ -2,7 +2,7 @@
  * 구글 시트 연동 함수
  */
 
-import { getUserSheet } from './firestore';
+import { getUserSheet, getUserSurveySheet } from './firestore';
 
 // 관리자 구글 시트 웹 앱 URL (환경 변수에서 가져오기)
 const GOOGLE_SHEETS_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_URL;
@@ -80,12 +80,14 @@ export async function saveSurveyResultToSheet(
   }
 
   try {
-    // 사용자별 시트 ID 가져오기
+    // 사용자별 설문 전용 시트 ID 가져오기
     let sheetId: string | undefined;
     if (userId) {
-      const userSheet = await getUserSheet(userId);
-      if (userSheet) {
-        sheetId = userSheet.sheetId;
+      const userSurveySheet = await getUserSurveySheet(userId);
+      if (userSurveySheet) {
+        sheetId = userSurveySheet.sheetId;
+      } else {
+        console.warn('설문 결과 시트가 설정되지 않았습니다. 관리자 페이지에서 설문 시트를 생성하세요.');
       }
     }
 
@@ -151,12 +153,12 @@ export async function exportSurveyComparisonToSheets(
   }
 
   try {
-    // 사용자별 시트 ID 가져오기
+    // 사용자별 설문 전용 시트 ID 가져오기
     let sheetId: string | undefined;
     if (userId) {
-      const userSheet = await getUserSheet(userId);
-      if (userSheet) {
-        sheetId = userSheet.sheetId;
+      const userSurveySheet = await getUserSurveySheet(userId);
+      if (userSurveySheet) {
+        sheetId = userSurveySheet.sheetId;
       }
     }
 
