@@ -195,7 +195,7 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* 학교 이름 설정 모달 */}
       {showSchoolNameModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <h3 className="text-2xl font-bold text-gray-800 mb-4">학교 이름 설정</h3>
             <input
@@ -1582,6 +1582,20 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
     }
   }, [sheetExists]);
 
+  // 모달이 열릴 때 배경 스크롤 방지
+  useEffect(() => {
+    if (showOpinionSessionModal || showQRModal || showSchoolNameModal || showOpinionTypeModal || showDepartmentModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showOpinionSessionModal, showQRModal, showSchoolNameModal, showOpinionTypeModal, showDepartmentModal]);
+
   const loadTopics = async () => {
     try {
       setIsLoading(true);
@@ -2270,7 +2284,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       {/* 부서 관리 모달 */}
       {showDepartmentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDepartmentModal(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" onClick={() => setShowDepartmentModal(false)}>
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-2xl font-bold text-gray-800">부서 관리</h3>
@@ -2668,7 +2682,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       {/* 의견 유형 선택 모달 */}
       {showOpinionTypeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
             <h3 className="text-2xl font-bold text-gray-800 mb-4">의견 수집 유형 선택</h3>
             <p className="text-gray-600 mb-6">어떤 방식으로 의견을 수집하시겠습니까?</p>
@@ -2726,7 +2740,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       {/* 의견 수집 세션 모달 */}
       {showOpinionSessionModal && currentOpinionSession && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
             <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               {/* 헤더 - 제목과 QR 코드 */}
               <div className="flex justify-between items-start mb-6">
@@ -2843,7 +2857,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
           {/* QR 코드 확대 모달 */}
           {showQRModal && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]"
+              className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000]"
               onClick={() => setShowQRModal(false)}
             >
               <div
