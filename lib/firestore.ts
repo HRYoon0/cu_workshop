@@ -473,24 +473,46 @@ export async function submitSurveyResponse(
 
     if (sessionDoc.exists()) {
       const currentResponses = sessionDoc.data().responses || [];
-      // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
+
+      // 고유 ID를 가진 응답 생성 (구글 시트 저장 후 삭제 시 식별용)
+      const responseWithId = {
+        ...response,
+        responseId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Timestamp.now(),
+      };
+
+      // Firebase에 임시 저장 (실시간 표시용)
       await updateDoc(sessionRef, {
-        responses: [...currentResponses, {
-          ...response,
-          timestamp: Timestamp.now(),
-        }],
+        responses: [...currentResponses, responseWithId],
       });
 
-      // 구글 시트에도 저장 (비동기, 에러 무시)
+      // 구글 시트에 저장하고 성공하면 Firebase에서 삭제
       if (surveyTitle) {
-        saveSurveyResultToSheet({
-          sessionId,
-          surveyTitle,
-          participantName: response.participantName,
-          scaleValue: response.scaleValue,
-          textValue: response.textValue,
-          timestamp: response.timestamp || new Date(),
-        }, userId).catch(err => console.log('구글 시트 저장 생략:', err));
+        try {
+          await saveSurveyResultToSheet({
+            sessionId,
+            surveyTitle,
+            participantName: response.participantName,
+            scaleValue: response.scaleValue,
+            textValue: response.textValue,
+            timestamp: response.timestamp || new Date(),
+          }, userId);
+
+          // 구글 시트 저장 성공 - Firebase에서 해당 응답 삭제
+          const updatedDoc = await getDoc(sessionRef);
+          if (updatedDoc.exists()) {
+            const allResponses = updatedDoc.data().responses || [];
+            const filteredResponses = allResponses.filter(
+              (r: any) => r.responseId !== responseWithId.responseId
+            );
+            await updateDoc(sessionRef, {
+              responses: filteredResponses,
+            });
+            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제:', response.participantName);
+          }
+        } catch (err) {
+          console.log('구글 시트 저장 실패, Firebase에 응답 유지:', err);
+        }
       }
     }
   } catch (error) {
