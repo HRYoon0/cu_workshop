@@ -2286,13 +2286,14 @@ function DepartmentManager({ userId }: { userId: string }) {
                     <th className="px-6 py-4 text-left font-semibold">학년/업무</th>
                     <th className="px-6 py-4 text-left font-semibold">논의 과정</th>
                     <th className="px-6 py-4 text-left font-semibold">결정 사항</th>
+                    <th className="px-6 py-4 text-center font-semibold w-32">의견 수집</th>
                     <th className="px-6 py-4 text-center font-semibold w-32">작업</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoadingDiscussions ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
+                      <td colSpan={6} className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center">
                           <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4"></div>
                           <p className="text-gray-500">논의 항목을 불러오는 중...</p>
@@ -2301,7 +2302,7 @@ function DepartmentManager({ userId }: { userId: string }) {
                     </tr>
                   ) : discussionItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
+                      <td colSpan={6} className="px-6 py-12 text-center">
                         <p className="text-gray-500 text-lg">등록된 논의 항목이 없습니다</p>
                         <p className="text-gray-400 text-sm mt-2">Google Sheets의 각 학년/부서 시트 D5 셀에 논의할 점을 입력하세요</p>
                       </td>
@@ -2358,6 +2359,19 @@ function DepartmentManager({ userId }: { userId: string }) {
                             ) : (
                               <div className="text-gray-900">{item.decision || '-'}</div>
                             )}
+                          </td>
+                          <td className="px-6 py-4 min-w-[120px]">
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => {
+                                  // 의견 수집 시작 로직
+                                  alert('의견 수집 기능 구현 예정');
+                                }}
+                                className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm whitespace-nowrap"
+                              >
+                                의견 수집
+                              </button>
+                            </div>
                           </td>
                           <td className="px-6 py-4 min-w-[180px]">
                             <div className="flex gap-2 justify-center">

@@ -803,3 +803,184 @@ export async function deleteDepartment(deptId: string) {
     throw error;
   }
 }
+
+// ===== 의견 수집 세션 관련 함수 =====
+
+/**
+ * 의견 수집 세션 생성
+ */
+export async function createOpinionSession(
+  sessionData: {
+    discussionItemId: string;
+    discussionTopic: string;
+    discussionRow: number;
+    type: 'free' | 'scale';
+    sheetId: string;
+  },
+  userId: string
+) {
+  try {
+    const docRef = await addDoc(collection(db, 'opinionSessions'), {
+      ...sessionData,
+      userId,
+      status: 'active',
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('의견 수집 세션 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 제출
+ */
+export async function submitOpinion(
+  sessionId: string,
+  opinionData: {
+    type: 'free' | 'scale';
+    content?: string; // 자유 의견의 경우
+    value?: number; // 찬반형의 경우 (-2, -1, 0, 1, 2)
+  }
+) {
+  try {
+    const opinionRef = collection(db, 'opinionSessions', sessionId, 'opinions');
+    await addDoc(opinionRef, {
+      ...opinionData,
+      submittedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('의견 제출 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 수집 세션 상태 업데이트
+ */
+export async function updateOpinionSessionStatus(
+  sessionId: string,
+  status: 'active' | 'closed'
+) {
+  try {
+    const sessionRef = doc(db, 'opinionSessions', sessionId);
+    const updateData: any = { status };
+
+    if (status === 'closed') {
+      updateData.closedAt = serverTimestamp();
+    }
+
+    await updateDoc(sessionRef, updateData);
+  } catch (error) {
+    console.error('의견 수집 세션 상태 업데이트 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 수집 세션 정보 가져오기
+ */
+export async function getOpinionSession(sessionId: string) {
+  try {
+    const sessionRef = doc(db, 'opinionSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+
+    if (!sessionDoc.exists()) {
+      throw new Error('의견 수집 세션을 찾을 수 없습니다.');
+    }
+
+    return {
+      id: sessionDoc.id,
+      ...sessionDoc.data(),
+      createdAt: (sessionDoc.data().createdAt as Timestamp)?.toDate() || new Date(),
+      closedAt: (sessionDoc.data().closedAt as Timestamp)?.toDate(),
+    };
+  } catch (error) {
+    console.error('의견 수집 세션 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 수집 세션의 모든 의견 가져오기
+ */
+export async function getOpinions(sessionId: string) {
+  try {
+    const opinionsRef = collection(db, 'opinionSessions', sessionId, 'opinions');
+    const querySnapshot = await getDocs(opinionsRef);
+
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      submittedAt: (doc.data().submittedAt as Timestamp)?.toDate() || new Date(),
+    }));
+  } catch (error) {
+    console.error('의견 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 의견 수집 세션 실시간 구독
+ */
+export function subscribeToOpinionSession(sessionId: string, callback: (session: any) => void) {
+  const sessionRef = doc(db, 'opinionSessions', sessionId);
+
+  return onSnapshot(sessionRef, (doc) => {
+    if (doc.exists()) {
+      const data = doc.data();
+      callback({
+        id: doc.id,
+        ...data,
+        createdAt: (data.createdAt as Timestamp)?.toDate(),
+        closedAt: (data.closedAt as Timestamp)?.toDate(),
+      });
+    }
+  });
+}
+
+/**
+ * 의견 실시간 구독
+ */
+export function subscribeToOpinions(sessionId: string, callback: (opinions: any[]) => void) {
+  const opinionsRef = collection(db, 'opinionSessions', sessionId, 'opinions');
+
+  return onSnapshot(opinionsRef, (snapshot) => {
+    const opinions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      submittedAt: (doc.data().submittedAt as Timestamp)?.toDate() || new Date(),
+    }));
+    callback(opinions);
+  });
+}
+
+/**
+ * 활성화된 의견 수집 세션 가져오기 (특정 논의 항목)
+ */
+export async function getActiveOpinionSession(discussionItemId: string, userId: string) {
+  try {
+    const q = query(
+      collection(db, 'opinionSessions'),
+      where('discussionItemId', '==', discussionItemId),
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const doc = querySnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    };
+  } catch (error) {
+    console.error('활성화된 의견 수집 세션 가져오기 실패:', error);
+    throw error;
+  }
+}
