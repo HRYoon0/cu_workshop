@@ -1040,6 +1040,17 @@ function TopicCard({
           >
             {isStarting ? '생성 중...' : '시작하기'}
           </button>
+          {topic.sheetUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(topic.sheetUrl, '_blank');
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
+            >
+              📊 시트 열기
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1499,14 +1510,9 @@ function SurveyItemForm({
       setIsSubmitting(true);
 
       let createdTopicId = topicId;
+      let createdSheetUrl: string | undefined;
 
-      // topicId가 없으면 새 주제 생성
-      if (!isEditMode && !topicId) {
-        createdTopicId = await createSurveyTopic(finalSheetTitle, userId);
-        console.log('주제 생성 완료:', createdTopicId);
-      }
-
-      // 시트가 없고 생성 모드일 때만 시트 생성
+      // 시트가 없고 생성 모드일 때만 시트 생성 (주제 생성 전에 실행)
       if (!isEditMode && !hasExistingSheet) {
         try {
           const { getGoogleAccessToken } = await import('@/lib/googleDrive');
@@ -1519,6 +1525,8 @@ function SurveyItemForm({
             accessToken
           );
 
+          createdSheetUrl = sheetUrl;
+
           // Firestore에 시트 정보 저장
           await setUserSurveySheet(userId, sheetId, sheetUrl);
 
@@ -1530,6 +1538,12 @@ function SurveyItemForm({
           setIsSubmitting(false);
           return;
         }
+      }
+
+      // topicId가 없으면 새 주제 생성 (시트 URL 포함)
+      if (!isEditMode && !topicId) {
+        createdTopicId = await createSurveyTopic(finalSheetTitle, userId, createdSheetUrl);
+        console.log('주제 생성 완료:', createdTopicId, '시트 URL:', createdSheetUrl);
       }
 
       if (isEditMode) {

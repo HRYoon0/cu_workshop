@@ -1425,11 +1425,12 @@ export async function deleteOpinionSession(sessionId: string) {
 /**
  * 새 설문 주제 생성
  */
-export async function createSurveyTopic(title: string, userId: string) {
+export async function createSurveyTopic(title: string, userId: string, sheetUrl?: string) {
   try {
     const docRef = await addDoc(collection(db, 'surveyTopics'), {
       title,
       userId,
+      ...(sheetUrl && { sheetUrl }), // sheetUrl이 있으면 저장
       createdAt: serverTimestamp(),
     });
     return docRef.id;
