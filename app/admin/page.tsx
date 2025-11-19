@@ -48,7 +48,7 @@ import {
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
-import { renameSchoolFolder, findOrCreateFolder } from '@/lib/googleDrive';
+import { renameSchoolFolder, findOrCreateFolder, checkTokenValidity } from '@/lib/googleDrive';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   updateSchoolNameInAllTabs,
@@ -114,6 +114,20 @@ export default function AdminPage() {
 
     return () => unsubscribe();
   }, [router]);
+
+  // 탭 변경 시 Google OAuth 토큰 유효성 체크
+  useEffect(() => {
+    const checkToken = async () => {
+      if (!user) return;
+
+      console.log('🔍 탭 변경 감지:', activeTab);
+      console.log('🔐 Google OAuth 토큰 유효성 체크 시작...');
+
+      await checkTokenValidity();
+    };
+
+    checkToken();
+  }, [activeTab, user]);
 
   // 모달이 열릴 때 배경 스크롤 방지
   useEffect(() => {

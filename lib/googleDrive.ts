@@ -343,6 +343,48 @@ function handleTokenExpired(): void {
 }
 
 /**
+ * 토큰 유효성 체크
+ * Google Drive API의 가벼운 요청으로 토큰이 유효한지 확인
+ * @returns 토큰이 유효하면 true, 만료되었으면 false
+ */
+export async function checkTokenValidity(): Promise<boolean> {
+  try {
+    const accessToken = localStorage.getItem('googleAccessToken');
+
+    if (!accessToken) {
+      console.warn('⚠️ 저장된 토큰이 없습니다.');
+      return false;
+    }
+
+    // Drive API의 가벼운 엔드포인트로 토큰 유효성 확인
+    const response = await fetch(
+      'https://www.googleapis.com/drive/v3/about?fields=user',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('❌ 토큰 유효성 체크 실패:', response.status);
+
+      // 401이면 토큰 만료
+      if (response.status === 401) {
+        handleTokenExpired();
+        return false;
+      }
+    }
+
+    console.log('✅ 토큰 유효함');
+    return true;
+  } catch (error) {
+    console.error('토큰 체크 중 에러:', error);
+    return false;
+  }
+}
+
+/**
  * Google OAuth 액세스 토큰 가져오기
  * Firebase Auth의 Google 크리덴셜에서 토큰 추출
  */
