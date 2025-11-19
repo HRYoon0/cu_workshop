@@ -960,12 +960,10 @@ function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) =
 function TopicCard({
   topic,
   onClick,
-  onEdit,
   onDelete
 }: {
   topic: any;
   onClick: (topic: any) => void;
-  onEdit: (topic: any) => void;
   onDelete: (id: string) => void;
 }) {
   const router = useRouter();
@@ -1031,15 +1029,6 @@ function TopicCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onEdit(topic);
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
-          >
-            수정
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               onDelete(topic.id);
             }}
             className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
@@ -1052,140 +1041,11 @@ function TopicCard({
   );
 }
 
-// 주제 생성/수정 폼
-function TopicForm({
-  userId,
-  onClose,
-  onCreated,
-  onUpdated,
-  editingTopic
-}: {
-  userId: string;
-  onClose: () => void;
-  onCreated: (topic: any) => void;
-  onUpdated?: (topic: any) => void;
-  editingTopic?: any;
-}) {
-  const isEditMode = !!editingTopic;
-  const [title, setTitle] = useState(editingTopic?.title || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!title.trim()) {
-      alert('주제 제목을 입력해주세요.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      if (isEditMode && editingTopic) {
-        // 수정 모드
-        await updateSurveyTopic(editingTopic.id, title.trim());
-
-        const updatedTopic = {
-          ...editingTopic,
-          title: title.trim(),
-        };
-
-        if (onUpdated) {
-          onUpdated(updatedTopic);
-        }
-
-        setShowSuccessMessage(true);
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } else {
-        // 생성 모드
-        const topicId = await createSurveyTopic(title.trim(), userId);
-
-        const topic = {
-          id: topicId,
-          title: title.trim(),
-          userId,
-          createdAt: new Date()
-        };
-
-        onCreated(topic);
-
-        setShowSuccessMessage(true);
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      }
-    } catch (error) {
-      console.error(isEditMode ? '주제 수정 실패:' : '주제 생성 실패:', error);
-      alert(isEditMode ? '주제 수정에 실패했습니다. 다시 시도해주세요.' : '주제 생성에 실패했습니다. 다시 시도해주세요.');
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp relative">
-      {/* 성공 메시지 오버레이 */}
-      {showSuccessMessage && (
-        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '주제 수정 완료!' : '주제 생성 완료!'}</h3>
-            <p className="text-gray-600 mt-2">{title}</p>
-          </div>
-        </div>
-      )}
-
-      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '주제 수정하기' : '새 설문 주제 만들기'}</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            주제 제목 (Google Sheets 제목으로 사용됩니다)
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
-            placeholder="예: 2025학년도 교육과정 개선 설문"
-            required
-          />
-          <p className="mt-2 text-sm text-gray-500">
-            이 제목이 Google Sheets의 시트 이름으로 사용됩니다.
-          </p>
-        </div>
-
-        <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '수정하기' : '생성하기')}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
-          >
-            취소
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 // 설문 관리 컴포넌트 (주제 기반)
 function SurveyManager({ userId }: { userId: string }) {
   const [topics, setTopics] = useState<any[]>([]);
-  const [showTopicForm, setShowTopicForm] = useState(false);
-  const [editingTopic, setEditingTopic] = useState<any>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1208,25 +1068,10 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
-  const handleTopicCreated = async (topic: any) => {
+  const handleTopicCreated = async () => {
     // Firebase에서 최신 주제 목록 다시 로드
     await loadTopics();
-    setShowTopicForm(false);
-    // 생성된 주제의 항목 관리 모달 자동으로 열기
-    setSelectedTopic(topic);
-    setShowItemsModal(true);
-  };
-
-  const handleTopicUpdated = async (updatedTopic: any) => {
-    // Firebase에서 최신 주제 목록 다시 로드
-    await loadTopics();
-    setEditingTopic(null);
-    setShowTopicForm(false);
-  };
-
-  const handleTopicEdit = (topic: any) => {
-    setEditingTopic(topic);
-    setShowTopicForm(true);
+    setShowCreateForm(false);
   };
 
   const handleTopicDelete = async (topicId: string) => {
@@ -1239,8 +1084,6 @@ function SurveyManager({ userId }: { userId: string }) {
       await deleteSurveyTopic(topicId);
       // Firebase에서 최신 주제 목록 다시 로드
       await loadTopics();
-      setShowTopicForm(false);
-      setEditingTopic(null);
       alert('주제와 모든 설문 항목이 삭제되었습니다.');
     } catch (error: any) {
       console.error('주제 삭제 실패:', error);
@@ -1260,31 +1103,28 @@ function SurveyManager({ userId }: { userId: string }) {
         <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
         <button
           onClick={() => {
-            setShowTopicForm(!showTopicForm);
-            if (showTopicForm) setEditingTopic(null);
+            setShowCreateForm(!showCreateForm);
           }}
           className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
         >
-          {showTopicForm ? '취소' : '+ 새 주제 만들기'}
+          {showCreateForm ? '취소' : '+ 새 설문 만들기'}
         </button>
       </div>
 
-      {/* 주제 생성/수정 폼 */}
-      {showTopicForm && (
-        <TopicForm
+      {/* 설문 생성 폼 */}
+      {showCreateForm && (
+        <SurveyItemForm
           userId={userId}
           onClose={() => {
-            setShowTopicForm(false);
-            setEditingTopic(null);
+            setShowCreateForm(false);
           }}
           onCreated={handleTopicCreated}
-          onUpdated={handleTopicUpdated}
-          editingTopic={editingTopic}
+          onUpdated={() => {}}
         />
       )}
 
       {/* 주제 목록 */}
-      {!showTopicForm && (
+      {!showCreateForm && (
         <div className="grid gap-4">
           {isLoading ? (
             <div className="bg-white rounded-xl p-12 text-center">
@@ -1299,7 +1139,7 @@ function SurveyManager({ userId }: { userId: string }) {
                 </svg>
               </div>
               <p className="text-gray-500 text-lg">아직 생성된 설문 주제가 없습니다</p>
-              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 주제를 만들어보세요!</p>
+              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
             </div>
           ) : (
             topics.map((topic: any) => (
@@ -1307,7 +1147,6 @@ function SurveyManager({ userId }: { userId: string }) {
                 key={topic.id}
                 topic={topic}
                 onClick={handleTopicClick}
-                onEdit={handleTopicEdit}
                 onDelete={handleTopicDelete}
               />
             ))
@@ -1619,9 +1458,9 @@ function SurveyItemForm({
     // 시트 제목 결정 (topicId가 있으면 주제 제목 사용, 없으면 입력된 제목 사용)
     const finalSheetTitle = topicId ? topicTitle : sheetTitle.trim();
 
-    // 시트가 없고 생성 모드일 때만 시트 제목 검증
-    if (!isEditMode && !hasExistingSheet && !finalSheetTitle) {
-      alert(topicId ? '주제 정보를 불러오지 못했습니다.' : '시트 제목을 입력해주세요.');
+    // 생성 모드일 때 제목 검증
+    if (!isEditMode && !finalSheetTitle) {
+      alert(topicId ? '주제 정보를 불러오지 못했습니다.' : '주제 제목을 입력해주세요.');
       return;
     }
 
@@ -1644,6 +1483,14 @@ function SurveyItemForm({
 
     try {
       setIsSubmitting(true);
+
+      let createdTopicId = topicId;
+
+      // topicId가 없으면 새 주제 생성
+      if (!isEditMode && !topicId) {
+        createdTopicId = await createSurveyTopic(finalSheetTitle, userId);
+        console.log('주제 생성 완료:', createdTopicId);
+      }
 
       // 시트가 없고 생성 모드일 때만 시트 생성
       if (!isEditMode && !hasExistingSheet) {
@@ -1695,9 +1542,8 @@ function SurveyItemForm({
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i];
           const itemData = {
-            ...(topicId && { topicId }),
+            topicId: createdTopicId, // 생성된 주제 ID 사용
             userId,
-            ...(sheetTitle && i === 0 && { sheetTitle: sheetTitle.trim() }), // 첫 질문에만 시트 제목 포함
             question: q.question.trim(),
             type: q.type,
             ...(q.type === 'multiple' && {
@@ -1711,16 +1557,12 @@ function SurveyItemForm({
           await createSurveyItem(itemData);
         }
 
-        if (hasSheet) {
-          alert(`${questions.length}개의 설문 항목이 추가되었습니다.`);
-        } else {
-          alert(`설문 시트와 ${questions.length}개의 항목이 생성되었습니다.`);
-        }
+        alert(`"${finalSheetTitle}" 주제와 ${questions.length}개의 설문 항목이 생성되었습니다.`);
         onCreated();
       }
     } catch (error) {
-      console.error('설문 항목 저장 실패:', error);
-      alert('설문 항목 저장에 실패했습니다.');
+      console.error('설문 저장 실패:', error);
+      alert('설문 저장에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1745,11 +1587,11 @@ function SurveyItemForm({
           </div>
         )}
 
-        {/* 시트 제목 (주제 기반이 아니고, 시트가 없고, 생성 모드일 때만 표시) */}
-        {!isEditMode && !topicId && !hasExistingSheet && (
+        {/* 주제 제목 (주제 기반이 아니고, 생성 모드일 때 표시) */}
+        {!isEditMode && !topicId && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              📊 시트 제목 (필수)
+              📁 주제 제목 (필수)
             </label>
             <input
               type="text"
@@ -1760,19 +1602,11 @@ function SurveyItemForm({
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              이 제목으로 구글 시트가 학교 폴더에 생성됩니다.
+              이 제목으로 설문 주제가 생성되고, 구글 시트의 제목으로도 사용됩니다.
             </p>
           </div>
         )}
 
-        {/* 시트가 이미 있고 주제 기반이 아닐 때 안내 메시지 */}
-        {!isEditMode && !topicId && hasExistingSheet && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
-              ✅ 설문 시트가 이미 생성되어 있습니다. 아래 질문을 추가하면 같은 시트에 저장됩니다.
-            </p>
-          </div>
-        )}
 
         {/* 설문 목록 */}
         <div className="space-y-4">
