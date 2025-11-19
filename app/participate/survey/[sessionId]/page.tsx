@@ -404,7 +404,7 @@ export default function SurveyParticipatePage() {
 
             <button
               onClick={handleSubmit}
-              disabled={!currentAnswer && currentItem.type !== 'text'}
+              disabled={currentAnswer === null && currentItem.type !== 'text'}
               className="w-full mt-6 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-xl font-bold disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               제출하기
