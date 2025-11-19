@@ -71,7 +71,8 @@ export async function saveSurveyResultToSheet(
     textValue?: string;
     timestamp: Date;
   },
-  userId?: string
+  userId?: string,
+  sheetUrl?: string
 ) {
   // 구글 시트 URL이 설정되지 않은 경우 건너뛰기
   if (!GOOGLE_SHEETS_URL) {
@@ -82,12 +83,26 @@ export async function saveSurveyResultToSheet(
   try {
     // 사용자별 설문 전용 시트 ID 가져오기
     let sheetId: string | undefined;
-    if (userId) {
+
+    // 1순위: sheetUrl이 직접 전달된 경우 (주제별 시트)
+    if (sheetUrl) {
+      // Google Sheets URL에서 스프레드시트 ID 추출
+      // 형식: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit...
+      const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (match) {
+        sheetId = match[1];
+        console.log('주제별 시트 ID 추출:', sheetId);
+      }
+    }
+
+    // 2순위: 사용자별 통합 시트 (레거시)
+    if (!sheetId && userId) {
       const userSurveySheet = await getUserSurveySheet(userId);
       if (userSurveySheet) {
         sheetId = userSurveySheet.sheetId;
+        console.log('사용자 통합 시트 ID 사용:', sheetId);
       } else {
-        console.warn('설문 결과 시트가 설정되지 않았습니다. 관리자 페이지에서 설문 시트를 생성하세요.');
+        console.warn('설문 결과 시트가 설정되지 않았습니다.');
       }
     }
 
@@ -99,12 +114,12 @@ export async function saveSurveyResultToSheet(
       },
       body: JSON.stringify({
         type: 'survey',
-        sheetId, // 사용자별 시트 ID 추가
+        sheetId, // 주제별 또는 사용자별 시트 ID
         ...data,
       }),
     });
 
-    console.log('설문 결과를 구글 시트에 전송했습니다.');
+    console.log('설문 결과를 구글 시트에 전송했습니다. Sheet ID:', sheetId);
   } catch (error) {
     console.error('구글 시트 저장 실패:', error);
     // 에러가 발생해도 계속 진행 (Firebase에는 저장됨)

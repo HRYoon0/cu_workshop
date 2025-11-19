@@ -450,10 +450,18 @@ export async function createSurveyItemsSession(userId: string, topicId?: string)
       throw new Error('생성된 설문 항목이 없습니다.');
     }
 
+    // 주제 정보 가져오기 (sheetUrl과 제목 포함)
+    let topicInfo: any = null;
+    if (topicId) {
+      topicInfo = await getSurveyTopic(topicId);
+    }
+
     // 세션 생성
     const docRef = await addDoc(collection(db, 'surveySessions'), {
       userId,
       ...(topicId && { topicId }), // topicId가 있으면 저장
+      ...(topicInfo?.sheetUrl && { sheetUrl: topicInfo.sheetUrl }), // 주제의 시트 URL 저장
+      ...(topicInfo?.title && { topicTitle: topicInfo.title }), // 주제 제목 저장
       surveyItems, // 설문 항목 저장
       currentItemIndex: 0, // 현재 진행 중인 설문 항목 인덱스
       status: 'waiting', // waiting, active, showing_result, finished
@@ -618,7 +626,7 @@ export async function submitSurveyResponse(
       console.log('✅ Firebase 통계 저장 완료! 응답 수:', currentCount + 1);
 
       // 구글 시트에는 전체 내용 저장 (백그라운드)
-      if (surveyTitle && userId) {
+      if (userId) {
         console.log('🔄 구글 시트 저장 시작 (백그라운드)');
         (async () => {
           try {
@@ -631,14 +639,18 @@ export async function submitSurveyResponse(
               textValue = `선택 ${response.answer + 1}`;
             }
 
+            // 세션에서 시트 정보 가져오기
+            const sheetUrl = data.sheetUrl;
+            const topicTitle = data.topicTitle || surveyTitle;
+
             await saveSurveyResultToSheet({
               sessionId,
-              surveyTitle,
+              surveyTitle: topicTitle || 'Unknown',
               participantName: `참여자 ${data.participants?.length || 0}`,
               scaleValue: response.scaleValue,
               textValue: textValue || response.textValue,
               timestamp: new Date(),
-            }, userId);
+            }, userId, sheetUrl);
 
             console.log('✅ 구글 시트 저장 완료');
           } catch (err) {
@@ -1461,6 +1473,27 @@ export async function getSurveyTopics(userId: string) {
     return topics.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   } catch (error) {
     console.error('설문 주제 목록 가져오기 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 단일 설문 주제 가져오기
+ */
+export async function getSurveyTopic(topicId: string) {
+  try {
+    const topicRef = doc(db, 'surveyTopics', topicId);
+    const topicDoc = await getDoc(topicRef);
+    if (!topicDoc.exists()) {
+      throw new Error('설문 주제를 찾을 수 없습니다.');
+    }
+    return {
+      id: topicDoc.id,
+      ...topicDoc.data(),
+      createdAt: (topicDoc.data().createdAt as Timestamp)?.toDate() || new Date(),
+    };
+  } catch (error) {
+    console.error('설문 주제 가져오기 실패:', error);
     throw error;
   }
 }
