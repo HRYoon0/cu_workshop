@@ -1044,39 +1044,12 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
-  const handleResetSheet = async () => {
-    if (!confirm('시트 정보를 초기화하시겠습니까?\n\n※ 구글 드라이브의 시트는 삭제되지 않습니다.\n※ Firestore의 연결 정보만 삭제됩니다.')) {
-      return;
-    }
-
-    try {
-      await deleteUserSurveySheet(userId);
-      await checkSheet();
-      alert('시트 정보가 초기화되었습니다.\n\n다음 설문 생성 시 자동으로 새 시트가 생성됩니다.');
-    } catch (error: any) {
-      console.error('시트 정보 삭제 실패:', error);
-      alert('시트 정보 삭제에 실패했습니다.');
-    }
-  };
 
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
-          {hasSheet && (
-            <p className="text-sm text-gray-500 mt-1">
-              ✅ 설문 시트 연결됨
-              <button
-                onClick={handleResetSheet}
-                className="ml-2 text-orange-600 hover:text-orange-700 underline"
-              >
-                시트 정보 초기화
-              </button>
-            </p>
-          )}
-        </div>
+        <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
         <div className="flex gap-3">
           {items.length > 0 && (
             <button
