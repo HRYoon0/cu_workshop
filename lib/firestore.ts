@@ -641,21 +641,34 @@ export async function addParticipantToSurveySession(
   participant: { id: string; nickname: string }
 ) {
   try {
+    console.log('📝 참가자 추가 함수 시작');
+    console.log('세션 ID:', sessionId);
+    console.log('참가자 정보:', participant);
+
     const sessionRef = doc(db, 'surveySessions', sessionId);
+    console.log('세션 문서 조회 중...');
+
     const sessionSnap = await getDoc(sessionRef);
+    console.log('세션 존재 여부:', sessionSnap.exists());
 
     if (!sessionSnap.exists()) {
       throw new Error('세션을 찾을 수 없습니다.');
     }
 
-    const currentParticipants = sessionSnap.data().participants || [];
+    const sessionData = sessionSnap.data();
+    console.log('세션 데이터:', sessionData);
+
+    const currentParticipants = sessionData.participants || [];
+    console.log('현재 참가자 수:', currentParticipants.length);
 
     // 이미 참가한 경우 중복 방지
     const exists = currentParticipants.some((p: any) => p.id === participant.id);
     if (exists) {
+      console.log('⚠️ 이미 참가한 참가자입니다.');
       return;
     }
 
+    console.log('Firestore 업데이트 중...');
     await updateDoc(sessionRef, {
       participants: [...currentParticipants, {
         ...participant,
@@ -663,8 +676,9 @@ export async function addParticipantToSurveySession(
         lastActiveAt: serverTimestamp()
       }]
     });
+    console.log('✅ 참가자 추가 완료!');
   } catch (error) {
-    console.error('참가자 추가 실패:', error);
+    console.error('❌ 참가자 추가 실패:', error);
     throw error;
   }
 }

@@ -51,24 +51,36 @@ export default function SurveyParticipatePage() {
 
   const handleJoin = async () => {
     try {
+      console.log('🎯 설문 참가 시작');
+      console.log('세션 ID:', sessionId);
+      console.log('현재 세션 데이터:', session);
+
       const pid = `p-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log('생성된 참가자 ID:', pid);
 
       // 현재 참여자 수 + 1로 번호 부여
       const participantCount = session?.participants?.length || 0;
       const number = participantCount + 1;
       const nickname = `참여자 ${number}`;
 
+      console.log('참가자 번호:', number);
+      console.log('참가자 닉네임:', nickname);
+
+      console.log('Firestore에 참가자 추가 중...');
       await addParticipantToSurveySession(sessionId, {
         id: pid,
         nickname
       });
 
+      console.log('✅ 참가 성공!');
       setParticipantId(pid);
       setParticipantNumber(number);
       setHasJoined(true);
-    } catch (error) {
-      console.error('참가 실패:', error);
-      alert('참가에 실패했습니다.');
+    } catch (error: any) {
+      console.error('❌ 참가 실패:', error);
+      console.error('에러 메시지:', error?.message);
+      console.error('에러 상세:', error);
+      alert(`참가에 실패했습니다.\n\n에러: ${error?.message || error}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인해주세요.`);
     }
   };
 
@@ -157,7 +169,7 @@ export default function SurveyParticipatePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">익명 설문 참여</h1>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">설문 참여</h1>
             <p className="text-gray-600">아래 버튼을 클릭하여 설문에 참여하세요</p>
             <p className="text-sm text-gray-500 mt-2">설문은 익명으로 진행됩니다</p>
           </div>
