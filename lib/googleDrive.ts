@@ -39,6 +39,12 @@ export async function findOrCreateFolder(
     if (!searchResponse.ok) {
       const error = await searchResponse.text();
       console.error('❌ 폴더 검색 실패:', error);
+
+      // 401 에러면 토큰 만료
+      if (searchResponse.status === 401) {
+        handleTokenExpired();
+      }
+
       throw new Error(`폴더 검색 실패 (${searchResponse.status}): ${error}`);
     }
 
@@ -73,6 +79,12 @@ export async function findOrCreateFolder(
     if (!createResponse.ok) {
       const error = await createResponse.text();
       console.error('❌ 폴더 생성 실패:', error);
+
+      // 401 에러면 토큰 만료
+      if (createResponse.status === 401) {
+        handleTokenExpired();
+      }
+
       throw new Error(`폴더 생성 실패 (${createResponse.status}): ${error}`);
     }
 
@@ -274,6 +286,12 @@ export async function uploadImageToDrive(
 
     if (!uploadResponse.ok) {
       const error = await uploadResponse.text();
+
+      // 401 에러면 토큰 만료
+      if (uploadResponse.status === 401) {
+        handleTokenExpired();
+      }
+
       throw new Error(`업로드 실패: ${error}`);
     }
 
@@ -303,6 +321,24 @@ export async function uploadImageToDrive(
   } catch (error) {
     console.error('Google Drive 업로드 실패:', error);
     throw error;
+  }
+}
+
+/**
+ * 토큰 만료 처리
+ */
+function handleTokenExpired(): void {
+  console.error('🔐 Google OAuth 토큰이 만료되었습니다.');
+
+  // 만료된 토큰 삭제
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('googleAccessToken');
+
+    // 사용자에게 알림
+    alert('Google 로그인이 만료되었습니다.\n다시 로그인해주세요.');
+
+    // 로그인 페이지로 리다이렉트
+    window.location.href = '/login';
   }
 }
 
