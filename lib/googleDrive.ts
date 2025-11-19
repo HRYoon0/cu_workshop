@@ -357,7 +357,7 @@ async function attemptAutoReauth(): Promise<boolean> {
 }
 
 /**
- * 토큰 만료 처리
+ * 토큰 만료 처리 (완전 자동)
  */
 async function handleTokenExpired(): Promise<void> {
   console.error('🔐 Google OAuth 토큰이 만료되었습니다.');
@@ -366,26 +366,18 @@ async function handleTokenExpired(): Promise<void> {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('googleAccessToken');
 
-    // 사용자에게 알림 및 자동 재인증 시도
-    const shouldReauth = confirm(
-      'Google 로그인이 만료되었습니다.\n\n자동으로 다시 로그인하시겠습니까?\n\n(취소를 누르면 로그인 페이지로 이동합니다)'
-    );
+    // 즉시 자동 재인증 시도 (confirm 없이)
+    console.log('🔄 자동으로 재로그인을 시도합니다...');
 
-    if (shouldReauth) {
-      // 자동 재인증 시도
-      const success = await attemptAutoReauth();
+    const success = await attemptAutoReauth();
 
-      if (success) {
-        // 재인증 성공 - 페이지 새로고침으로 작업 계속
-        alert('✅ 재로그인 완료!\n\n페이지를 새로고침합니다.');
-        window.location.reload();
-      } else {
-        // 재인증 실패 - 로그인 페이지로
-        alert('재로그인에 실패했습니다.\n로그인 페이지로 이동합니다.');
-        window.location.href = '/login';
-      }
+    if (success) {
+      // 재인증 성공 - 조용히 페이지 새로고침으로 작업 계속
+      console.log('✅ 자동 재로그인 성공! 페이지를 새로고침합니다.');
+      window.location.reload();
     } else {
-      // 사용자가 취소 - 로그인 페이지로
+      // 재인증 실패 - 사용자에게 알림 후 로그인 페이지로
+      alert('Google 로그인이 만료되어 자동 재로그인을 시도했으나 실패했습니다.\n\n로그인 페이지로 이동합니다.');
       window.location.href = '/login';
     }
   }
