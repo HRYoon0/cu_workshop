@@ -115,14 +115,10 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 탭 변경 시 Google OAuth 토큰 유효성 체크
+  // 탭 변경 시 Google OAuth 토큰 유효성 체크 (조용히 실행)
   useEffect(() => {
     const checkToken = async () => {
       if (!user) return;
-
-      console.log('🔍 탭 변경 감지:', activeTab);
-      console.log('🔐 Google OAuth 토큰 유효성 체크 시작...');
-
       await checkTokenValidity();
     };
 

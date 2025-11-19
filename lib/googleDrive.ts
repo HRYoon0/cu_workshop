@@ -357,7 +357,7 @@ async function attemptAutoReauth(): Promise<boolean> {
 }
 
 /**
- * 토큰 만료 처리 (완전 자동)
+ * 토큰 만료 처리 (자동 팝업 제거)
  */
 async function handleTokenExpired(): Promise<void> {
   console.error('🔐 Google OAuth 토큰이 만료되었습니다.');
@@ -366,34 +366,22 @@ async function handleTokenExpired(): Promise<void> {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('googleAccessToken');
 
-    // 즉시 자동 재인증 시도 (confirm 없이)
-    console.log('🔄 자동으로 재로그인을 시도합니다...');
-
-    const success = await attemptAutoReauth();
-
-    if (success) {
-      // 재인증 성공 - 조용히 페이지 새로고침으로 작업 계속
-      console.log('✅ 자동 재로그인 성공! 페이지를 새로고침합니다.');
-      window.location.reload();
-    } else {
-      // 재인증 실패 - 사용자에게 알림 후 로그인 페이지로
-      alert('Google 로그인이 만료되어 자동 재로그인을 시도했으나 실패했습니다.\n\n로그인 페이지로 이동합니다.');
-      window.location.href = '/login';
-    }
+    // 자동 팝업을 띄우지 않고 콘솔에만 메시지 출력
+    console.warn('⚠️ Google Drive 접근 권한이 필요합니다. 이미지 업로드나 시트 생성 기능을 사용하려면 해당 기능 버튼을 클릭하여 권한을 다시 부여하세요.');
   }
 }
 
 /**
  * 토큰 유효성 체크
  * Google Drive API의 가벼운 요청으로 토큰이 유효한지 확인
- * @returns 토큰이 유효하면 true, 만료되었으면 false
+ * @returns 토큰이 유효하면 true, 만료되었거나 없으면 false
  */
 export async function checkTokenValidity(): Promise<boolean> {
   try {
     const accessToken = localStorage.getItem('googleAccessToken');
 
     if (!accessToken) {
-      console.warn('⚠️ 저장된 토큰이 없습니다.');
+      // 조용히 false 반환 (콘솔 메시지 제거)
       return false;
     }
 
@@ -408,19 +396,16 @@ export async function checkTokenValidity(): Promise<boolean> {
     );
 
     if (!response.ok) {
-      console.error('❌ 토큰 유효성 체크 실패:', response.status);
-
       // 401이면 토큰 만료
       if (response.status === 401) {
         await handleTokenExpired();
-        return false;
       }
+      return false;
     }
 
-    console.log('✅ 토큰 유효함');
     return true;
   } catch (error) {
-    console.error('토큰 체크 중 에러:', error);
+    // 네트워크 에러 등은 조용히 무시
     return false;
   }
 }
