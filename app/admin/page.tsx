@@ -1208,13 +1208,18 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
-  const handleTopicCreated = (topic: any) => {
-    setTopics([...topics, topic]);
+  const handleTopicCreated = async (topic: any) => {
+    // Firebase에서 최신 주제 목록 다시 로드
+    await loadTopics();
     setShowTopicForm(false);
+    // 생성된 주제의 항목 관리 모달 자동으로 열기
+    setSelectedTopic(topic);
+    setShowItemsModal(true);
   };
 
-  const handleTopicUpdated = (updatedTopic: any) => {
-    setTopics(topics.map((t: any) => t.id === updatedTopic.id ? updatedTopic : t));
+  const handleTopicUpdated = async (updatedTopic: any) => {
+    // Firebase에서 최신 주제 목록 다시 로드
+    await loadTopics();
     setEditingTopic(null);
     setShowTopicForm(false);
   };
@@ -1230,21 +1235,16 @@ function SurveyManager({ userId }: { userId: string }) {
     }
 
     try {
-      // 주제에 속한 모든 항목 먼저 삭제
-      const items = await getSurveyItems(topicId);
-      for (const item of items) {
-        await deleteSurveyItem(item.id);
-      }
-
-      // 주제 삭제
+      // deleteSurveyTopic이 이미 하위 항목도 삭제함
       await deleteSurveyTopic(topicId);
-      setTopics(topics.filter(t => t.id !== topicId));
+      // Firebase에서 최신 주제 목록 다시 로드
+      await loadTopics();
       setShowTopicForm(false);
       setEditingTopic(null);
       alert('주제와 모든 설문 항목이 삭제되었습니다.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('주제 삭제 실패:', error);
-      alert('주제 삭제에 실패했습니다.');
+      alert(`주제 삭제에 실패했습니다.\n\n에러: ${error.message || error}`);
     }
   };
 
