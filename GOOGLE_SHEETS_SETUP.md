@@ -290,9 +290,24 @@ function recordQuizResult(ss, data) {
 
 // 설문 결과 기록 함수
 function recordSurveyResult(ss, data) {
-  const sheet = ss.getSheetByName('설문결과');
+  // "설문결과" 탭이 있으면 사용, 없으면 첫 번째 시트 사용
+  let sheet = ss.getSheetByName('설문결과');
   if (!sheet) {
-    throw new Error('설문결과 시트를 찾을 수 없습니다. 메뉴 > 워크숍 설정 > 시트 구조 자동 생성을 실행하세요.');
+    sheet = ss.getSheets()[0]; // 첫 번째 시트 사용
+
+    // 헤더가 없으면 추가
+    const headers = sheet.getRange(1, 1, 1, 6).getValues()[0];
+    if (!headers[0] || headers[0] === '') {
+      const surveyHeaders = ['타임스탬프', '세션ID', '설문제목', '참여자명', '척도값', '서술형응답'];
+      sheet.getRange(1, 1, 1, surveyHeaders.length).setValues([surveyHeaders]);
+
+      // 헤더 스타일 적용
+      sheet.getRange(1, 1, 1, surveyHeaders.length)
+        .setBackground('#34a853')
+        .setFontColor('#ffffff')
+        .setFontWeight('bold')
+        .setHorizontalAlignment('center');
+    }
   }
 
   const row = [

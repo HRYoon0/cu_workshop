@@ -60,7 +60,7 @@ export async function saveQuizResultToSheet(
 }
 
 /**
- * 설문 결과를 구글 시트에 기록
+ * 설문 결과를 구글 시트에 기록 (Google Sheets API 직접 사용)
  */
 export async function saveSurveyResultToSheet(
   data: {
@@ -74,12 +74,6 @@ export async function saveSurveyResultToSheet(
   userId?: string,
   sheetUrl?: string
 ) {
-  // 구글 시트 URL이 설정되지 않은 경우 건너뛰기
-  if (!GOOGLE_SHEETS_URL) {
-    console.log('구글 시트 URL이 설정되지 않았습니다. Firebase에만 저장됩니다.');
-    return;
-  }
-
   try {
     // 사용자별 설문 전용 시트 ID 가져오기
     let sheetId: string | undefined;
@@ -103,25 +97,52 @@ export async function saveSurveyResultToSheet(
         console.log('사용자 통합 시트 ID 사용:', sheetId);
       } else {
         console.warn('설문 결과 시트가 설정되지 않았습니다.');
+        return; // 시트 ID가 없으면 종료
       }
     }
 
-    const response = await fetch(GOOGLE_SHEETS_URL, {
-      method: 'POST',
-      mode: 'no-cors', // CORS 우회
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'survey',
-        sheetId, // 주제별 또는 사용자별 시트 ID
-        ...data,
-      }),
-    });
+    if (!sheetId) {
+      console.warn('시트 ID를 찾을 수 없습니다.');
+      return;
+    }
 
-    console.log('설문 결과를 구글 시트에 전송했습니다. Sheet ID:', sheetId);
+    // Google Drive 액세스 토큰 가져오기
+    const { getGoogleAccessToken } = await import('./googleDrive');
+    const accessToken = await getGoogleAccessToken();
+
+    // Google Sheets API를 사용하여 데이터 추가
+    const values = [[
+      new Date().toLocaleString('ko-KR'),  // 타임스탬프
+      data.sessionId,                       // 세션ID
+      data.surveyTitle,                     // 설문제목
+      data.participantName,                 // 참여자명
+      data.scaleValue ?? '',                // 척도값
+      data.textValue ?? ''                  // 서술형응답
+    ]];
+
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:F:append?valueInputOption=USER_ENTERED`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: values
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Google Sheets API 에러:', error);
+      throw new Error(`시트 저장 실패: ${error}`);
+    }
+
+    console.log('✅ 설문 결과를 구글 시트에 저장했습니다. Sheet ID:', sheetId);
   } catch (error) {
-    console.error('구글 시트 저장 실패:', error);
+    console.error('❌ 구글 시트 저장 실패:', error);
     // 에러가 발생해도 계속 진행 (Firebase에는 저장됨)
   }
 }
