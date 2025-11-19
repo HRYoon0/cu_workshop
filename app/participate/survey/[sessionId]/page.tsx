@@ -234,17 +234,17 @@ export default function SurveyParticipatePage() {
 
   // 결과 표시 화면
   if (session.status === 'showing_result') {
-    const responses = session.responses || [];
+    const responseCount = session.responseCount || 0;
+    const statistics = session.statistics || {};
     const optionCounts: { [key: string]: number } = {};
-    const otherResponses: string[] = [];
+    const otherResponses: string[] = statistics.otherTexts || [];
 
-    if (currentItem?.type === 'multiple') {
-      responses.forEach((r: any) => {
-        if (r.answer === 'other' && r.otherText) {
-          otherResponses.push(r.otherText);
-        } else if (typeof r.answer === 'number') {
-          const option = currentItem.options[r.answer];
-          optionCounts[option] = (optionCounts[option] || 0) + 1;
+    if (currentItem?.type === 'multiple' && statistics.optionCounts) {
+      // Firebase에서 받은 통계를 선택지 텍스트로 매핑
+      Object.entries(statistics.optionCounts).forEach(([index, count]) => {
+        const option = currentItem.options[parseInt(index)];
+        if (option) {
+          optionCounts[option] = count as number;
         }
       });
     }
@@ -266,7 +266,7 @@ export default function SurveyParticipatePage() {
               <div className="space-y-3">
                 {currentItem.options.map((option: string, idx: number) => {
                   const count = optionCounts[option] || 0;
-                  const percentage = responses.length > 0 ? (count / responses.length) * 100 : 0;
+                  const percentage = responseCount > 0 ? (count / responseCount) * 100 : 0;
 
                   return (
                     <div key={idx}>

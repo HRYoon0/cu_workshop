@@ -93,7 +93,15 @@ export interface SurveySession {
   startTime?: Date;
   endTime?: Date;
   participants: Participant[];
-  responses: SurveyResponse[];
+  responses: SurveyResponse[]; // 레거시: 곧 제거 예정
+
+  // Firebase 용량 절약을 위한 통계 데이터 (구글 시트에는 전체 내용 저장)
+  responseCount?: number; // 총 응답 수
+  statistics?: {
+    optionCounts?: { [optionIndex: string]: number }; // 선다형: 선택지별 카운트
+    otherTexts?: string[]; // 기타 의견들
+    textResponses?: string[]; // 서술형 응답들
+  };
 }
 
 export interface SurveyResponse {

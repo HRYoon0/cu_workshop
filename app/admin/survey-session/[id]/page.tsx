@@ -307,8 +307,7 @@ function SurveyActiveView({
   handleEndSurvey,
   router
 }: any) {
-  const responses = session.responses || [];
-  const responseCount = responses.length;
+  const responseCount = session.responseCount || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-6">
@@ -398,20 +397,21 @@ function SurveyResultView({
   handleEndSurvey,
   router
 }: any) {
-  const responses = session.responses || [];
+  const responseCount = session.responseCount || 0;
+  const statistics = session.statistics || {};
   const isLastItem = session.currentItemIndex >= session.surveyItems.length - 1;
 
-  // 선다형 통계 계산
+  // 선다형 통계 (Firebase 통계 데이터 사용)
   const optionCounts: { [key: string]: number } = {};
-  const otherResponses: string[] = [];
+  const otherResponses: string[] = statistics.otherTexts || [];
+  const textResponses: string[] = statistics.textResponses || [];
 
-  if (currentItem.type === 'multiple') {
-    responses.forEach((r: any) => {
-      if (r.answer === 'other' && r.otherText) {
-        otherResponses.push(r.otherText);
-      } else if (typeof r.answer === 'number') {
-        const option = currentItem.options[r.answer];
-        optionCounts[option] = (optionCounts[option] || 0) + 1;
+  if (currentItem.type === 'multiple' && statistics.optionCounts) {
+    // Firebase에서 받은 통계를 선택지 텍스트로 매핑
+    Object.entries(statistics.optionCounts).forEach(([index, count]) => {
+      const option = currentItem.options[parseInt(index)];
+      if (option) {
+        optionCounts[option] = count as number;
       }
     });
   }
@@ -447,7 +447,7 @@ function SurveyResultView({
               <div className="space-y-3">
                 {currentItem.options.map((option: string, idx: number) => {
                   const count = optionCounts[option] || 0;
-                  const percentage = responses.length > 0 ? (count / responses.length) * 100 : 0;
+                  const percentage = responseCount > 0 ? (count / responseCount) * 100 : 0;
 
                   return (
                     <div key={idx}>
@@ -483,11 +483,14 @@ function SurveyResultView({
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {responses.map((r: any, idx: number) => (
+                {textResponses.map((text: string, idx: number) => (
                   <div key={idx} className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700">{r.answer}</p>
+                    <p className="text-sm text-gray-700">{text}</p>
                   </div>
                 ))}
+                {textResponses.length === 0 && (
+                  <p className="text-center text-gray-400 py-4">아직 응답이 없습니다</p>
+                )}
               </div>
             )}
           </div>

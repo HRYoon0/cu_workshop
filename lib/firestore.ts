@@ -424,7 +424,8 @@ export async function createSurveySession(surveyId: string) {
       surveyId,
       status: 'waiting',
       participants: [],
-      responses: [],
+      responseCount: 0,
+      statistics: {},
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -454,8 +455,9 @@ export async function createSurveyItemsSession(userId: string) {
       currentItemIndex: 0, // 현재 진행 중인 설문 항목 인덱스
       status: 'waiting', // waiting, active, showing_result, finished
       participants: [],
-      responses: [], // 현재 항목의 응답들
-      allResponses: {}, // 모든 항목의 응답들 { itemId: [responses] }
+      responseCount: 0, // 현재 항목의 응답 수
+      statistics: {}, // 현재 항목의 통계 데이터
+      allResponses: {}, // 모든 항목의 통계들 { itemId: { responseCount, statistics } }
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -500,7 +502,8 @@ export async function updateSurveySessionItem(
     const sessionRef = doc(db, 'surveySessions', sessionId);
     await updateDoc(sessionRef, {
       currentItemIndex: itemIndex,
-      responses: [], // 새 항목으로 이동 시 응답 초기화
+      responseCount: 0, // 새 항목으로 이동 시 카운트 초기화
+      statistics: {}, // 새 항목으로 이동 시 통계 초기화
       status: 'active' // 항목 시작 시 active 상태로
     });
   } catch (error) {
@@ -526,16 +529,20 @@ export async function saveCurrentResponsesAndMoveNext(
     }
 
     const sessionData = sessionSnap.data();
-    const currentResponses = sessionData.responses || [];
+    const currentStats = {
+      responseCount: sessionData.responseCount || 0,
+      statistics: sessionData.statistics || {}
+    };
     const allResponses = sessionData.allResponses || {};
 
-    // 현재 항목의 응답을 allResponses에 저장
-    allResponses[currentItemId] = currentResponses;
+    // 현재 항목의 통계를 allResponses에 저장
+    allResponses[currentItemId] = currentStats;
 
     await updateDoc(sessionRef, {
       allResponses,
       currentItemIndex: currentItemIndex + 1,
-      responses: [], // 다음 항목을 위해 응답 초기화
+      responseCount: 0, // 다음 항목을 위해 카운트 초기화
+      statistics: {}, // 다음 항목을 위해 통계 초기화
       status: 'active'
     });
   } catch (error) {
@@ -556,39 +563,54 @@ export async function submitSurveyResponse(
   try {
     console.log('📝 설문 응답 제출 시작');
     console.log('응답 데이터:', response);
-    console.log('surveyTitle:', surveyTitle);
-    console.log('userId:', userId);
 
     const sessionRef = doc(db, 'surveySessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
 
     if (sessionDoc.exists()) {
-      const currentResponses = sessionDoc.data().responses || [];
-      console.log('현재 응답 수:', currentResponses.length);
+      const data = sessionDoc.data();
+      const currentCount = data.responseCount || 0;
+      const currentStats = data.statistics || {};
 
-      // 고유 ID를 가진 응답 생성 (구글 시트 저장 후 삭제 시 식별용)
-      const responseWithId = {
-        ...response,
-        responseId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Timestamp.now(),
-      };
+      console.log('현재 응답 수:', currentCount);
 
-      console.log('응답 ID 생성:', responseWithId.responseId);
+      // 응답 타입에 따라 통계 업데이트
+      let updatedStats = { ...currentStats };
 
-      // Firebase에 임시 저장 (실시간 표시용)
-      console.log('Firebase에 응답 저장 중...');
+      if (typeof response.answer === 'number') {
+        // 선다형 응답
+        const optionCounts = updatedStats.optionCounts || {};
+        const optionKey = response.answer.toString();
+        optionCounts[optionKey] = (optionCounts[optionKey] || 0) + 1;
+        updatedStats.optionCounts = optionCounts;
+        console.log('선다형 응답 업데이트:', optionKey);
+      } else if (response.answer === 'other' && response.otherText) {
+        // 기타 의견
+        const otherTexts = updatedStats.otherTexts || [];
+        otherTexts.push(response.otherText);
+        updatedStats.otherTexts = otherTexts;
+        console.log('기타 의견 추가:', response.otherText);
+      } else if (typeof response.answer === 'string') {
+        // 서술형 응답
+        const textResponses = updatedStats.textResponses || [];
+        textResponses.push(response.answer);
+        updatedStats.textResponses = textResponses;
+        console.log('서술형 응답 추가');
+      }
+
+      // Firebase에 통계만 저장 (용량 절약)
+      console.log('Firebase에 통계 저장 중...');
       await updateDoc(sessionRef, {
-        responses: [...currentResponses, responseWithId],
+        responseCount: currentCount + 1,
+        statistics: updatedStats,
       });
-      console.log('✅ Firebase 저장 완료!');
+      console.log('✅ Firebase 통계 저장 완료! 응답 수:', currentCount + 1);
 
-      // 구글 시트에 저장 (비동기로 백그라운드에서 처리)
+      // 구글 시트에는 전체 내용 저장 (백그라운드)
       if (surveyTitle && userId) {
         console.log('🔄 구글 시트 저장 시작 (백그라운드)');
-        // 백그라운드에서 처리 (사용자를 기다리게 하지 않음)
         (async () => {
           try {
-            // 새 설문 시스템: answer를 textValue로 변환
             let textValue = '';
             if (typeof response.answer === 'string') {
               textValue = response.answer === 'other'
@@ -598,26 +620,20 @@ export async function submitSurveyResponse(
               textValue = `선택 ${response.answer + 1}`;
             }
 
-            console.log('시트에 저장할 데이터:', { textValue, surveyTitle });
-
             await saveSurveyResultToSheet({
               sessionId,
               surveyTitle,
-              participantName: `참여자 ${sessionDoc.data().participants?.length || 0}`,
+              participantName: `참여자 ${data.participants?.length || 0}`,
               scaleValue: response.scaleValue,
               textValue: textValue || response.textValue,
-              timestamp: response.timestamp || new Date(),
+              timestamp: new Date(),
             }, userId);
 
             console.log('✅ 구글 시트 저장 완료');
-            // 주의: Firebase에서 응답을 삭제하지 않음 (결과 화면에서 보여줘야 하므로)
           } catch (err) {
             console.error('❌ 구글 시트 저장 실패:', err);
-            console.error('Firebase에 응답 유지');
           }
         })();
-      } else {
-        console.log('⚠️ 구글 시트 저장 건너뜀 (surveyTitle 또는 userId 없음)');
       }
     } else {
       console.error('❌ 세션을 찾을 수 없습니다');
