@@ -107,11 +107,20 @@ export default function SurveyParticipatePage() {
     }
 
     try {
-      await submitSurveyResponse(sessionId, {
-        participantId,
-        answer: currentAnswer,
-        ...(currentAnswer === 'other' && { otherText: otherText.trim() })
-      });
+      // 구글 시트 저장을 위한 정보
+      const surveyTitle = currentItem.question; // 설문 항목의 질문을 제목으로 사용
+      const userId = session.userId; // 세션의 userId
+
+      await submitSurveyResponse(
+        sessionId,
+        {
+          participantId,
+          answer: currentAnswer,
+          ...(currentAnswer === 'other' && { otherText: otherText.trim() })
+        },
+        surveyTitle, // 구글 시트 저장용 제목
+        userId // 구글 시트 저장용 userId
+      );
 
       setSubmitted(true);
       setCurrentAnswer(null);
@@ -285,23 +294,23 @@ export default function SurveyParticipatePage() {
           {/* 이미지 표시 */}
           {(currentItem?.studentResultImageUrl || currentItem?.parentResultImageUrl) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentItem.studentResultImageUrl && (
-                <div className="bg-white rounded-2xl shadow-lg p-4">
-                  <h3 className="text-lg font-bold text-blue-700 mb-2">👦 학생</h3>
-                  <img
-                    src={currentItem.studentResultImageUrl}
-                    alt="학생 결과"
-                    className="w-full h-auto rounded-lg"
-                  />
-                </div>
-              )}
-
               {currentItem.parentResultImageUrl && (
                 <div className="bg-white rounded-2xl shadow-lg p-4">
                   <h3 className="text-lg font-bold text-purple-700 mb-2">👨‍👩‍👧 학부모</h3>
                   <img
                     src={currentItem.parentResultImageUrl}
                     alt="학부모 결과"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              )}
+
+              {currentItem.studentResultImageUrl && (
+                <div className="bg-white rounded-2xl shadow-lg p-4">
+                  <h3 className="text-lg font-bold text-blue-700 mb-2">👦 학생</h3>
+                  <img
+                    src={currentItem.studentResultImageUrl}
+                    alt="학생 결과"
                     className="w-full h-auto rounded-lg"
                   />
                 </div>

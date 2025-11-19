@@ -492,13 +492,13 @@ function SurveyResultView({
             )}
           </div>
 
-          {/* 학생 결과 이미지 */}
+          {/* 학부모 결과 이미지 */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-xl font-bold text-blue-700 mb-4">👦 학생</h3>
-            {currentItem.studentResultImageUrl ? (
+            <h3 className="text-xl font-bold text-purple-700 mb-4">👨‍👩‍👧 학부모</h3>
+            {currentItem.parentResultImageUrl ? (
               <img
-                src={currentItem.studentResultImageUrl}
-                alt="학생 설문 결과"
+                src={currentItem.parentResultImageUrl}
+                alt="학부모 설문 결과"
                 className="w-full h-auto rounded-lg"
               />
             ) : (
@@ -511,13 +511,13 @@ function SurveyResultView({
             )}
           </div>
 
-          {/* 학부모 결과 이미지 */}
+          {/* 학생 결과 이미지 */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-xl font-bold text-purple-700 mb-4">👨‍👩‍👧 학부모</h3>
-            {currentItem.parentResultImageUrl ? (
+            <h3 className="text-xl font-bold text-blue-700 mb-4">👦 학생</h3>
+            {currentItem.studentResultImageUrl ? (
               <img
-                src={currentItem.parentResultImageUrl}
-                alt="학부모 설문 결과"
+                src={currentItem.studentResultImageUrl}
+                alt="학생 설문 결과"
                 className="w-full h-auto rounded-lg"
               />
             ) : (

@@ -573,14 +573,24 @@ export async function submitSurveyResponse(
       });
 
       // 구글 시트에 저장하고 성공하면 Firebase에서 삭제
-      if (surveyTitle) {
+      if (surveyTitle && userId) {
         try {
+          // 새 설문 시스템: answer를 textValue로 변환
+          let textValue = '';
+          if (typeof response.answer === 'string') {
+            textValue = response.answer === 'other'
+              ? (response.otherText || '기타')
+              : response.answer;
+          } else if (typeof response.answer === 'number') {
+            textValue = `선택 ${response.answer + 1}`;
+          }
+
           await saveSurveyResultToSheet({
             sessionId,
             surveyTitle,
-            participantName: response.participantName || '',
+            participantName: `참여자 ${sessionDoc.data().participants?.length || 0}`,
             scaleValue: response.scaleValue,
-            textValue: response.textValue,
+            textValue: textValue || response.textValue,
             timestamp: response.timestamp || new Date(),
           }, userId);
 
@@ -594,7 +604,7 @@ export async function submitSurveyResponse(
             await updateDoc(sessionRef, {
               responses: filteredResponses,
             });
-            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제:', response.participantName || '');
+            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제');
           }
         } catch (err) {
           console.log('구글 시트 저장 실패, Firebase에 응답 유지:', err);
