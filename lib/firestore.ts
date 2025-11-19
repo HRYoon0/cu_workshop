@@ -476,23 +476,21 @@ export async function updateSurveySessionStatus(
 ) {
   try {
     const sessionRef = doc(db, 'surveySessions', sessionId);
-    const updateData: any = { status };
 
-    if (status === 'active') {
-      updateData.startTime = serverTimestamp();
-    } else if (status === 'finished') {
-      updateData.endTime = serverTimestamp();
-
-      // 설문 종료 시 Firebase 용량 절약을 위해 통계 데이터 삭제
+    if (status === 'finished') {
+      // 설문 종료 시 Firebase 세션 완전 삭제
       // (구글 시트에는 이미 전체 내용이 저장되어 있음)
-      updateData.responseCount = 0;
-      updateData.statistics = {};
-      updateData.allResponses = {}; // 모든 항목의 통계도 삭제
+      await deleteDoc(sessionRef);
+      console.log('✅ 설문 종료: Firebase 세션 완전 삭제 (구글 시트에만 보관)');
+    } else {
+      const updateData: any = { status };
 
-      console.log('✅ 설문 종료: Firebase 통계 데이터 삭제 완료 (구글 시트에는 보관됨)');
+      if (status === 'active') {
+        updateData.startTime = serverTimestamp();
+      }
+
+      await updateDoc(sessionRef, updateData);
     }
-
-    await updateDoc(sessionRef, updateData);
   } catch (error) {
     console.error('설문 세션 상태 업데이트 실패:', error);
     throw error;

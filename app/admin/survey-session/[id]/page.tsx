@@ -88,7 +88,8 @@ export default function SurveySessionPage({ params }: PageProps) {
   const handleEndSurvey = async () => {
     try {
       await updateSurveySessionStatus(sessionId, 'finished');
-      alert('설문이 종료되었습니다!');
+      alert('설문이 종료되었습니다!\n\n모든 응답은 구글 시트에 저장되었습니다.');
+      router.push('/admin');
     } catch (err) {
       console.error('설문 종료 실패:', err);
       alert('설문 종료에 실패했습니다.');
