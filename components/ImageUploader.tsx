@@ -165,8 +165,8 @@ export default function ImageUploader({
             </button>
           )}
         </div>
-      ) : accessToken ? (
-        // 업로드 버튼 (Google Drive 연결된 경우에만 표시)
+      ) : (
+        // 업로드 버튼
         <div className="flex items-center justify-center w-full">
           <label
             htmlFor={uploaderId}
@@ -213,7 +213,7 @@ export default function ImageUploader({
             />
           </label>
         </div>
-      ) : null}
+      )}
 
       {error && (
         <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
