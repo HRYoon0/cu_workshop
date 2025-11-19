@@ -221,15 +221,9 @@ export default function ImageUploader({
         </div>
       )}
 
-      {!currentImageUrl && !uploading && accessToken && (
+      {!currentImageUrl && !uploading && (
         <p className="text-xs text-gray-500">
           이미지는 자동으로 Google Drive에 업로드됩니다.
-        </p>
-      )}
-
-      {!accessToken && !error && (
-        <p className="text-xs text-gray-500">
-          이미지를 업로드하려면 먼저 Google Drive에 연결하세요.
         </p>
       )}
     </div>
