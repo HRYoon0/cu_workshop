@@ -1649,3 +1649,25 @@ export async function setUserSurveySheet(
     throw error;
   }
 }
+
+/**
+ * 사용자의 설문 결과 시트 정보 삭제
+ */
+export async function deleteUserSurveySheet(userId: string): Promise<void> {
+  try {
+    const q = query(
+      collection(db, 'userSurveySheets'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await deleteDoc(docRef);
+      console.log('설문 시트 정보 삭제 완료');
+    }
+  } catch (error) {
+    console.error('설문 시트 정보 삭제 실패:', error);
+    throw error;
+  }
+}

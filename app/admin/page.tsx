@@ -43,7 +43,8 @@ import {
   getAllSurveyItemsByUser,
   updateSurveyItem,
   deleteSurveyItem,
-  getUserSurveySheet
+  getUserSurveySheet,
+  deleteUserSurveySheet
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -968,7 +969,6 @@ function SurveyManager({ userId }: { userId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSheet, setHasSheet] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -1044,37 +1044,18 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
-  const handleCreateSheet = async () => {
-    if (!confirm('설문 시트를 생성하시겠습니까?')) {
+  const handleResetSheet = async () => {
+    if (!confirm('시트 정보를 초기화하시겠습니까?\n\n※ 구글 드라이브의 시트는 삭제되지 않습니다.\n※ Firestore의 연결 정보만 삭제됩니다.')) {
       return;
     }
 
     try {
-      setIsCreatingSheet(true);
-      const { getGoogleAccessToken } = await import('@/lib/googleDrive');
-      const { createSurveyResultSheet } = await import('@/lib/googleDrive');
-      const { setUserSurveySheet } = await import('@/lib/firestore');
-
-      const savedSchoolName = localStorage.getItem('schoolName') || '학교 설문';
-      const sheetTitle = `${savedSchoolName} - 설문 결과`;
-
-      const accessToken = await getGoogleAccessToken();
-      const { id: sheetId, url: sheetUrl } = await createSurveyResultSheet(
-        sheetTitle.trim(),
-        accessToken
-      );
-
-      // Firestore에 시트 정보 저장
-      await setUserSurveySheet(userId, sheetId, sheetUrl);
-
-      alert(`설문 시트가 생성되었습니다!\n\n시트 링크: ${sheetUrl}`);
+      await deleteUserSurveySheet(userId);
       await checkSheet();
+      alert('시트 정보가 초기화되었습니다.\n\n다음 설문 생성 시 자동으로 새 시트가 생성됩니다.');
     } catch (error: any) {
-      console.error('시트 생성 실패:', error);
-      const errorMessage = error?.message || error?.toString() || '알 수 없는 오류';
-      alert(`시트 생성에 실패했습니다.\n\n에러 내용: ${errorMessage}`);
-    } finally {
-      setIsCreatingSheet(false);
+      console.error('시트 정보 삭제 실패:', error);
+      alert('시트 정보 삭제에 실패했습니다.');
     }
   };
 
@@ -1082,24 +1063,21 @@ function SurveyManager({ userId }: { userId: string }) {
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
-        <div className="flex gap-3">
-          {!hasSheet && (
-            <button
-              onClick={handleCreateSheet}
-              disabled={isCreatingSheet}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isCreatingSheet ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  생성 중...
-                </>
-              ) : (
-                '📊 설문 시트 생성'
-              )}
-            </button>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
+          {hasSheet && (
+            <p className="text-sm text-gray-500 mt-1">
+              ✅ 설문 시트 연결됨
+              <button
+                onClick={handleResetSheet}
+                className="ml-2 text-orange-600 hover:text-orange-700 underline"
+              >
+                시트 정보 초기화
+              </button>
+            </p>
           )}
+        </div>
+        <div className="flex gap-3">
           {items.length > 0 && (
             <button
               onClick={handleStartSurvey}
