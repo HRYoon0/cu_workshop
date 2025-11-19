@@ -669,11 +669,12 @@ export async function addParticipantToSurveySession(
     }
 
     console.log('Firestore 업데이트 중...');
+    const now = Timestamp.now();
     await updateDoc(sessionRef, {
       participants: [...currentParticipants, {
         ...participant,
-        joinedAt: serverTimestamp(),
-        lastActiveAt: serverTimestamp()
+        joinedAt: now,
+        lastActiveAt: now
       }]
     });
     console.log('✅ 참가자 추가 완료!');
