@@ -610,19 +610,7 @@ export async function submitSurveyResponse(
             }, userId);
 
             console.log('✅ 구글 시트 저장 완료');
-
-            // 구글 시트 저장 성공 - Firebase에서 해당 응답 삭제
-            const updatedDoc = await getDoc(sessionRef);
-            if (updatedDoc.exists()) {
-              const allResponses = updatedDoc.data().responses || [];
-              const filteredResponses = allResponses.filter(
-                (r: any) => r.responseId !== responseWithId.responseId
-              );
-              await updateDoc(sessionRef, {
-                responses: filteredResponses,
-              });
-              console.log('Firebase에서 응답 삭제 완료');
-            }
+            // 주의: Firebase에서 응답을 삭제하지 않음 (결과 화면에서 보여줘야 하므로)
           } catch (err) {
             console.error('❌ 구글 시트 저장 실패:', err);
             console.error('Firebase에 응답 유지');
