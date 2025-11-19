@@ -325,20 +325,69 @@ export async function uploadImageToDrive(
 }
 
 /**
+ * 자동 재인증 시도
+ * @returns 성공하면 true, 실패하면 false
+ */
+async function attemptAutoReauth(): Promise<boolean> {
+  try {
+    console.log('🔄 자동 재인증 시도 중...');
+
+    const { auth, googleProvider } = await import('./firebase');
+    const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+
+    // 팝업으로 재로그인
+    const result = await signInWithPopup(auth, googleProvider);
+
+    // 새 액세스 토큰 저장
+    const googleCredential = GoogleAuthProvider.credentialFromResult(result);
+    const accessToken = googleCredential?.accessToken;
+
+    if (accessToken) {
+      localStorage.setItem('googleAccessToken', accessToken);
+      console.log('✅ 자동 재인증 성공! 새 토큰 저장 완료');
+      return true;
+    } else {
+      console.error('❌ 재인증 성공했지만 토큰을 가져올 수 없습니다.');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ 자동 재인증 실패:', error);
+    return false;
+  }
+}
+
+/**
  * 토큰 만료 처리
  */
-function handleTokenExpired(): void {
+async function handleTokenExpired(): Promise<void> {
   console.error('🔐 Google OAuth 토큰이 만료되었습니다.');
 
   // 만료된 토큰 삭제
   if (typeof window !== 'undefined') {
     localStorage.removeItem('googleAccessToken');
 
-    // 사용자에게 알림
-    alert('Google 로그인이 만료되었습니다.\n다시 로그인해주세요.');
+    // 사용자에게 알림 및 자동 재인증 시도
+    const shouldReauth = confirm(
+      'Google 로그인이 만료되었습니다.\n\n자동으로 다시 로그인하시겠습니까?\n\n(취소를 누르면 로그인 페이지로 이동합니다)'
+    );
 
-    // 로그인 페이지로 리다이렉트
-    window.location.href = '/login';
+    if (shouldReauth) {
+      // 자동 재인증 시도
+      const success = await attemptAutoReauth();
+
+      if (success) {
+        // 재인증 성공 - 페이지 새로고침으로 작업 계속
+        alert('✅ 재로그인 완료!\n\n페이지를 새로고침합니다.');
+        window.location.reload();
+      } else {
+        // 재인증 실패 - 로그인 페이지로
+        alert('재로그인에 실패했습니다.\n로그인 페이지로 이동합니다.');
+        window.location.href = '/login';
+      }
+    } else {
+      // 사용자가 취소 - 로그인 페이지로
+      window.location.href = '/login';
+    }
   }
 }
 
@@ -371,7 +420,7 @@ export async function checkTokenValidity(): Promise<boolean> {
 
       // 401이면 토큰 만료
       if (response.status === 401) {
-        handleTokenExpired();
+        await handleTokenExpired();
         return false;
       }
     }
