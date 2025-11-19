@@ -205,31 +205,17 @@ export default function SurveySessionPage({ params }: PageProps) {
 
             <div className="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center justify-center">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">QR 코드</h2>
-              <div className="bg-white p-4 rounded-xl border-4 border-green-200">
+              <div
+                className="bg-white p-4 rounded-xl border-4 border-green-200 cursor-pointer hover:border-green-400 transition-colors"
+                onClick={() => setShowQRModal(true)}
+              >
                 <QRCodeSVG
                   value={`${window.location.origin}/participate/survey/${sessionId}`}
                   size={200}
                   level="H"
                 />
               </div>
-              <p className="text-gray-600 mt-4 text-center">QR 코드를 스캔하여 참여하세요</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">설문 목록 미리보기</h2>
-            <div className="space-y-3">
-              {session.surveyItems.map((item: any, idx: number) => (
-                <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{item.question}</p>
-                    <p className="text-sm text-gray-500">{item.type === 'multiple' ? '선다형' : '서술형'}</p>
-                  </div>
-                </div>
-              ))}
+              <p className="text-gray-600 mt-4 text-center">QR 코드를 클릭하면 확대됩니다</p>
             </div>
           </div>
 
@@ -378,10 +364,10 @@ function SurveyActiveView({
         <div className="flex justify-center">
           <button
             onClick={handleShowResult}
-            disabled={responseCount === 0}
+            disabled={responseCount < 1}
             className="px-8 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-xl font-bold disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            결과 보기
+            결과 보기 {responseCount >= 1 && `(${responseCount}명)`}
           </button>
         </div>
       </div>
