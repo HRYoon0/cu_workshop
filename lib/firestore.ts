@@ -1444,17 +1444,20 @@ export async function createSurveyTopic(title: string, userId: string) {
  */
 export async function getSurveyTopics(userId: string) {
   try {
+    // orderBy 제거 - 퀴즈처럼 구현 (인덱스 불필요)
     const q = query(
       collection(db, 'surveyTopics'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const topics = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
     }));
+
+    // 클라이언트에서 정렬
+    return topics.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   } catch (error) {
     console.error('설문 주제 목록 가져오기 실패:', error);
     throw error;
