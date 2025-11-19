@@ -1452,9 +1452,10 @@ function SurveyItemForm({
           await setUserSurveySheet(userId, sheetId, sheetUrl);
 
           console.log('설문 시트 생성 완료:', sheetTitle, sheetUrl);
-        } catch (sheetError) {
+        } catch (sheetError: any) {
           console.error('시트 생성 실패:', sheetError);
-          alert('시트 생성에 실패했습니다. 구글 연결을 확인해주세요.');
+          const errorMessage = sheetError?.message || sheetError?.toString() || '알 수 없는 오류';
+          alert(`시트 생성에 실패했습니다.\n\n에러 내용: ${errorMessage}\n\n브라우저 콘솔(F12)에서 자세한 내용을 확인해주세요.`);
           setIsSubmitting(false);
           return;
         }

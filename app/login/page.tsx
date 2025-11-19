@@ -27,11 +27,20 @@ export default function LoginPage() {
       const googleCredential = GoogleAuthProvider.credentialFromResult(result);
       const accessToken = googleCredential?.accessToken;
 
+      console.log('🔑 Google 로그인 결과:', {
+        credential: !!googleCredential,
+        accessToken: !!accessToken,
+        tokenLength: accessToken?.length || 0
+      });
+
       if (accessToken) {
         localStorage.setItem('googleAccessToken', accessToken);
-        console.log('Google Drive 액세스 토큰 저장 완료');
+        console.log('✅ Google Drive 액세스 토큰 저장 완료');
+        console.log('토큰 앞 20자:', accessToken.substring(0, 20) + '...');
       } else {
-        console.warn('Google Drive 액세스 토큰을 가져올 수 없습니다.');
+        console.error('❌ Google Drive 액세스 토큰을 가져올 수 없습니다.');
+        console.error('credential:', googleCredential);
+        alert('⚠️ Google Drive 액세스 토큰을 가져올 수 없습니다.\n\n다시 로그인을 시도하거나, 문제가 지속되면 관리자에게 문의하세요.');
       }
 
       // 관리자 UID 확인

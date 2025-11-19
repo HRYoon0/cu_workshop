@@ -21,42 +21,68 @@ export async function findOrCreateFolder(
   accessToken: string,
   parentId: string = 'root'
 ): Promise<string> {
-  // 1. 기존 폴더 검색
-  const searchResponse = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false&fields=files(id,name)`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+  try {
+    console.log('🔍 폴더 검색 중:', folderName);
+
+    // 1. 기존 폴더 검색
+    const searchResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false&fields=files(id,name)`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    console.log('검색 API 응답 상태:', searchResponse.status);
+
+    if (!searchResponse.ok) {
+      const error = await searchResponse.text();
+      console.error('❌ 폴더 검색 실패:', error);
+      throw new Error(`폴더 검색 실패 (${searchResponse.status}): ${error}`);
     }
-  );
 
-  const searchData = await searchResponse.json();
+    const searchData = await searchResponse.json();
 
-  // 2. 폴더가 이미 있으면 반환
-  if (searchData.files && searchData.files.length > 0) {
-    return searchData.files[0].id;
+    // 2. 폴더가 이미 있으면 반환
+    if (searchData.files && searchData.files.length > 0) {
+      console.log('✅ 기존 폴더 발견:', searchData.files[0].id);
+      return searchData.files[0].id;
+    }
+
+    // 3. 없으면 새로 생성
+    console.log('📁 새 폴더 생성 중...');
+    const createResponse = await fetch(
+      'https://www.googleapis.com/drive/v3/files',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: folderName,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentId],
+        }),
+      }
+    );
+
+    console.log('폴더 생성 API 응답 상태:', createResponse.status);
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      console.error('❌ 폴더 생성 실패:', error);
+      throw new Error(`폴더 생성 실패 (${createResponse.status}): ${error}`);
+    }
+
+    const createData = await createResponse.json();
+    console.log('✅ 새 폴더 생성 완료:', createData.id);
+    return createData.id;
+  } catch (error) {
+    console.error('❌ findOrCreateFolder 에러:', error);
+    throw error;
   }
-
-  // 3. 없으면 새로 생성
-  const createResponse = await fetch(
-    'https://www.googleapis.com/drive/v3/files',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [parentId],
-      }),
-    }
-  );
-
-  const createData = await createResponse.json();
-  return createData.id;
 }
 
 /**
@@ -288,12 +314,17 @@ export async function getGoogleAccessToken(): Promise<string> {
   const { auth } = await import('./firebase');
   const currentUser = auth.currentUser;
 
+  console.log('🔍 Google 액세스 토큰 확인 중...');
+  console.log('현재 사용자:', currentUser?.email);
+
   if (!currentUser) {
     throw new Error('로그인이 필요합니다.');
   }
 
   // localStorage에서 저장된 토큰 확인
   const storedToken = localStorage.getItem('googleAccessToken');
+
+  console.log('저장된 토큰:', storedToken ? '✅ 있음' : '❌ 없음');
 
   if (!storedToken) {
     throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
@@ -455,10 +486,17 @@ export async function createSurveyResultSheet(
   accessToken: string
 ): Promise<{ id: string; url: string }> {
   try {
+    console.log('📊 설문 결과 시트 생성 시작:', sheetTitle);
+
     // 1. 학교 이름 폴더 찾기/생성
     const schoolName = getSchoolName();
-    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
+    console.log('학교 이름:', schoolName);
 
+    console.log('📁 폴더 찾기/생성 중...');
+    const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
+    console.log('폴더 ID:', workshopFolderId);
+
+    console.log('📄 시트 생성 API 호출 중...');
     const createResponse = await fetch(
       'https://www.googleapis.com/drive/v3/files',
       {
@@ -475,9 +513,12 @@ export async function createSurveyResultSheet(
       }
     );
 
+    console.log('API 응답 상태:', createResponse.status, createResponse.statusText);
+
     if (!createResponse.ok) {
       const error = await createResponse.text();
-      throw new Error(`설문 결과 시트 생성 실패: ${error}`);
+      console.error('❌ API 에러 응답:', error);
+      throw new Error(`설문 결과 시트 생성 실패 (${createResponse.status}): ${error}`);
     }
 
     const createData = await createResponse.json();
