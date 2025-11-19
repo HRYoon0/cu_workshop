@@ -482,6 +482,14 @@ export async function updateSurveySessionStatus(
       updateData.startTime = serverTimestamp();
     } else if (status === 'finished') {
       updateData.endTime = serverTimestamp();
+
+      // 설문 종료 시 Firebase 용량 절약을 위해 통계 데이터 삭제
+      // (구글 시트에는 이미 전체 내용이 저장되어 있음)
+      updateData.responseCount = 0;
+      updateData.statistics = {};
+      updateData.allResponses = {}; // 모든 항목의 통계도 삭제
+
+      console.log('✅ 설문 종료: Firebase 통계 데이터 삭제 완료 (구글 시트에는 보관됨)');
     }
 
     await updateDoc(sessionRef, updateData);
