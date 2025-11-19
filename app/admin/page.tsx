@@ -956,86 +956,46 @@ function QuizCard({ quiz, onEdit, onDelete }: { quiz: any; onEdit: (quiz: any) =
   );
 }
 
-// 설문 카드 컴포넌트
-
-// 새로운 설문 관리 컴포넌트
-
-// 설문 관리 컴포넌트 (간소화 버전 - 주제 없이 설문만 관리)
-function SurveyManager({ userId }: { userId: string }) {
+// 설문 주제 카드 컴포넌트
+function TopicCard({
+  topic,
+  onClick,
+  onEdit,
+  onDelete
+}: {
+  topic: any;
+  onClick: (topic: any) => void;
+  onEdit: (topic: any) => void;
+  onDelete: (id: string) => void;
+}) {
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
-  const [showItemForm, setShowItemForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasSheet, setHasSheet] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [itemCount, setItemCount] = useState<number>(0);
 
   useEffect(() => {
-    if (userId) {
-      loadItems();
-      checkSheet();
-    }
-  }, [userId]);
+    // 주제에 속한 항목 수 가져오기
+    const loadItemCount = async () => {
+      try {
+        const items = await getSurveyItems(topic.id);
+        setItemCount(items.length);
+      } catch (error) {
+        console.error('항목 수 불러오기 실패:', error);
+      }
+    };
+    loadItemCount();
+  }, [topic.id]);
 
-  const checkSheet = async () => {
-    try {
-      const sheet = await getUserSurveySheet(userId);
-      setHasSheet(!!sheet);
-    } catch (error) {
-      console.error('시트 확인 실패:', error);
-      setHasSheet(false);
-    }
-  };
+  const handleStart = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // 카드 클릭 이벤트 방지
 
-  const loadItems = async () => {
-    try {
-      setIsLoading(true);
-      const itemList = await getAllSurveyItemsByUser(userId);
-      setItems(itemList);
-    } catch (error) {
-      console.error('설문 항목 목록 불러오기 실패:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleItemCreated = () => {
-    loadItems();
-    checkSheet(); // 시트가 생성되었을 수 있으므로 다시 확인
-    setShowItemForm(false);
-    setEditingItem(null);
-  };
-
-  const handleItemUpdated = () => {
-    loadItems();
-    setShowItemForm(false);
-    setEditingItem(null);
-  };
-
-  const handleEditItem = (item: any) => {
-    setEditingItem(item);
-    setShowItemForm(true);
-  };
-
-  const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('이 설문 항목을 삭제하시겠습니까?')) {
+    if (itemCount === 0) {
+      alert('설문 항목을 먼저 추가해주세요.');
       return;
     }
 
     try {
-      await deleteSurveyItem(itemId);
-      await loadItems();
-      alert('설문 항목이 삭제되었습니다.');
-    } catch (error) {
-      console.error('설문 항목 삭제 실패:', error);
-      alert('설문 항목 삭제에 실패했습니다.');
-    }
-  };
-
-  const handleStartSurvey = async () => {
-    try {
       setIsStarting(true);
-      const sessionId = await createSurveyItemsSession(userId);
+      const sessionId = await createSurveyItemsSession(topic.userId, topic.id);
       router.push(`/admin/survey-session/${sessionId}`);
     } catch (error: any) {
       console.error('설문 세션 생성 실패:', error);
@@ -1044,117 +1004,336 @@ function SurveyManager({ userId }: { userId: string }) {
     }
   };
 
+  return (
+    <div
+      className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow cursor-pointer"
+      onClick={() => onClick(topic)}
+    >
+      <div className="flex justify-between items-start gap-6">
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-800">{topic.title}</h3>
+          <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
+            <span>📝 {itemCount}개 설문 항목</span>
+            <span className="text-xs text-gray-400">
+              {new Date(topic.createdAt?.toDate?.() || topic.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={handleStart}
+            disabled={isStarting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold disabled:bg-gray-400"
+          >
+            {isStarting ? '생성 중...' : '시작하기'}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(topic);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
+          >
+            수정
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(topic.id);
+            }}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-semibold"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 주제 생성/수정 폼
+function TopicForm({
+  userId,
+  onClose,
+  onCreated,
+  onUpdated,
+  editingTopic
+}: {
+  userId: string;
+  onClose: () => void;
+  onCreated: (topic: any) => void;
+  onUpdated?: (topic: any) => void;
+  editingTopic?: any;
+}) {
+  const isEditMode = !!editingTopic;
+  const [title, setTitle] = useState(editingTopic?.title || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      alert('주제 제목을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      if (isEditMode && editingTopic) {
+        // 수정 모드
+        await updateSurveyTopic(editingTopic.id, title.trim());
+
+        const updatedTopic = {
+          ...editingTopic,
+          title: title.trim(),
+        };
+
+        if (onUpdated) {
+          onUpdated(updatedTopic);
+        }
+
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        // 생성 모드
+        const topicId = await createSurveyTopic(title.trim(), userId);
+
+        const topic = {
+          id: topicId,
+          title: title.trim(),
+          userId,
+          createdAt: new Date()
+        };
+
+        onCreated(topic);
+
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      }
+    } catch (error) {
+      console.error(isEditMode ? '주제 수정 실패:' : '주제 생성 실패:', error);
+      alert(isEditMode ? '주제 수정에 실패했습니다. 다시 시도해주세요.' : '주제 생성에 실패했습니다. 다시 시도해주세요.');
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6 animate-slideUp relative">
+      {/* 성공 메시지 오버레이 */}
+      {showSuccessMessage && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50 rounded-xl">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800">{isEditMode ? '주제 수정 완료!' : '주제 생성 완료!'}</h3>
+            <p className="text-gray-600 mt-2">{title}</p>
+          </div>
+        </div>
+      )}
+
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{isEditMode ? '주제 수정하기' : '새 설문 주제 만들기'}</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            주제 제목 (Google Sheets 제목으로 사용됩니다)
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+            placeholder="예: 2025학년도 교육과정 개선 설문"
+            required
+          />
+          <p className="mt-2 text-sm text-gray-500">
+            이 제목이 Google Sheets의 시트 이름으로 사용됩니다.
+          </p>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '수정하기' : '생성하기')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+          >
+            취소
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// 설문 관리 컴포넌트 (주제 기반)
+function SurveyManager({ userId }: { userId: string }) {
+  const [topics, setTopics] = useState<any[]>([]);
+  const [showTopicForm, setShowTopicForm] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
+  const [selectedTopic, setSelectedTopic] = useState<any>(null);
+  const [showItemsModal, setShowItemsModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (userId) {
+      loadTopics();
+    }
+  }, [userId]);
+
+  const loadTopics = async () => {
+    try {
+      setIsLoading(true);
+      const topicList = await getSurveyTopics(userId);
+      setTopics(topicList);
+    } catch (error) {
+      console.error('설문 주제 목록 불러오기 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTopicCreated = (topic: any) => {
+    setTopics([...topics, topic]);
+    setShowTopicForm(false);
+  };
+
+  const handleTopicUpdated = (updatedTopic: any) => {
+    setTopics(topics.map((t: any) => t.id === updatedTopic.id ? updatedTopic : t));
+    setEditingTopic(null);
+    setShowTopicForm(false);
+  };
+
+  const handleTopicEdit = (topic: any) => {
+    setEditingTopic(topic);
+    setShowTopicForm(true);
+  };
+
+  const handleTopicDelete = async (topicId: string) => {
+    if (!confirm('이 주제를 삭제하시겠습니까?\n\n주제에 포함된 모든 설문 항목도 함께 삭제됩니다.')) {
+      return;
+    }
+
+    try {
+      // 주제에 속한 모든 항목 먼저 삭제
+      const items = await getSurveyItems(topicId);
+      for (const item of items) {
+        await deleteSurveyItem(item.id);
+      }
+
+      // 주제 삭제
+      await deleteSurveyTopic(topicId);
+      setTopics(topics.filter(t => t.id !== topicId));
+      setShowTopicForm(false);
+      setEditingTopic(null);
+      alert('주제와 모든 설문 항목이 삭제되었습니다.');
+    } catch (error) {
+      console.error('주제 삭제 실패:', error);
+      alert('주제 삭제에 실패했습니다.');
+    }
+  };
+
+  const handleTopicClick = (topic: any) => {
+    setSelectedTopic(topic);
+    setShowItemsModal(true);
+  };
 
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">설문 관리</h2>
-        <div className="flex gap-3">
-          {items.length > 0 && (
-            <button
-              onClick={handleStartSurvey}
-              disabled={isStarting}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isStarting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  시작 중...
-                </>
-              ) : (
-                '설문 시작하기'
-              )}
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setShowItemForm(!showItemForm);
-              if (showItemForm) setEditingItem(null);
-            }}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
-          >
-            {showItemForm ? '취소' : '+ 새 설문 추가'}
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setShowTopicForm(!showTopicForm);
+            if (showTopicForm) setEditingTopic(null);
+          }}
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
+        >
+          {showTopicForm ? '취소' : '+ 새 주제 만들기'}
+        </button>
       </div>
 
-      {/* 설문 항목 생성/수정 폼 */}
-      {showItemForm && (
-        <SurveyItemForm
+      {/* 주제 생성/수정 폼 */}
+      {showTopicForm && (
+        <TopicForm
           userId={userId}
-          onCreated={handleItemCreated}
-          onUpdated={handleItemUpdated}
-          editingItem={editingItem}
-          hasSheet={hasSheet}
           onClose={() => {
-            setShowItemForm(false);
-            setEditingItem(null);
+            setShowTopicForm(false);
+            setEditingTopic(null);
           }}
+          onCreated={handleTopicCreated}
+          onUpdated={handleTopicUpdated}
+          editingTopic={editingTopic}
         />
       )}
 
-      {/* 설문 항목 목록 */}
-      {isLoading ? (
-        <div className="bg-white rounded-xl p-12 text-center">
-          <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500 text-lg">설문 목록을 불러오는 중...</p>
-        </div>
-      ) : items.length === 0 && !showItemForm ? (
-        <div className="bg-white rounded-xl p-12 text-center">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          </div>
-          <p className="text-gray-500 text-lg">아직 생성된 설문이 없습니다</p>
-          <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 설문을 만들어보세요!</p>
-        </div>
-      ) : (
+      {/* 주제 목록 */}
+      {!showTopicForm && (
         <div className="grid gap-4">
-          {items.map((item: any, index: number) => (
-            <div key={item.id} className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                      #{index + 1}
-                    </span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
-                      {item.type === 'multiple' ? '선다형' : '서술형'}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">{item.question}</h3>
-                  {item.type === 'multiple' && item.options && (
-                    <div className="mt-3 space-y-1">
-                      {item.options.map((option: string, optIdx: number) => (
-                        <div key={optIdx} className="text-sm text-gray-600">
-                          • {option}
-                        </div>
-                      ))}
-                      {item.allowOther && (
-                        <div className="text-sm text-gray-600">• 기타 (직접 입력)</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEditItem(item)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    수정
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
+          {isLoading ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500 text-lg">설문 주제 목록을 불러오는 중...</p>
             </div>
-          ))}
+          ) : topics.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <p className="text-gray-500 text-lg">아직 생성된 설문 주제가 없습니다</p>
+              <p className="text-gray-400 mt-2">위의 버튼을 클릭하여 첫 주제를 만들어보세요!</p>
+            </div>
+          ) : (
+            topics.map((topic: any) => (
+              <TopicCard
+                key={topic.id}
+                topic={topic}
+                onClick={handleTopicClick}
+                onEdit={handleTopicEdit}
+                onDelete={handleTopicDelete}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 설문 항목 관리 모달 */}
+      {showItemsModal && selectedTopic && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
+              <h3 className="text-xl font-bold text-gray-800">{selectedTopic.title} - 설문 항목 관리</h3>
+              <button
+                onClick={() => {
+                  setShowItemsModal(false);
+                  setSelectedTopic(null);
+                  loadTopics(); // 항목 수 업데이트를 위해 주제 목록 새로고침
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            <SurveyItemsManager topicId={selectedTopic.id} userId={userId} />
+          </div>
         </div>
       )}
     </div>
@@ -1320,6 +1499,8 @@ function SurveyItemForm({
 }) {
   const isEditMode = !!editingItem;
   const [sheetTitle, setSheetTitle] = useState(editingItem?.sheetTitle || '');
+  const [topicTitle, setTopicTitle] = useState('');
+  const [hasExistingSheet, setHasExistingSheet] = useState(false);
   const [questionIdCounter, setQuestionIdCounter] = useState(1);
   const [questions, setQuestions] = useState(
     editingItem ? [{
@@ -1341,6 +1522,30 @@ function SurveyItemForm({
     }]
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // topicId가 있으면 주제 정보 가져오기
+  useEffect(() => {
+    const loadTopicInfo = async () => {
+      if (topicId) {
+        try {
+          // 주제 정보 가져오기
+          const topics: any[] = await getSurveyTopics(userId);
+          const topic: any = topics.find((t: any) => t.id === topicId);
+          if (topic && topic.title) {
+            setTopicTitle(topic.title);
+            setSheetTitle(topic.title); // 주제 제목을 시트 제목으로 사용
+          }
+
+          // 기존 시트가 있는지 확인
+          const sheetInfo = await getUserSurveySheet(userId);
+          setHasExistingSheet(!!sheetInfo);
+        } catch (error) {
+          console.error('주제 정보 불러오기 실패:', error);
+        }
+      }
+    };
+    loadTopicInfo();
+  }, [topicId, userId]);
 
   const addQuestion = () => {
     setQuestions([
@@ -1411,9 +1616,12 @@ function SurveyItemForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 시트 제목 결정 (topicId가 있으면 주제 제목 사용, 없으면 입력된 제목 사용)
+    const finalSheetTitle = topicId ? topicTitle : sheetTitle.trim();
+
     // 시트가 없고 생성 모드일 때만 시트 제목 검증
-    if (!isEditMode && !hasSheet && !sheetTitle.trim()) {
-      alert('시트 제목을 입력해주세요.');
+    if (!isEditMode && !hasExistingSheet && !finalSheetTitle) {
+      alert(topicId ? '주제 정보를 불러오지 못했습니다.' : '시트 제목을 입력해주세요.');
       return;
     }
 
@@ -1438,7 +1646,7 @@ function SurveyItemForm({
       setIsSubmitting(true);
 
       // 시트가 없고 생성 모드일 때만 시트 생성
-      if (!isEditMode && !hasSheet) {
+      if (!isEditMode && !hasExistingSheet) {
         try {
           const { getGoogleAccessToken } = await import('@/lib/googleDrive');
           const { createSurveyResultSheet } = await import('@/lib/googleDrive');
@@ -1446,14 +1654,14 @@ function SurveyItemForm({
 
           const accessToken = await getGoogleAccessToken();
           const { id: sheetId, url: sheetUrl } = await createSurveyResultSheet(
-            sheetTitle.trim(),
+            finalSheetTitle,
             accessToken
           );
 
           // Firestore에 시트 정보 저장
           await setUserSurveySheet(userId, sheetId, sheetUrl);
 
-          console.log('설문 시트 생성 완료:', sheetTitle, sheetUrl);
+          console.log('설문 시트 생성 완료:', finalSheetTitle, sheetUrl);
         } catch (sheetError: any) {
           console.error('시트 생성 실패:', sheetError);
           const errorMessage = sheetError?.message || sheetError?.toString() || '알 수 없는 오류';
@@ -1524,8 +1732,21 @@ function SurveyItemForm({
         {isEditMode ? '설문 항목 수정' : '새 설문 항목 추가'}
       </h4>
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 시트 제목 (시트가 없고 생성 모드일 때만 표시) */}
-        {!isEditMode && !hasSheet && (
+        {/* 주제 기반일 때 안내 메시지 */}
+        {!isEditMode && topicId && topicTitle && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800 font-semibold">
+              📁 주제: {topicTitle}
+            </p>
+            <p className="text-xs text-green-700 mt-1">
+              이 주제의 설문 항목이 "{topicTitle}" 시트에 저장됩니다.
+              {hasExistingSheet ? ' (시트가 이미 생성되어 있습니다)' : ' (첫 항목 추가 시 시트가 생성됩니다)'}
+            </p>
+          </div>
+        )}
+
+        {/* 시트 제목 (주제 기반이 아니고, 시트가 없고, 생성 모드일 때만 표시) */}
+        {!isEditMode && !topicId && !hasExistingSheet && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               📊 시트 제목 (필수)
@@ -1544,8 +1765,8 @@ function SurveyItemForm({
           </div>
         )}
 
-        {/* 시트가 이미 있을 때 안내 메시지 */}
-        {!isEditMode && hasSheet && (
+        {/* 시트가 이미 있고 주제 기반이 아닐 때 안내 메시지 */}
+        {!isEditMode && !topicId && hasExistingSheet && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               ✅ 설문 시트가 이미 생성되어 있습니다. 아래 질문을 추가하면 같은 시트에 저장됩니다.

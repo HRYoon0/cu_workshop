@@ -439,10 +439,12 @@ export async function createSurveySession(surveyId: string) {
  * 설문 세션 생성 (여러 설문 항목 - 퀴즈처럼 진행)
  * userId의 모든 설문 항목을 가져와서 세션 생성
  */
-export async function createSurveyItemsSession(userId: string) {
+export async function createSurveyItemsSession(userId: string, topicId?: string) {
   try {
-    // 사용자의 모든 설문 항목 가져오기
-    const surveyItems = await getAllSurveyItemsByUser(userId);
+    // 주제 ID가 있으면 해당 주제의 항목만, 없으면 모든 항목 가져오기
+    const surveyItems = topicId
+      ? await getSurveyItems(topicId)
+      : await getAllSurveyItemsByUser(userId);
 
     if (surveyItems.length === 0) {
       throw new Error('생성된 설문 항목이 없습니다.');
@@ -451,7 +453,8 @@ export async function createSurveyItemsSession(userId: string) {
     // 세션 생성
     const docRef = await addDoc(collection(db, 'surveySessions'), {
       userId,
-      surveyItems, // 모든 설문 항목 저장
+      ...(topicId && { topicId }), // topicId가 있으면 저장
+      surveyItems, // 설문 항목 저장
       currentItemIndex: 0, // 현재 진행 중인 설문 항목 인덱스
       status: 'waiting', // waiting, active, showing_result, finished
       participants: [],
