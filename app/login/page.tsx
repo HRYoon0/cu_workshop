@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { isApprovedUser, addPendingUser, approveUser } from '@/lib/firestore';
 import { addDoc, collection } from 'firebase/firestore';
@@ -24,14 +24,43 @@ export default function LoginPage() {
       const user = result.user;
 
       // Google Drive 액세스 토큰 저장
-      const googleCredential = GoogleAuthProvider.credentialFromResult(result);
-      const accessToken = googleCredential?.accessToken;
+      let googleCredential = GoogleAuthProvider.credentialFromResult(result);
+      let accessToken = googleCredential?.accessToken;
 
       console.log('🔑 Google 로그인 결과:', {
         credential: !!googleCredential,
         accessToken: !!accessToken,
         tokenLength: accessToken?.length || 0
       });
+
+      // 토큰을 못 가져왔다면 재시도 (prompt=consent 사용)
+      let currentUser = user;
+      if (!accessToken) {
+        console.warn('⚠️ 첫 로그인에서 토큰을 가져오지 못했습니다. 재시도합니다...');
+
+        // 사용자 로그아웃
+        await signOut(auth);
+
+        // prompt=consent로 강제 재인증
+        const retryProvider = new GoogleAuthProvider();
+        retryProvider.addScope('https://www.googleapis.com/auth/drive');
+        retryProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+        retryProvider.setCustomParameters({
+          prompt: 'consent',
+          access_type: 'offline'
+        });
+
+        const retryResult = await signInWithPopup(auth, retryProvider);
+        currentUser = retryResult.user;
+        googleCredential = GoogleAuthProvider.credentialFromResult(retryResult);
+        accessToken = googleCredential?.accessToken;
+
+        console.log('🔄 재시도 결과:', {
+          credential: !!googleCredential,
+          accessToken: !!accessToken,
+          tokenLength: accessToken?.length || 0
+        });
+      }
 
       if (accessToken) {
         localStorage.setItem('googleAccessToken', accessToken);
@@ -40,15 +69,16 @@ export default function LoginPage() {
       } else {
         console.error('❌ Google Drive 액세스 토큰을 가져올 수 없습니다.');
         console.error('credential:', googleCredential);
-        alert('⚠️ Google Drive 액세스 토큰을 가져올 수 없습니다.\n\n다시 로그인을 시도하거나, 문제가 지속되면 관리자에게 문의하세요.');
+        // 토큰이 없어도 진행 (나중에 자동 재인증)
+        console.warn('⚠️ Drive 기능 사용 시 자동으로 권한을 요청합니다.');
       }
 
       // 관리자 UID 확인
       const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
-      const isAdmin = user.uid === adminUid;
+      const isAdmin = currentUser.uid === adminUid;
 
       // 승인된 사용자인지 확인
-      const approved = await isApprovedUser(user.uid);
+      const approved = await isApprovedUser(currentUser.uid);
 
       if (approved) {
         // 승인된 사용자 -> 관리자 페이지로
@@ -56,21 +86,21 @@ export default function LoginPage() {
       } else if (isAdmin) {
         // 관리자인 경우 자동 승인
         await addDoc(collection(db, 'approvedUsers'), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName,
+          photoURL: currentUser.photoURL,
           approvedAt: serverTimestamp(),
-          approvedBy: user.uid, // 자기 자신이 승인
+          approvedBy: currentUser.uid, // 자기 자신이 승인
         });
         router.push('/admin');
       } else {
         // 승인되지 않은 사용자 -> pendingUsers에 추가 후 대기 화면으로
         await addPendingUser(
-          user.uid,
-          user.email || '',
-          user.displayName,
-          user.photoURL
+          currentUser.uid,
+          currentUser.email || '',
+          currentUser.displayName,
+          currentUser.photoURL
         );
         router.push('/waiting-approval');
       }
