@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   subscribeToSurveySession,
   updateSurveySessionStatus,
@@ -384,6 +385,7 @@ function SurveyResultView({
   handleEndSurvey,
   router
 }: any) {
+  const [chartType, setChartType] = useState<'progress' | 'pie' | 'bar'>('pie');
   const responseCount = session.responseCount || 0;
   const statistics = session.statistics || {};
   const isLastItem = session.currentItemIndex >= session.surveyItems.length - 1;
@@ -404,6 +406,16 @@ function SurveyResultView({
   }
 
   const maxCount = Math.max(...Object.values(optionCounts), 1);
+
+  // 차트 데이터 준비
+  const chartData = Object.entries(optionCounts).map(([name, value]) => ({
+    name,
+    value,
+    percentage: responseCount > 0 ? ((value / responseCount) * 100).toFixed(1) : 0
+  }));
+
+  // 차트 색상
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-6">
@@ -428,34 +440,125 @@ function SurveyResultView({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* 설문 결과 차트 */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">📊 응답 결과</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">📊 응답 결과</h3>
+              {currentItem.type === 'multiple' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setChartType('pie')}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      chartType === 'pie'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    원그래프
+                  </button>
+                  <button
+                    onClick={() => setChartType('bar')}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      chartType === 'bar'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    막대그래프
+                  </button>
+                  <button
+                    onClick={() => setChartType('progress')}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      chartType === 'progress'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    진행바
+                  </button>
+                </div>
+              )}
+            </div>
 
             {currentItem.type === 'multiple' ? (
               <div className="space-y-3">
-                {currentItem.options.map((option: string, idx: number) => {
-                  const count = optionCounts[option] || 0;
-                  const percentage = responseCount > 0 ? (count / responseCount) * 100 : 0;
-
-                  return (
-                    <div key={idx}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium text-gray-700">{option}</span>
-                        <span className="text-gray-600">{count}명 ({percentage.toFixed(0)}%)</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-8">
-                        <div
-                          className="bg-green-600 h-8 rounded-full flex items-center justify-end pr-3 text-white font-bold text-sm"
-                          style={{ width: `${percentage}%` }}
+                {/* 원그래프 */}
+                {chartType === 'pie' && chartData.length > 0 && (
+                  <div className="flex flex-col items-center">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={(entry: any) => `${entry.name}: ${entry.percentage}%`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
                         >
-                          {percentage > 10 && `${percentage.toFixed(0)}%`}
-                        </div>
-                      </div>
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => `${value}명`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 text-center text-sm text-gray-600">
+                      총 응답: {responseCount}명
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* 막대그래프 */}
+                {chartType === 'bar' && chartData.length > 0 && (
+                  <div>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value: any) => `${value}명`} />
+                        <Bar dataKey="value" fill="#10b981">
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 text-center text-sm text-gray-600">
+                      총 응답: {responseCount}명
+                    </div>
+                  </div>
+                )}
+
+                {/* 진행 바 (기존) */}
+                {chartType === 'progress' && (
+                  <>
+                    {currentItem.options.map((option: string, idx: number) => {
+                      const count = optionCounts[option] || 0;
+                      const percentage = responseCount > 0 ? (count / responseCount) * 100 : 0;
+
+                      return (
+                        <div key={idx}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium text-gray-700">{option}</span>
+                            <span className="text-gray-600">{count}명 ({percentage.toFixed(0)}%)</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-8">
+                            <div
+                              className="bg-green-600 h-8 rounded-full flex items-center justify-end pr-3 text-white font-bold text-sm"
+                              style={{ width: `${percentage}%` }}
+                            >
+                              {percentage > 10 && `${percentage.toFixed(0)}%`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
 
                 {otherResponses.length > 0 && (
-                  <div>
+                  <div className="mt-4">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium text-gray-700">기타 의견</span>
                       <span className="text-gray-600">{otherResponses.length}명</span>
@@ -466,6 +569,10 @@ function SurveyResultView({
                       ))}
                     </div>
                   </div>
+                )}
+
+                {chartData.length === 0 && (
+                  <p className="text-center text-gray-400 py-4">아직 응답이 없습니다</p>
                 )}
               </div>
             ) : (
