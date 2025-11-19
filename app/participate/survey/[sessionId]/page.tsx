@@ -16,8 +16,8 @@ export default function SurveyParticipatePage() {
 
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [nickname, setNickname] = useState('');
   const [participantId, setParticipantId] = useState('');
+  const [participantNumber, setParticipantNumber] = useState(0);
   const [hasJoined, setHasJoined] = useState(false);
 
   // 현재 설문 답변 상태
@@ -50,18 +50,21 @@ export default function SurveyParticipatePage() {
   };
 
   const handleJoin = async () => {
-    if (!nickname.trim()) {
-      alert('이름을 입력해주세요.');
-      return;
-    }
-
     try {
       const pid = `p-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // 현재 참여자 수 + 1로 번호 부여
+      const participantCount = session?.participants?.length || 0;
+      const number = participantCount + 1;
+      const nickname = `참여자 ${number}`;
+
       await addParticipantToSurveySession(sessionId, {
         id: pid,
-        nickname: nickname.trim()
+        nickname
       });
+
       setParticipantId(pid);
+      setParticipantNumber(number);
       setHasJoined(true);
     } catch (error) {
       console.error('참가 실패:', error);
@@ -143,7 +146,7 @@ export default function SurveyParticipatePage() {
     );
   }
 
-  // 참가하지 않은 경우 - 이름 입력
+  // 참가하지 않은 경우 - 참여 버튼만 표시
   if (!hasJoined) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
@@ -154,28 +157,17 @@ export default function SurveyParticipatePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">설문 참여</h1>
-            <p className="text-gray-600">이름을 입력하고 시작하세요</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">익명 설문 참여</h1>
+            <p className="text-gray-600">아래 버튼을 클릭하여 설문에 참여하세요</p>
+            <p className="text-sm text-gray-500 mt-2">설문은 익명으로 진행됩니다</p>
           </div>
 
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="이름을 입력하세요"
-              className="w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 text-gray-900"
-              onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
-              maxLength={20}
-            />
-
-            <button
-              onClick={handleJoin}
-              className="w-full px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-lg font-bold"
-            >
-              참여하기
-            </button>
-          </div>
+          <button
+            onClick={handleJoin}
+            className="w-full px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+          >
+            참여하기
+          </button>
         </div>
       </div>
     );

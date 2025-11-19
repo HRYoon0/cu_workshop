@@ -188,10 +188,12 @@ export default function SurveySessionPage({ params }: PageProps) {
                 </div>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {activeParticipants.map((p: any) => (
+                {activeParticipants.map((p: any, index: number) => (
                   <div key={p.id} className="bg-green-50 rounded-lg px-4 py-3 flex items-center gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="font-semibold text-gray-800">{p.nickname}</span>
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">{index + 1}</span>
+                    </div>
+                    <span className="font-semibold text-gray-800">참여자 {index + 1}</span>
                   </div>
                 ))}
                 {participantCount === 0 && (
