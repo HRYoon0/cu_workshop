@@ -412,7 +412,7 @@ export async function checkTokenValidity(): Promise<boolean> {
 
 /**
  * Google OAuth 액세스 토큰 가져오기
- * Firebase Auth의 Google 크리덴셜에서 토큰 추출
+ * 토큰이 없으면 자동으로 재인증 시도
  */
 export async function getGoogleAccessToken(): Promise<string> {
   const { auth } = await import('./firebase');
@@ -426,11 +426,23 @@ export async function getGoogleAccessToken(): Promise<string> {
   }
 
   // localStorage에서 저장된 토큰 확인
-  const storedToken = localStorage.getItem('googleAccessToken');
+  let storedToken = localStorage.getItem('googleAccessToken');
 
   console.log('저장된 토큰:', storedToken ? '✅ 있음' : '❌ 없음');
 
+  // 토큰이 없으면 자동으로 재인증 시도
   if (!storedToken) {
+    console.log('🔄 토큰이 없어서 자동으로 재인증을 시도합니다...');
+    const success = await attemptAutoReauth();
+
+    if (success) {
+      storedToken = localStorage.getItem('googleAccessToken');
+      if (storedToken) {
+        console.log('✅ 자동 재인증 성공! 작업을 계속합니다.');
+        return storedToken;
+      }
+    }
+
     throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
   }
 
