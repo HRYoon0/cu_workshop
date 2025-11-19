@@ -1521,17 +1521,20 @@ export async function createSurveyItem(itemData: Omit<any, 'id' | 'createdAt'>) 
  */
 export async function getSurveyItems(topicId: string) {
   try {
+    // orderBy 제거 - 인덱스 불필요하도록
     const q = query(
       collection(db, 'surveyItems'),
-      where('topicId', '==', topicId),
-      orderBy('order', 'asc')
+      where('topicId', '==', topicId)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const items = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
     }));
+
+    // 클라이언트에서 order 기준으로 정렬
+    return items.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
   } catch (error) {
     console.error('설문 항목 목록 가져오기 실패:', error);
     throw error;
@@ -1543,17 +1546,20 @@ export async function getSurveyItems(topicId: string) {
  */
 export async function getAllSurveyItemsByUser(userId: string) {
   try {
+    // orderBy 제거 - 인덱스 불필요하도록
     const q = query(
       collection(db, 'surveyItems'),
-      where('userId', '==', userId),
-      orderBy('order', 'asc')
+      where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const items = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
     }));
+
+    // 클라이언트에서 order 기준으로 정렬
+    return items.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
   } catch (error) {
     console.error('설문 항목 목록 가져오기 실패:', error);
     throw error;
