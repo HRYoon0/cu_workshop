@@ -554,11 +554,17 @@ export async function submitSurveyResponse(
   userId?: string
 ) {
   try {
+    console.log('📝 설문 응답 제출 시작');
+    console.log('응답 데이터:', response);
+    console.log('surveyTitle:', surveyTitle);
+    console.log('userId:', userId);
+
     const sessionRef = doc(db, 'surveySessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
 
     if (sessionDoc.exists()) {
       const currentResponses = sessionDoc.data().responses || [];
+      console.log('현재 응답 수:', currentResponses.length);
 
       // 고유 ID를 가진 응답 생성 (구글 시트 저장 후 삭제 시 식별용)
       const responseWithId = {
@@ -567,52 +573,69 @@ export async function submitSurveyResponse(
         timestamp: Timestamp.now(),
       };
 
+      console.log('응답 ID 생성:', responseWithId.responseId);
+
       // Firebase에 임시 저장 (실시간 표시용)
+      console.log('Firebase에 응답 저장 중...');
       await updateDoc(sessionRef, {
         responses: [...currentResponses, responseWithId],
       });
+      console.log('✅ Firebase 저장 완료!');
 
-      // 구글 시트에 저장하고 성공하면 Firebase에서 삭제
+      // 구글 시트에 저장 (비동기로 백그라운드에서 처리)
       if (surveyTitle && userId) {
-        try {
-          // 새 설문 시스템: answer를 textValue로 변환
-          let textValue = '';
-          if (typeof response.answer === 'string') {
-            textValue = response.answer === 'other'
-              ? (response.otherText || '기타')
-              : response.answer;
-          } else if (typeof response.answer === 'number') {
-            textValue = `선택 ${response.answer + 1}`;
-          }
+        console.log('🔄 구글 시트 저장 시작 (백그라운드)');
+        // 백그라운드에서 처리 (사용자를 기다리게 하지 않음)
+        (async () => {
+          try {
+            // 새 설문 시스템: answer를 textValue로 변환
+            let textValue = '';
+            if (typeof response.answer === 'string') {
+              textValue = response.answer === 'other'
+                ? (response.otherText || '기타')
+                : response.answer;
+            } else if (typeof response.answer === 'number') {
+              textValue = `선택 ${response.answer + 1}`;
+            }
 
-          await saveSurveyResultToSheet({
-            sessionId,
-            surveyTitle,
-            participantName: `참여자 ${sessionDoc.data().participants?.length || 0}`,
-            scaleValue: response.scaleValue,
-            textValue: textValue || response.textValue,
-            timestamp: response.timestamp || new Date(),
-          }, userId);
+            console.log('시트에 저장할 데이터:', { textValue, surveyTitle });
 
-          // 구글 시트 저장 성공 - Firebase에서 해당 응답 삭제
-          const updatedDoc = await getDoc(sessionRef);
-          if (updatedDoc.exists()) {
-            const allResponses = updatedDoc.data().responses || [];
-            const filteredResponses = allResponses.filter(
-              (r: any) => r.responseId !== responseWithId.responseId
-            );
-            await updateDoc(sessionRef, {
-              responses: filteredResponses,
-            });
-            console.log('설문 응답 구글 시트 저장 완료, Firebase에서 삭제');
+            await saveSurveyResultToSheet({
+              sessionId,
+              surveyTitle,
+              participantName: `참여자 ${sessionDoc.data().participants?.length || 0}`,
+              scaleValue: response.scaleValue,
+              textValue: textValue || response.textValue,
+              timestamp: response.timestamp || new Date(),
+            }, userId);
+
+            console.log('✅ 구글 시트 저장 완료');
+
+            // 구글 시트 저장 성공 - Firebase에서 해당 응답 삭제
+            const updatedDoc = await getDoc(sessionRef);
+            if (updatedDoc.exists()) {
+              const allResponses = updatedDoc.data().responses || [];
+              const filteredResponses = allResponses.filter(
+                (r: any) => r.responseId !== responseWithId.responseId
+              );
+              await updateDoc(sessionRef, {
+                responses: filteredResponses,
+              });
+              console.log('Firebase에서 응답 삭제 완료');
+            }
+          } catch (err) {
+            console.error('❌ 구글 시트 저장 실패:', err);
+            console.error('Firebase에 응답 유지');
           }
-        } catch (err) {
-          console.log('구글 시트 저장 실패, Firebase에 응답 유지:', err);
-        }
+        })();
+      } else {
+        console.log('⚠️ 구글 시트 저장 건너뜀 (surveyTitle 또는 userId 없음)');
       }
+    } else {
+      console.error('❌ 세션을 찾을 수 없습니다');
     }
   } catch (error) {
-    console.error('설문 응답 제출 실패:', error);
+    console.error('❌ 설문 응답 제출 실패:', error);
     throw error;
   }
 }
