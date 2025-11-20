@@ -117,23 +117,30 @@ function doPost(e) {
           }
         }
 
-        // 3. 이미지 삽입
+        // 3. 이미지 삽입 (Range 기반으로 정확한 위치 지정)
         if (blob) {
-          const insertedImage = sheet.insertImage(blob, img.column, img.row);
+          // Range를 사용하여 정확한 셀에 앵커링
+          const range = sheet.getRange(img.row, img.column);
+          const insertedImage = range.insertImage(blob);
+
           if (img.width && img.height) {
             insertedImage.setWidth(img.width);
             insertedImage.setHeight(img.height);
           }
-          imgLog.push(`Inserted via ${method}`);
+
+          imgLog.push(`Inserted via ${method} at R${img.row}C${img.column}`);
           results.push({ success: true, log: imgLog.join(" | ") });
         } else {
           // 4. Blob 실패 시 URL로 직접 삽입 시도 (최후의 수단)
           imgLog.push("Blob failed, trying insertImage(url)");
-          const insertedImage = sheet.insertImage(img.url, img.column, img.row);
+          const range = sheet.getRange(img.row, img.column);
+          const insertedImage = range.insertImage(img.url);
+
           if (img.width && img.height) {
             insertedImage.setWidth(img.width);
             insertedImage.setHeight(img.height);
           }
+
           results.push({ success: true, method: "DirectURL", log: imgLog.join(" | ") });
         }
 

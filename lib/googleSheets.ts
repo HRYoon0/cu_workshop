@@ -490,74 +490,78 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. 이미지 삽입 (Apps Script 사용)
+    // 6. Google Sheets API로 이미지 직접 삽입 (정확한 픽셀 좌표)
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
-        const appsScriptUrl = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL ||
-          'https://script.google.com/macros/s/AKfycbxyywKrSU93zMfIt-56T0U8L4nprsFEkiKFVLsTy_xfvcOojNDD7FZJt3dxfq-JzidHEA/exec';
+        const imageRequests: any[] = [];
 
-        if (!appsScriptUrl) {
-          console.warn('Apps Script URL이 설정되지 않아 이미지를 삽입할 수 없습니다.');
-          return;
-        }
-
-        const imagesToInsert = [];
-
-        // 1. 학부모 이미지: 차트 오른쪽 (H열)
+        // 차트 너비: 400px (D-F열 범위)
+        // 학부모 이미지: G열 시작 (차트 바로 오른쪽)
         if (data.parentResultImageUrl) {
-          imagesToInsert.push({
-            url: data.parentResultImageUrl,
-            row: startRow, // 1-based index
-            column: 8,     // H열
-            width: 250,    // 250x250
-            height: 250
+          const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+          console.log('📸 학부모 이미지 URL:', imageUrl);
+
+          imageRequests.push({
+            addImage: {
+              url: imageUrl,
+              anchorCell: {
+                sheetId: firstSheetId,
+                rowIndex: startRow - 1, // 0-based
+                columnIndex: 6 // G열 (0-based)
+              },
+              offsetXPixels: 10,
+              offsetYPixels: 10,
+              widthPixels: 250,
+              heightPixels: 250
+            }
           });
         }
 
-        // 2. 학생 이미지: 학부모 이미지 오른쪽 (K열)
+        // 학생 이미지: 학부모 이미지 오른쪽 (J열)
         if (data.studentResultImageUrl) {
-          imagesToInsert.push({
-            url: data.studentResultImageUrl,
-            row: startRow, // 1-based index
-            column: 11,    // K열
-            width: 250,    // 250x250
-            height: 250
+          const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+          console.log('📸 학생 이미지 URL:', imageUrl);
+
+          imageRequests.push({
+            addImage: {
+              url: imageUrl,
+              anchorCell: {
+                sheetId: firstSheetId,
+                rowIndex: startRow - 1, // 0-based
+                columnIndex: 9 // J열 (0-based)
+              },
+              offsetXPixels: 10,
+              offsetYPixels: 10,
+              widthPixels: 250,
+              heightPixels: 250
+            }
           });
         }
 
-        if (imagesToInsert.length > 0) {
-          console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
-          console.log('📦 전송 데이터:', JSON.stringify(imagesToInsert, null, 2));
-          console.log('🔗 사용 중인 Apps Script URL:', appsScriptUrl);
+        if (imageRequests.length > 0) {
+          console.log('🖼️ Google Sheets API로 이미지 삽입 요청...');
 
-          // CORS Preflight(OPTIONS)를 피하기 위해 Content-Type을 text/plain으로 설정합니다.
-          // 이렇게 하면 "Simple Request"로 처리되어 바로 POST를 보내고, 응답도 읽을 수 있습니다.
-          try {
-            const response = await fetch(appsScriptUrl, {
+          const imageResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+            {
               method: 'POST',
               headers: {
-                'Content-Type': 'text/plain', // application/json 대신 사용 (Preflight 방지)
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
-                spreadsheetId: spreadsheetId,
-                images: imagesToInsert
-              }),
-            });
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log('✅ 이미지 삽입 요청 성공!');
-              console.log('📋 상세 결과:', JSON.stringify(result, null, 2));
-            } else {
-              const errorText = await response.text();
-              console.error('❌ 이미지 삽입 요청 실패 (HTTP Error):', response.status, errorText);
+              body: JSON.stringify({ requests: imageRequests }),
             }
-          } catch (fetchError) {
-            console.error('❌ 이미지 삽입 요청 중 네트워크/CORS 에러:', fetchError);
+          );
+
+          if (!imageResponse.ok) {
+            const errorText = await imageResponse.text();
+            console.error('❌ 이미지 삽입 실패:', errorText);
+          } else {
+            console.log('✅ 이미지 삽입 성공 (Google Sheets API)');
           }
         }
       } catch (error) {
-        console.error('❌ 이미지 삽입 요청 실패:', error);
+        console.error('❌ 이미지 삽입 에러:', error);
       }
     }
 
