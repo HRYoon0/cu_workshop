@@ -532,12 +532,13 @@ export async function saveSurveyChartToSheet(
           console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
           console.log('🔗 사용 중인 Apps Script URL:', appsScriptUrl);
 
-          // 표준 CORS 요청으로 변경 (Apps Script에 doOptions가 추가되었으므로 가능)
+          // CORS Preflight(OPTIONS)를 피하기 위해 Content-Type을 text/plain으로 설정합니다.
+          // 이렇게 하면 "Simple Request"로 처리되어 바로 POST를 보내고, 응답도 읽을 수 있습니다.
           try {
             const response = await fetch(appsScriptUrl, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain', // application/json 대신 사용 (Preflight 방지)
               },
               body: JSON.stringify({
                 spreadsheetId: spreadsheetId,
