@@ -261,7 +261,7 @@ export async function clearSurveySheetData(
 
 /**
  * 구글 드라이브 URL을 구글 시트 IMAGE 함수용 URL로 변환
- * lh3.googleusercontent.com/d/{fileId} -> drive.google.com/uc?export=view&id={fileId}
+ * lh3.googleusercontent.com/d/{fileId} -> drive.google.com/thumbnail?id={fileId}
  */
 function convertToDriveImageUrl(url: string): string {
   if (!url) return url;
@@ -270,10 +270,18 @@ function convertToDriveImageUrl(url: string): string {
   const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([^/?]+)/);
   if (lh3Match) {
     const fileId = lh3Match[1];
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    // 썸네일 URL 사용 - 공개 설정된 이미지는 액세스 허용 없이 표시됨
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
   }
 
-  // 이미 drive.google.com/uc 형식이거나 다른 형식인 경우 그대로 반환
+  // 이미 drive.google.com 형식인 경우 파일 ID 추출
+  const driveMatch = url.match(/[?&]id=([^&]+)/);
+  if (driveMatch) {
+    const fileId = driveMatch[1];
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
+  }
+
+  // 다른 형식인 경우 그대로 반환
   return url;
 }
 
