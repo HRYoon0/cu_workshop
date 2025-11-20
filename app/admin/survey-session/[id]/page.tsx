@@ -25,6 +25,7 @@ export default function SurveySessionPage({ params }: PageProps) {
   const [error, setError] = useState('');
   const [showQRModal, setShowQRModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // 버튼 중복 클릭 방지
+  const [isStarting, setIsStarting] = useState(false); // 설문 시작 로딩 상태
 
   const sessionRef = useRef<any>(null);
 
@@ -56,6 +57,8 @@ export default function SurveySessionPage({ params }: PageProps) {
   }, [sessionId]);
 
   const handleStartSurvey = async () => {
+    if (isStarting) return;
+
     try {
       // 구글 시트가 연결된 경우 초기화 경고
       if (session?.sheetUrl && session?.adminAccessToken) {
@@ -69,6 +72,8 @@ export default function SurveySessionPage({ params }: PageProps) {
           return; // 사용자가 취소한 경우
         }
 
+        setIsStarting(true);
+
         // 기존 시트 데이터 초기화 (A1에 세션 ID 작성)
         const cleared = await clearSurveySheetData(
           session.sheetUrl,
@@ -81,12 +86,16 @@ export default function SurveySessionPage({ params }: PageProps) {
         } else {
           console.warn('⚠️ 시트 초기화에 실패했지만 설문을 계속 진행합니다.');
         }
+      } else {
+        setIsStarting(true);
       }
 
       await updateSurveySessionStatus(sessionId, 'active');
     } catch (err) {
       console.error('설문 시작 실패:', err);
       alert('설문 시작에 실패했습니다.');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -320,9 +329,24 @@ export default function SurveySessionPage({ params }: PageProps) {
           <div className="mt-6 flex justify-center">
             <button
               onClick={handleStartSurvey}
-              className="px-12 py-6 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-colors text-2xl font-bold shadow-xl"
+              disabled={isStarting}
+              className={`px-12 py-6 text-white rounded-2xl transition-colors text-2xl font-bold shadow-xl ${
+                isStarting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
-              설문 시작하기
+              {isStarting ? (
+                <span className="flex items-center gap-3">
+                  <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  시작하는 중...
+                </span>
+              ) : (
+                '설문 시작하기'
+              )}
             </button>
           </div>
         </div>
