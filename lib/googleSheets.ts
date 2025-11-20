@@ -468,39 +468,51 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. IMAGE() 함수로 이미지 삽입
+    // 6. API Route를 통해 Apps Script로 이미지 삽입
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
+      const images: any[] = [];
+
+      // E열(5번째 열)에 학부모 이미지 (1-based index)
+      if (data.parentResultImageUrl) {
+        images.push({
+          url: convertToDriveImageUrl(data.parentResultImageUrl),
+          row: startRow, // 1-based
+          column: 5, // E열
+          width: 250,
+          height: 250
+        });
+      }
+
+      // F열(6번째 열)에 학생 이미지 (1-based index)
+      if (data.studentResultImageUrl) {
+        images.push({
+          url: convertToDriveImageUrl(data.studentResultImageUrl),
+          row: startRow, // 1-based
+          column: 6, // F열
+          width: 250,
+          height: 250
+        });
+      }
+
       try {
-        const parentImageUrl = data.parentResultImageUrl
-          ? convertToDriveImageUrl(data.parentResultImageUrl)
-          : '';
-        const studentImageUrl = data.studentResultImageUrl
-          ? convertToDriveImageUrl(data.studentResultImageUrl)
-          : '';
+        // Next.js API Route를 통해 Apps Script 호출 (CORS 우회)
+        const imageResponse = await fetch('/api/insert-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            spreadsheetId: spreadsheetId,
+            images: images
+          }),
+        });
 
-        console.log('📸 이미지 URL:', { parentImageUrl, studentImageUrl });
-
-        // IMAGE() 함수로 이미지 삽입 (E열, F열)
-        // mode=1: 원본 크기 유지하되 셀 안에 맞춤
-        const imageFormulas = [[
-          parentImageUrl ? `=IMAGE("${parentImageUrl}", 1)` : '',
-          studentImageUrl ? `=IMAGE("${studentImageUrl}", 1)` : ''
-        ]];
-
-        const imageRange = `E${startRow}:F${startRow}`;
-        await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${imageRange}?valueInputOption=USER_ENTERED`,
-          {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ values: imageFormulas }),
-          }
-        );
-
-        console.log('✅ IMAGE() 함수로 이미지 삽입 완료');
+        if (!imageResponse.ok) {
+          console.error('❌ 이미지 삽입 실패:', await imageResponse.text());
+        } else {
+          const result = await imageResponse.json();
+          console.log('✅ 이미지 삽입 성공:', result);
+        }
       } catch (error) {
         console.error('❌ 이미지 삽입 에러:', error);
       }
