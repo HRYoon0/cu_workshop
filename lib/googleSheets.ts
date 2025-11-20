@@ -356,7 +356,7 @@ export async function saveSurveyChartToSheet(
     const allData: string[][] = [];
     const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 1행: 설문 제목 (이미지는 OverGridImage로 E, F열에 삽입)
+    // 1행: 설문 제목
     const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
     allData.push(titleRow);
 
@@ -364,7 +364,17 @@ export async function saveSurveyChartToSheet(
     allData.push([`총 응답: ${data.totalResponses}명`, '', '', '', '', '']);
 
     // 3행: 헤더
-    allData.push(['옵션', '응답 수', '비율(%)', '', '', '']);
+    const headerRow = ['옵션', '응답 수', '비율(%)', '', '', ''];
+    // E, F열에 이미지 링크 추가
+    if (data.parentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+      headerRow[4] = `=HYPERLINK("${imageUrl}", "👨‍👩‍👧 학부모")`;
+    }
+    if (data.studentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+      headerRow[5] = `=HYPERLINK("${imageUrl}", "👦 학생")`;
+    }
+    allData.push(headerRow);
 
     // 4행~: 데이터
     for (let i = 1; i < chartData.length; i++) {
@@ -433,9 +443,7 @@ export async function saveSurveyChartToSheet(
                 offsetXPixels: 0,
                 offsetYPixels: 0,
                 widthPixels: 300,
-                // 차트 높이 = 데이터 영역에 맞춤 (제목+총응답+헤더+데이터 = 3+dataCount 행)
-                // 각 행 약 25px + 여백 50px
-                heightPixels: Math.max(150, (3 + dataCount) * 25 + 50)
+                heightPixels: 250 // 고정 크기
               }
             }
           }
@@ -454,59 +462,6 @@ export async function saveSurveyChartToSheet(
         body: JSON.stringify(chartRequest),
       }
     );
-
-    // 6. 이미지를 OverGridImage로 삽입 (IMAGE 함수는 외부 URL 액세스 허용 필요)
-    const imageRequests: any[] = [];
-
-    if (data.parentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
-
-      // 학부모 이미지를 E열 제목 행 옆에 배치
-      imageRequests.push({
-        createImage: {
-          url: imageUrl,
-          anchorCell: {
-            sheetId: firstSheetId,
-            rowIndex: startRow - 1, // 제목 행 (0-based)
-            columnIndex: 4 // E열
-          },
-          offsetXPixels: 5,
-          offsetYPixels: 5
-        }
-      });
-    }
-
-    if (data.studentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
-
-      // 학생 이미지를 F열 제목 행 옆에 배치
-      imageRequests.push({
-        createImage: {
-          url: imageUrl,
-          anchorCell: {
-            sheetId: firstSheetId,
-            rowIndex: startRow - 1, // 제목 행 (0-based)
-            columnIndex: 5 // F열
-          },
-          offsetXPixels: 5,
-          offsetYPixels: 5
-        }
-      });
-    }
-
-    if (imageRequests.length > 0) {
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ requests: imageRequests }),
-        }
-      );
-    }
 
     console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
   } catch (error) {
