@@ -38,9 +38,24 @@ function doPost(e) {
     const results = [];
     images.forEach(img => {
       try {
-        // URL에서 이미지 가져오기
-        const response = UrlFetchApp.fetch(img.url);
-        const blob = response.getBlob();
+        let blob;
+
+        // URL에서 파일 ID 추출
+        // lh3.googleusercontent.com/d/{fileId} 형식
+        const lh3Match = img.url.match(/lh3\.googleusercontent\.com\/d\/([^/?]+)/);
+        // drive.google.com/uc?id={fileId} 형식
+        const driveMatch = img.url.match(/[?&]id=([^&]+)/);
+
+        if (lh3Match || driveMatch) {
+          // 파일 ID로 직접 접근 (DriveApp 사용)
+          const fileId = lh3Match ? lh3Match[1] : driveMatch[1];
+          const file = DriveApp.getFileById(fileId);
+          blob = file.getBlob();
+        } else {
+          // 일반 URL인 경우 fetch 사용
+          const response = UrlFetchApp.fetch(img.url);
+          blob = response.getBlob();
+        }
 
         // 이미지 삽입 (row, column은 1-based index)
         const insertedImage = sheet.insertImage(blob, img.column, img.row);

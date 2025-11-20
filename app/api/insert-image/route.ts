@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { spreadsheetId, images } = body;
 
+    console.log('🔍 이미지 삽입 요청:', {
+      spreadsheetId,
+      imageCount: images?.length,
+      imageUrls: images?.map((img: any) => img.url)
+    });
+
     const imageInserterUrl = process.env.NEXT_PUBLIC_IMAGE_INSERTER_URL;
     if (!imageInserterUrl) {
       return NextResponse.json(
