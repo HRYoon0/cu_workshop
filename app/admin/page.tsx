@@ -16,10 +16,6 @@ import {
   createQuizSession,
   createSurveySession,
   createSurveyItemsSession,
-  isApprovedUser,
-  getPendingUsers,
-  approveUser,
-  rejectUser,
   createDepartment,
   getDepartments,
   updateDepartment,
@@ -67,7 +63,7 @@ import {
 
 export default function AdminPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'quiz' | 'survey' | 'discussion' | 'approval'>('quiz');
+  const [activeTab, setActiveTab] = useState<'quiz' | 'survey' | 'discussion'>('quiz');
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -90,14 +86,6 @@ export default function AdminPage() {
       if (!currentUser) {
         // 로그인되지 않음 -> 로그인 페이지로
         setTimeout(() => router.push('/login'), 0);
-        return;
-      }
-
-      // 승인된 사용자인지 확인
-      const approved = await isApprovedUser(currentUser.uid);
-      if (!approved) {
-        // 승인되지 않음 -> 대기 화면으로
-        setTimeout(() => router.push('/waiting-approval'), 0);
         return;
       }
 
@@ -154,7 +142,7 @@ export default function AdminPage() {
   };
 
   // 탭 변경 핸들러 - 토큰 유효성 체크 및 자동 재인증
-  const handleTabChange = async (tab: 'quiz' | 'survey' | 'discussion' | 'approval') => {
+  const handleTabChange = async (tab: 'quiz' | 'survey' | 'discussion') => {
     // 토큰 유효성 체크 (만료 여부 확인)
     const isValid = await checkTokenValidity();
 
@@ -381,18 +369,6 @@ export default function AdminPage() {
           >
             논의 자료
           </button>
-          {isAdmin && (
-            <button
-              onClick={() => handleTabChange('approval')}
-              className={`px-6 py-3 font-semibold transition-all ${
-                activeTab === 'approval'
-                  ? 'border-b-4 border-purple-500 text-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              승인 관리
-            </button>
-          )}
         </div>
 
         {/* 컨텐츠 영역 */}
@@ -400,137 +376,7 @@ export default function AdminPage() {
           {activeTab === 'quiz' && <QuizManager userId={user?.uid} />}
           {activeTab === 'survey' && <SurveyManager userId={user?.uid} />}
           {activeTab === 'discussion' && <DepartmentManager userId={user?.uid} />}
-          {activeTab === 'approval' && isAdmin && <ApprovalManager userId={user?.uid} />}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// 승인 관리 컴포넌트
-function ApprovalManager({ userId }: { userId: string }) {
-  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadPendingUsers();
-  }, []);
-
-  const loadPendingUsers = async () => {
-    try {
-      setIsLoading(true);
-      const users = await getPendingUsers();
-      setPendingUsers(users);
-    } catch (error) {
-      console.error('승인 대기 목록 불러오기 실패:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleApprove = async (pendingUserId: string, uid: string, email: string, displayName: string | null, photoURL: string | null) => {
-    if (!confirm('이 사용자를 승인하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      await approveUser(pendingUserId, uid, email, displayName, photoURL, userId);
-      await loadPendingUsers();
-      alert('승인되었습니다.');
-    } catch (error) {
-      console.error('승인 실패:', error);
-      alert('승인에 실패했습니다.');
-    }
-  };
-
-  const handleReject = async (pendingUserId: string) => {
-    if (!confirm('이 사용자를 거절하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      await rejectUser(pendingUserId);
-      await loadPendingUsers();
-      alert('거절되었습니다.');
-    } catch (error) {
-      console.error('거절 실패:', error);
-      alert('거절에 실패했습니다.');
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">승인 대기 목록</h2>
-        <button
-          onClick={loadPendingUsers}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
-        >
-          새로고침
-        </button>
-      </div>
-
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 text-lg">목록을 불러오는 중...</p>
-          </div>
-        ) : pendingUsers.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-gray-500 text-lg">승인 대기 중인 사용자가 없습니다</p>
-          </div>
-        ) : (
-          pendingUsers.map((pendingUser: any) => (
-            <div key={pendingUser.id} className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {pendingUser.photoURL && (
-                    <img
-                      src={pendingUser.photoURL}
-                      alt="프로필"
-                      className="w-12 h-12 rounded-full"
-                    />
-                  )}
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">
-                      {pendingUser.displayName || '이름 없음'}
-                    </h3>
-                    <p className="text-gray-600">{pendingUser.email}</p>
-                    <p className="text-sm text-gray-400">
-                      {pendingUser.createdAt?.toLocaleString('ko-KR') || ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleApprove(
-                      pendingUser.id,
-                      pendingUser.uid,
-                      pendingUser.email,
-                      pendingUser.displayName,
-                      pendingUser.photoURL
-                    )}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                  >
-                    승인
-                  </button>
-                  <button
-                    onClick={() => handleReject(pendingUser.id)}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold"
-                  >
-                    거절
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
       </div>
     </div>
   );

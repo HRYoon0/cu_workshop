@@ -4,10 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
-import { isApprovedUser, addPendingUser, approveUser } from '@/lib/firestore';
-import { addDoc, collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { serverTimestamp } from 'firebase/firestore';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -73,37 +69,8 @@ export default function LoginPage() {
         console.warn('⚠️ Drive 기능 사용 시 자동으로 권한을 요청합니다.');
       }
 
-      // 관리자 UID 확인
-      const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
-      const isAdmin = currentUser.uid === adminUid;
-
-      // 승인된 사용자인지 확인
-      const approved = await isApprovedUser(currentUser.uid);
-
-      if (approved) {
-        // 승인된 사용자 -> 관리자 페이지로
-        router.push('/admin');
-      } else if (isAdmin) {
-        // 관리자인 경우 자동 승인
-        await addDoc(collection(db, 'approvedUsers'), {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-          photoURL: currentUser.photoURL,
-          approvedAt: serverTimestamp(),
-          approvedBy: currentUser.uid, // 자기 자신이 승인
-        });
-        router.push('/admin');
-      } else {
-        // 승인되지 않은 사용자 -> pendingUsers에 추가 후 대기 화면으로
-        await addPendingUser(
-          currentUser.uid,
-          currentUser.email || '',
-          currentUser.displayName,
-          currentUser.photoURL
-        );
-        router.push('/waiting-approval');
-      }
+      // 로그인 성공 -> 관리자 페이지로
+      router.push('/admin');
     } catch (err: any) {
       console.error('로그인 실패:', err);
       setError(err.message || '로그인 중 오류가 발생했습니다.');
@@ -155,8 +122,7 @@ export default function LoginPage() {
           {loading ? '로그인 중...' : 'Google로 로그인'}
         </button>
 
-        <div className="text-sm text-gray-500 text-center mt-6 space-y-1">
-          <p>처음 로그인하시는 경우 관리자의 승인이 필요합니다.</p>
+        <div className="text-sm text-gray-500 text-center mt-6">
           <p className="text-xs whitespace-nowrap">Google 권한: Drive 관리, Sheets 읽기/쓰기, 이미지 업로드</p>
         </div>
       </div>
