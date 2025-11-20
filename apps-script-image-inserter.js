@@ -25,10 +25,6 @@
 
 function doPost(e) {
   try {
-    // CORS 헤더 설정
-    const output = ContentService.createTextOutput();
-    output.setMimeType(ContentService.MimeType.JSON);
-
     // POST 데이터 파싱
     const data = JSON.parse(e.postData.contents);
     const spreadsheetId = data.spreadsheetId;
@@ -70,10 +66,13 @@ function doPost(e) {
       }
     });
 
-    return output.setContent(JSON.stringify({
-      success: true,
-      results: results
-    }));
+    // CORS 헤더와 함께 응답 반환
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success: true,
+        results: results
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     return ContentService
@@ -83,6 +82,13 @@ function doPost(e) {
       }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// OPTIONS 요청 처리 (CORS preflight)
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // GET 요청 처리 (테스트용)
