@@ -353,11 +353,19 @@ export async function saveSurveyChartToSheet(
     // 3행: 헤더 (옵션, 응답 수, 비율)
     // 4행~: 데이터 + 차트(D열)
 
-    const allData: string[][] = [];
+    const allData: any[][] = [];
     const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 1행: 설문 제목
-    const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
+    // 이미지 URL 준비 (IMAGE 함수용)
+    const parentImageFormula = data.parentResultImageUrl
+      ? `=IMAGE("${convertToDriveImageUrl(data.parentResultImageUrl)}", 1)`
+      : '';
+    const studentImageFormula = data.studentResultImageUrl
+      ? `=IMAGE("${convertToDriveImageUrl(data.studentResultImageUrl)}", 1)`
+      : '';
+
+    // 1행: 설문 제목 + 이미지 수식
+    const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', parentImageFormula, studentImageFormula];
     allData.push(titleRow);
 
     // 2행: 총 응답
@@ -459,70 +467,7 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. 이미지 직접 삽입 (Apps Script 방식)
-    // Google Sheets API의 createImage는 크기 조절이 제한적이므로
-    // 이미지를 삽입하고 updateEmbeddedObjectPosition으로 크기 조정
-    const imageRequests: any[] = [];
-
-    if (data.parentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
-      imageRequests.push({
-        createImage: {
-          url: imageUrl,
-          anchorCell: {
-            sheetId: firstSheetId,
-            rowIndex: startRow - 1, // 제목 행 (0-based)
-            columnIndex: 4 // E열
-          },
-          offsetXPixels: 10,
-          offsetYPixels: 10
-        }
-      });
-    }
-
-    if (data.studentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
-      imageRequests.push({
-        createImage: {
-          url: imageUrl,
-          anchorCell: {
-            sheetId: firstSheetId,
-            rowIndex: startRow - 1, // 제목 행 (0-based)
-            columnIndex: 5 // F열
-          },
-          offsetXPixels: 10,
-          offsetYPixels: 10
-        }
-      });
-    }
-
-    if (imageRequests.length > 0) {
-      const imageResponse = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ requests: imageRequests }),
-        }
-      );
-
-      if (!imageResponse.ok) {
-        const errorText = await imageResponse.text();
-        console.error('❌ 이미지 삽입 실패:', errorText);
-        console.error('이미지 URL 확인:', {
-          parent: data.parentResultImageUrl,
-          student: data.studentResultImageUrl
-        });
-      } else {
-        const result = await imageResponse.json();
-        console.log('✅ 이미지 삽입 성공:', result);
-      }
-    }
-
-    console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
+    console.log('✅ 설문 차트 및 이미지를 구글 시트에 저장했습니다.');
   } catch (error) {
     console.error('❌ 설문 차트 저장 실패:', error);
   }
