@@ -299,7 +299,7 @@ export async function uploadImageToDrive(
     const fileId = uploadData.id;
 
     // 4. 파일을 공개로 설정
-    await fetch(
+    const permissionResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
       {
         method: 'POST',
@@ -314,9 +314,18 @@ export async function uploadImageToDrive(
       }
     );
 
+    if (!permissionResponse.ok) {
+      const permError = await permissionResponse.text();
+      console.error('⚠️ 파일 공유 설정 실패:', permError);
+      // 공유 실패해도 계속 진행 (이미지는 업로드됨)
+    } else {
+      console.log('✅ 파일 공개 설정 완료:', fileId);
+    }
+
     // 5. 공개 URL 반환 (직접 이미지 표시 가능한 형식)
     // lh3.googleusercontent.com 형식은 img 태그에서 직접 표시 가능
     const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    console.log('📸 이미지 URL 생성:', imageUrl);
     return imageUrl;
   } catch (error) {
     console.error('Google Drive 업로드 실패:', error);
