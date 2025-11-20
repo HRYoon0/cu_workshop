@@ -503,23 +503,23 @@ export async function saveSurveyChartToSheet(
 
         const imagesToInsert = [];
 
-        // 1. 학부모 이미지: H열(8번째 열)로 이동 (차트가 D,E,F,G 차지)
+        // 1. 학부모 이미지: J열(10번째 열)로 이동 (차트와 충분한 간격 확보)
         if (data.parentResultImageUrl) {
           imagesToInsert.push({
             url: data.parentResultImageUrl,
             row: startRow, // 1-based index
-            column: 8,     // H열
+            column: 10,    // J열
             width: 400,    // 400x300
             height: 300
           });
         }
 
-        // 2. 학생 이미지: L열(12번째 열)로 이동 (학부모 이미지가 H,I,J,K 차지)
+        // 2. 학생 이미지: P열(16번째 열)로 이동 (학부모 이미지와 충분한 간격 확보)
         if (data.studentResultImageUrl) {
           imagesToInsert.push({
             url: data.studentResultImageUrl,
             row: startRow, // 1-based index
-            column: 12,    // L열
+            column: 16,    // P열
             width: 400,    // 400x300
             height: 300
           });
