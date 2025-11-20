@@ -456,12 +456,19 @@ export async function createSurveyItemsSession(userId: string, topicId?: string)
       topicInfo = await getSurveyTopic(topicId);
     }
 
+    // 관리자의 Google 액세스 토큰 가져오기 (구글 시트 저장용)
+    let adminAccessToken: string | null = null;
+    if (typeof window !== 'undefined') {
+      adminAccessToken = localStorage.getItem('googleAccessToken');
+    }
+
     // 세션 생성
     const docRef = await addDoc(collection(db, 'surveySessions'), {
       userId,
       ...(topicId && { topicId }), // topicId가 있으면 저장
       ...(topicInfo?.sheetUrl && { sheetUrl: topicInfo.sheetUrl }), // 주제의 시트 URL 저장
       ...(topicInfo?.title && { topicTitle: topicInfo.title }), // 주제 제목 저장
+      ...(adminAccessToken && { adminAccessToken }), // 구글 시트 저장용 관리자 토큰
       surveyItems, // 설문 항목 저장
       currentItemIndex: 0, // 현재 진행 중인 설문 항목 인덱스
       status: 'waiting', // waiting, active, showing_result, finished
@@ -626,7 +633,9 @@ export async function submitSurveyResponse(
       console.log('✅ Firebase 통계 저장 완료! 응답 수:', currentCount + 1);
 
       // 구글 시트에는 전체 내용 저장 (백그라운드)
-      if (userId) {
+      // 세션에 저장된 관리자 토큰 사용
+      const adminAccessToken = data.adminAccessToken;
+      if (userId && adminAccessToken) {
         console.log('🔄 구글 시트 저장 시작 (백그라운드)');
         (async () => {
           try {
@@ -650,13 +659,15 @@ export async function submitSurveyResponse(
               scaleValue: response.scaleValue,
               textValue: textValue || response.textValue,
               timestamp: new Date(),
-            }, userId, sheetUrl);
+            }, userId, sheetUrl, adminAccessToken);
 
             console.log('✅ 구글 시트 저장 완료');
           } catch (err) {
             console.error('❌ 구글 시트 저장 실패:', err);
           }
         })();
+      } else if (userId && !adminAccessToken) {
+        console.warn('⚠️ 관리자 토큰이 없어서 구글 시트 저장을 건너뜁니다.');
       }
     } else {
       console.error('❌ 세션을 찾을 수 없습니다');

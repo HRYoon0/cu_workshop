@@ -72,7 +72,8 @@ export async function saveSurveyResultToSheet(
     timestamp: Date;
   },
   userId?: string,
-  sheetUrl?: string
+  sheetUrl?: string,
+  adminAccessToken?: string
 ) {
   try {
     // 사용자별 설문 전용 시트 ID 가져오기
@@ -106,9 +107,13 @@ export async function saveSurveyResultToSheet(
       return;
     }
 
-    // Google Drive 액세스 토큰 가져오기
-    const { getGoogleAccessToken } = await import('./googleDrive');
-    const accessToken = await getGoogleAccessToken();
+    // 액세스 토큰 사용 (전달된 관리자 토큰 우선)
+    let accessToken = adminAccessToken;
+    if (!accessToken) {
+      // 폴백: 현재 로그인된 사용자의 토큰 시도
+      const { getGoogleAccessToken } = await import('./googleDrive');
+      accessToken = await getGoogleAccessToken();
+    }
 
     // Google Sheets API를 사용하여 데이터 추가
     const values = [[
