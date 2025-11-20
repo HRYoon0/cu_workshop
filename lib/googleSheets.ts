@@ -468,50 +468,72 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. API Route를 통해 Apps Script로 이미지 삽입
+    // 6. Google Sheets API batchUpdate로 이미지 삽입
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
-      const images: any[] = [];
-
-      // E열(5번째 열)에 학부모 이미지 (1-based index)
-      if (data.parentResultImageUrl) {
-        images.push({
-          url: convertToDriveImageUrl(data.parentResultImageUrl),
-          row: startRow, // 1-based
-          column: 5, // E열
-          width: 250,
-          height: 250
-        });
-      }
-
-      // F열(6번째 열)에 학생 이미지 (1-based index)
-      if (data.studentResultImageUrl) {
-        images.push({
-          url: convertToDriveImageUrl(data.studentResultImageUrl),
-          row: startRow, // 1-based
-          column: 6, // F열
-          width: 250,
-          height: 250
-        });
-      }
-
       try {
-        // Next.js API Route를 통해 Apps Script 호출 (CORS 우회)
-        const imageResponse = await fetch('/api/insert-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            spreadsheetId: spreadsheetId,
-            images: images
-          }),
-        });
+        const imageRequests: any[] = [];
 
-        if (!imageResponse.ok) {
-          console.error('❌ 이미지 삽입 실패:', await imageResponse.text());
-        } else {
-          const result = await imageResponse.json();
-          console.log('✅ 이미지 삽입 성공:', result);
+        // E열(5번째 열)에 학부모 이미지
+        if (data.parentResultImageUrl) {
+          const parentImageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+          console.log('📸 학부모 이미지 URL:', parentImageUrl);
+
+          imageRequests.push({
+            addImage: {
+              url: parentImageUrl,
+              anchorCell: {
+                sheetId: firstSheetId,
+                rowIndex: startRow - 1,
+                columnIndex: 4
+              },
+              offsetXPixels: 5,
+              offsetYPixels: 5,
+              widthPixels: 250,
+              heightPixels: 250
+            }
+          });
+        }
+
+        // F열(6번째 열)에 학생 이미지
+        if (data.studentResultImageUrl) {
+          const studentImageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+          console.log('📸 학생 이미지 URL:', studentImageUrl);
+
+          imageRequests.push({
+            addImage: {
+              url: studentImageUrl,
+              anchorCell: {
+                sheetId: firstSheetId,
+                rowIndex: startRow - 1,
+                columnIndex: 5
+              },
+              offsetXPixels: 5,
+              offsetYPixels: 5,
+              widthPixels: 250,
+              heightPixels: 250
+            }
+          });
+        }
+
+        if (imageRequests.length > 0) {
+          const imageResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ requests: imageRequests }),
+            }
+          );
+
+          if (!imageResponse.ok) {
+            const imageError = await imageResponse.text();
+            console.error('❌ 이미지 삽입 실패:', imageError);
+          } else {
+            console.log('✅ 이미지 삽입 성공 (Google Sheets API)');
+          }
         }
       } catch (error) {
         console.error('❌ 이미지 삽입 에러:', error);
