@@ -379,8 +379,9 @@ export async function saveSurveyChartToSheet(
     console.log('📊 데이터 행 추가 완료. 현재 allData 길이:', allData.length);
 
     // 차트를 위한 빈 행 추가 (10행)
+    // 공백 하나를 넣어서 Google Sheets API가 인식하도록 함
     for (let i = 0; i < 10; i++) {
-      allData.push(['', '', '', '', '', '']);
+      allData.push([' ', '', '', '', '', '']);
     }
 
     console.log('✅ 빈 행 10개 추가 완료. 최종 allData 길이:', allData.length);
