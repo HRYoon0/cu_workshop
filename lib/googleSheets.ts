@@ -373,6 +373,11 @@ export async function saveSurveyChartToSheet(
       allData.push(row);
     }
 
+    // 차트를 위한 빈 행 추가 (10행)
+    for (let i = 0; i < 10; i++) {
+      allData.push(['', '', '', '', '', '']);
+    }
+
     // 데이터 저장
     const range = `A${startRow}:F${startRow + allData.length - 1}`;
     await fetch(
@@ -454,7 +459,9 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. 이미지 직접 삽입 (차트 오른쪽에 250x250 크기로)
+    // 6. 이미지 직접 삽입 (Apps Script 방식)
+    // Google Sheets API의 createImage는 크기 조절이 제한적이므로
+    // 이미지를 삽입하고 updateEmbeddedObjectPosition으로 크기 조정
     const imageRequests: any[] = [];
 
     if (data.parentResultImageUrl) {
@@ -467,12 +474,8 @@ export async function saveSurveyChartToSheet(
             rowIndex: startRow - 1, // 제목 행 (0-based)
             columnIndex: 4 // E열
           },
-          offsetXPixels: 0,
-          offsetYPixels: 0,
-          size: {
-            widthPixels: 250,
-            heightPixels: 250
-          }
+          offsetXPixels: 10,
+          offsetYPixels: 10
         }
       });
     }
@@ -487,12 +490,8 @@ export async function saveSurveyChartToSheet(
             rowIndex: startRow - 1, // 제목 행 (0-based)
             columnIndex: 5 // F열
           },
-          offsetXPixels: 0,
-          offsetYPixels: 0,
-          size: {
-            widthPixels: 250,
-            heightPixels: 250
-          }
+          offsetXPixels: 10,
+          offsetYPixels: 10
         }
       });
     }
@@ -511,10 +510,15 @@ export async function saveSurveyChartToSheet(
       );
 
       if (!imageResponse.ok) {
-        const error = await imageResponse.text();
-        console.error('이미지 삽입 실패:', error);
+        const errorText = await imageResponse.text();
+        console.error('❌ 이미지 삽입 실패:', errorText);
+        console.error('이미지 URL 확인:', {
+          parent: data.parentResultImageUrl,
+          student: data.studentResultImageUrl
+        });
       } else {
-        console.log('✅ 이미지 삽입 성공');
+        const result = await imageResponse.json();
+        console.log('✅ 이미지 삽입 성공:', result);
       }
     }
 
