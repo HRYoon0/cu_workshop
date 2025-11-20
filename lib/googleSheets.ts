@@ -490,68 +490,94 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. Google Sheets API batchUpdate로 이미지 삽입 (Native API)
-    // 이미지가 공개(Viewer 권한)되어 있어야 합니다.
+    // 6. Google Sheets API batchUpdate로 이미지 삽입 (Native API - Formula 방식)
+    // addImage는 유효한 요청이 아니므로, 셀 병합 후 =IMAGE() 함수를 사용합니다.
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
-        const imageRequests: any[] = [];
+        const requests: any[] = [];
+        const imageStartRow = startRow - 1; // 0-based index
+        const imageEndRow = startRow + 9;   // 10행 병합 (0-based index, exclusive -> +10)
 
-        // E열(5번째 열)에 학부모 이미지
+        // E열(5번째 열, index 4)에 학부모 이미지
         if (data.parentResultImageUrl) {
           const parentImageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
           console.log('📸 학부모 이미지 URL:', parentImageUrl);
 
-          imageRequests.push({
-            addImage: {
-              image: {
-                source: { imageUri: parentImageUrl }
+          // 1. 셀 병합
+          requests.push({
+            mergeCells: {
+              range: {
+                sheetId: firstSheetId,
+                startRowIndex: imageStartRow,
+                endRowIndex: imageEndRow,
+                startColumnIndex: 4,
+                endColumnIndex: 5
               },
-              position: {
-                overlayPosition: {
-                  anchorCell: {
-                    sheetId: firstSheetId,
-                    rowIndex: startRow - 1,
-                    columnIndex: 4 // E열
-                  },
-                  offsetXPixels: 5,
-                  offsetYPixels: 5,
-                  widthPixels: 250,
-                  heightPixels: 250
-                }
+              mergeType: 'MERGE_ALL'
+            }
+          });
+
+          // 2. 이미지 수식 입력 (=IMAGE("url", 1)) - 1: 비율 유지하며 크기 맞춤
+          requests.push({
+            updateCells: {
+              rows: [{
+                values: [{
+                  userEnteredValue: {
+                    formulaValue: `=IMAGE("${parentImageUrl}", 1)`
+                  }
+                }]
+              }],
+              fields: 'userEnteredValue',
+              start: {
+                sheetId: firstSheetId,
+                rowIndex: imageStartRow,
+                columnIndex: 4
               }
             }
           });
         }
 
-        // F열(6번째 열)에 학생 이미지
+        // F열(6번째 열, index 5)에 학생 이미지
         if (data.studentResultImageUrl) {
           const studentImageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
           console.log('📸 학생 이미지 URL:', studentImageUrl);
 
-          imageRequests.push({
-            addImage: {
-              image: {
-                source: { imageUri: studentImageUrl }
+          // 1. 셀 병합
+          requests.push({
+            mergeCells: {
+              range: {
+                sheetId: firstSheetId,
+                startRowIndex: imageStartRow,
+                endRowIndex: imageEndRow,
+                startColumnIndex: 5,
+                endColumnIndex: 6
               },
-              position: {
-                overlayPosition: {
-                  anchorCell: {
-                    sheetId: firstSheetId,
-                    rowIndex: startRow - 1,
-                    columnIndex: 5 // F열
-                  },
-                  offsetXPixels: 5,
-                  offsetYPixels: 5,
-                  widthPixels: 250,
-                  heightPixels: 250
-                }
+              mergeType: 'MERGE_ALL'
+            }
+          });
+
+          // 2. 이미지 수식 입력
+          requests.push({
+            updateCells: {
+              rows: [{
+                values: [{
+                  userEnteredValue: {
+                    formulaValue: `=IMAGE("${studentImageUrl}", 1)`
+                  }
+                }]
+              }],
+              fields: 'userEnteredValue',
+              start: {
+                sheetId: firstSheetId,
+                rowIndex: imageStartRow,
+                columnIndex: 5
               }
             }
           });
         }
 
-        if (imageRequests.length > 0) {
-          const imageResponse = await fetch(
+        if (requests.length > 0) {
+          const response = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
             {
               method: 'POST',
@@ -559,15 +585,15 @@ export async function saveSurveyChartToSheet(
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ requests: imageRequests }),
+              body: JSON.stringify({ requests: requests }),
             }
           );
 
-          if (!imageResponse.ok) {
-            const imageError = await imageResponse.text();
-            console.error('❌ 이미지 삽입 실패:', imageError);
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ 이미지 삽입(수식) 실패:', errorText);
           } else {
-            console.log('✅ 이미지 삽입 성공 (Google Sheets API)');
+            console.log('✅ 이미지 삽입 성공 (IMAGE 함수 사용)');
           }
         }
       } catch (error) {
