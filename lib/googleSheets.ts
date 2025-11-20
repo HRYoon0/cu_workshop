@@ -493,23 +493,23 @@ export async function saveSurveyChartToSheet(
     // 6. IMAGE() 함수로 이미지 삽입 (E, F열)
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
-        const parentImageUrl = data.parentResultImageUrl
-          ? convertToDriveImageUrl(data.parentResultImageUrl)
-          : '';
-        const studentImageUrl = data.studentResultImageUrl
-          ? convertToDriveImageUrl(data.studentResultImageUrl)
-          : '';
+        // 원본 lh3.googleusercontent.com URL 사용 (변환하지 않음)
+        const parentImageUrl = data.parentResultImageUrl || '';
+        const studentImageUrl = data.studentResultImageUrl || '';
 
-        console.log('📸 학부모 이미지 URL:', parentImageUrl);
-        console.log('📸 학생 이미지 URL:', studentImageUrl);
+        console.log('📸 학부모 이미지 원본 URL:', parentImageUrl);
+        console.log('📸 학생 이미지 원본 URL:', studentImageUrl);
 
-        // IMAGE() 함수를 E, F열에 삽입 (mode 4: 원본 크기)
+        // IMAGE() 함수를 E, F열에 삽입 (mode 4: 커스텀 크기)
         const imageFormulas = [[
           parentImageUrl ? `=IMAGE("${parentImageUrl}", 4, 250, 250)` : '',
           studentImageUrl ? `=IMAGE("${studentImageUrl}", 4, 250, 250)` : ''
         ]];
 
         const imageRange = `E${startRow}:F${startRow}`;
+        console.log('🔗 이미지 삽입 범위:', imageRange);
+        console.log('📝 IMAGE() 수식:', imageFormulas);
+
         const imageResponse = await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${imageRange}?valueInputOption=USER_ENTERED`,
           {
@@ -526,7 +526,9 @@ export async function saveSurveyChartToSheet(
           const errorText = await imageResponse.text();
           console.error('❌ IMAGE() 함수 삽입 실패:', errorText);
         } else {
+          const responseData = await imageResponse.json();
           console.log('✅ IMAGE() 함수로 이미지 삽입 완료');
+          console.log('📊 응답 데이터:', responseData);
         }
       } catch (error) {
         console.error('❌ 이미지 삽입 에러:', error);
