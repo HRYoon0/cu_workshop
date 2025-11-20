@@ -11,6 +11,7 @@ import {
   saveCurrentResponsesAndMoveNext
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
+import { saveSurveyChartToSheet } from '@/lib/googleSheets';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -78,6 +79,22 @@ export default function SurveySessionPage({ params }: PageProps) {
     const nextIndex = session.currentItemIndex + 1;
 
     try {
+      // 현재 설문 항목의 차트를 구글 시트에 저장
+      if (session.sheetUrl && session.adminAccessToken && currentItem.type === 'multiple') {
+        await saveSurveyChartToSheet(
+          {
+            surveyTitle: currentItem.question || '설문',
+            statistics: session.statistics || {},
+            options: currentItem.options || [],
+            totalResponses: session.responseCount || 0,
+            parentResultImageUrl: currentItem.parentResultImageUrl,
+            studentResultImageUrl: currentItem.studentResultImageUrl,
+          },
+          session.sheetUrl,
+          session.adminAccessToken
+        );
+      }
+
       // 현재 항목의 응답 저장 후 다음으로 이동
       await saveCurrentResponsesAndMoveNext(sessionId, currentItem.id, session.currentItemIndex);
     } catch (err) {
@@ -88,8 +105,27 @@ export default function SurveySessionPage({ params }: PageProps) {
 
   const handleEndSurvey = async () => {
     try {
+      // 현재 설문 항목의 차트를 구글 시트에 저장
+      if (session && session.sheetUrl && session.adminAccessToken) {
+        const currentItem = session.surveyItems[session.currentItemIndex];
+        if (currentItem && currentItem.type === 'multiple') {
+          await saveSurveyChartToSheet(
+            {
+              surveyTitle: currentItem.question || '설문',
+              statistics: session.statistics || {},
+              options: currentItem.options || [],
+              totalResponses: session.responseCount || 0,
+              parentResultImageUrl: currentItem.parentResultImageUrl,
+              studentResultImageUrl: currentItem.studentResultImageUrl,
+            },
+            session.sheetUrl,
+            session.adminAccessToken
+          );
+        }
+      }
+
       await updateSurveySessionStatus(sessionId, 'finished');
-      alert('설문이 종료되었습니다!\n\n모든 응답은 구글 시트에 저장되었습니다.');
+      alert('설문이 종료되었습니다!\n\n차트와 이미지가 구글 시트에 저장되었습니다.');
       router.push('/admin');
     } catch (err) {
       console.error('설문 종료 실패:', err);

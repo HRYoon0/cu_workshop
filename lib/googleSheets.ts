@@ -153,6 +153,185 @@ export async function saveSurveyResultToSheet(
 }
 
 /**
+ * 설문 완료 시 차트와 이미지를 구글 시트에 저장
+ */
+export async function saveSurveyChartToSheet(
+  data: {
+    surveyTitle: string;
+    statistics: { [key: string]: number }; // 옵션별 응답 수
+    options: string[];
+    totalResponses: number;
+    parentResultImageUrl?: string;
+    studentResultImageUrl?: string;
+  },
+  sheetUrl: string,
+  accessToken: string
+) {
+  try {
+    // 시트 ID 추출
+    const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) {
+      console.warn('시트 URL에서 ID를 추출할 수 없습니다.');
+      return;
+    }
+    const spreadsheetId = match[1];
+
+    // 1. 먼저 시트 정보 가져오기
+    const sheetInfoResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    if (!sheetInfoResponse.ok) {
+      throw new Error('시트 정보를 가져올 수 없습니다.');
+    }
+
+    const sheetInfo = await sheetInfoResponse.json();
+    const firstSheetId = sheetInfo.sheets?.[0]?.properties?.sheetId || 0;
+
+    // 2. 데이터 준비 (차트용)
+    const chartData: string[][] = [
+      ['옵션', '응답 수', '비율(%)'],
+    ];
+
+    data.options.forEach(option => {
+      const count = data.statistics[option] || 0;
+      const percentage = data.totalResponses > 0 ? ((count / data.totalResponses) * 100).toFixed(1) : '0';
+      chartData.push([option, count.toString(), percentage]);
+    });
+
+    // 3. 결과 저장할 시작 행 찾기 (기존 데이터 뒤에 추가)
+    const existingDataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:A`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    let startRow = 1;
+    if (existingDataResponse.ok) {
+      const existingData = await existingDataResponse.json();
+      startRow = (existingData.values?.length || 0) + 2; // 빈 행 하나 추가
+    }
+
+    // 4. 제목과 데이터 저장
+    const allData: string[][] = [
+      [`📊 ${data.surveyTitle} - 설문 결과`],
+      [`총 응답: ${data.totalResponses}명`],
+      [],
+      ...chartData,
+    ];
+
+    // 학부모/학생 이미지 URL이 있으면 추가
+    if (data.parentResultImageUrl || data.studentResultImageUrl) {
+      allData.push([]);
+      allData.push(['📷 비교 이미지']);
+
+      const imageRow: string[] = [];
+      if (data.parentResultImageUrl) {
+        imageRow.push(`=IMAGE("${data.parentResultImageUrl}", 4, 200, 200)`);
+      }
+      if (data.studentResultImageUrl) {
+        imageRow.push(`=IMAGE("${data.studentResultImageUrl}", 4, 200, 200)`);
+      }
+      allData.push(imageRow);
+
+      // 이미지 레이블
+      const labelRow: string[] = [];
+      if (data.parentResultImageUrl) labelRow.push('학부모');
+      if (data.studentResultImageUrl) labelRow.push('학생');
+      allData.push(labelRow);
+    }
+
+    // 데이터 저장
+    const range = `A${startRow}`;
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values: allData }),
+      }
+    );
+
+    // 5. 파이 차트 생성
+    const chartStartRow = startRow + 3; // 데이터 시작 행
+    const chartEndRow = chartStartRow + data.options.length;
+
+    const chartRequest = {
+      requests: [{
+        addChart: {
+          chart: {
+            spec: {
+              title: data.surveyTitle,
+              pieChart: {
+                legendPosition: 'RIGHT_LEGEND',
+                domain: {
+                  sourceRange: {
+                    sources: [{
+                      sheetId: firstSheetId,
+                      startRowIndex: chartStartRow - 1,
+                      endRowIndex: chartEndRow,
+                      startColumnIndex: 0,
+                      endColumnIndex: 1
+                    }]
+                  }
+                },
+                series: {
+                  sourceRange: {
+                    sources: [{
+                      sheetId: firstSheetId,
+                      startRowIndex: chartStartRow - 1,
+                      endRowIndex: chartEndRow,
+                      startColumnIndex: 1,
+                      endColumnIndex: 2
+                    }]
+                  }
+                }
+              }
+            },
+            position: {
+              overlayPosition: {
+                anchorCell: {
+                  sheetId: firstSheetId,
+                  rowIndex: startRow - 1,
+                  columnIndex: 4 // E열에 차트 배치
+                },
+                offsetXPixels: 0,
+                offsetYPixels: 0,
+                widthPixels: 400,
+                heightPixels: 300
+              }
+            }
+          }
+        }
+      }]
+    };
+
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(chartRequest),
+      }
+    );
+
+    console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
+  } catch (error) {
+    console.error('❌ 설문 차트 저장 실패:', error);
+  }
+}
+
+/**
  * 설문 비교 결과를 구글 시트에 저장 (교사/학생/학부모)
  */
 export async function exportSurveyComparisonToSheets(
