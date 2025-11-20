@@ -15,7 +15,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Quiz, Survey, QuizSession, SurveySession, Participant, QuizAnswer, SurveyResponse, UserSheet, Department } from './types';
-import { saveSurveyResultToSheet } from './googleSheets';
 
 // ===== 퀴즈 관련 함수 =====
 
@@ -632,43 +631,9 @@ export async function submitSurveyResponse(
       });
       console.log('✅ Firebase 통계 저장 완료! 응답 수:', currentCount + 1);
 
-      // 구글 시트에는 전체 내용 저장 (백그라운드)
-      // 세션에 저장된 관리자 토큰 사용
-      const adminAccessToken = data.adminAccessToken;
-      if (userId && adminAccessToken) {
-        console.log('🔄 구글 시트 저장 시작 (백그라운드)');
-        (async () => {
-          try {
-            let textValue = '';
-            if (typeof response.answer === 'string') {
-              textValue = response.answer === 'other'
-                ? (response.otherText || '기타')
-                : response.answer;
-            } else if (typeof response.answer === 'number') {
-              textValue = `선택 ${response.answer + 1}`;
-            }
-
-            // 세션에서 시트 정보 가져오기
-            const sheetUrl = data.sheetUrl;
-            const topicTitle = data.topicTitle || surveyTitle;
-
-            await saveSurveyResultToSheet({
-              sessionId,
-              surveyTitle: topicTitle || 'Unknown',
-              participantName: `참여자 ${data.participants?.length || 0}`,
-              scaleValue: response.scaleValue,
-              textValue: textValue || response.textValue,
-              timestamp: new Date(),
-            }, userId, sheetUrl, adminAccessToken);
-
-            console.log('✅ 구글 시트 저장 완료');
-          } catch (err) {
-            console.error('❌ 구글 시트 저장 실패:', err);
-          }
-        })();
-      } else if (userId && !adminAccessToken) {
-        console.warn('⚠️ 관리자 토큰이 없어서 구글 시트 저장을 건너뜁니다.');
-      }
+      // 개별 응답은 구글 시트에 저장하지 않음
+      // 차트 저장은 handleNextItem/handleEndSurvey에서 saveSurveyChartToSheet로 처리
+      console.log('📊 개별 응답은 Firebase 통계에만 저장됩니다. 차트는 설문 완료 시 시트에 저장됩니다.');
     } else {
       console.error('❌ 세션을 찾을 수 없습니다');
     }

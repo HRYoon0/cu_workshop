@@ -95,6 +95,7 @@ export default function SurveySessionPage({ params }: PageProps) {
 
         await saveSurveyChartToSheet(
           {
+            sessionId: sessionId,
             surveyTitle: currentItem.question || '설문',
             statistics: optionStats,
             options: currentItem.options || [],
@@ -135,6 +136,7 @@ export default function SurveySessionPage({ params }: PageProps) {
 
           await saveSurveyChartToSheet(
             {
+              sessionId: sessionId,
               surveyTitle: currentItem.question || '설문',
               statistics: optionStats,
               options: currentItem.options || [],
