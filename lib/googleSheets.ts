@@ -470,7 +470,7 @@ export async function saveSurveyChartToSheet(
                 offsetXPixels: 0,
                 offsetYPixels: 0,
                 widthPixels: 300,
-                heightPixels: 250 // 고정 크기
+                heightPixels: 300 // 높이를 300으로 통일
               }
             }
           }
@@ -512,8 +512,8 @@ export async function saveSurveyChartToSheet(
             url: data.parentResultImageUrl,
             row: startRow, // 1-based index
             column: 7,     // G열 (차트가 D,E,F 차지함)
-            width: 250,
-            height: 250
+            width: 300,    // 크기 300으로 통일
+            height: 300
           });
         }
 
@@ -523,13 +523,14 @@ export async function saveSurveyChartToSheet(
             url: data.studentResultImageUrl,
             row: startRow, // 1-based index
             column: 10,    // J열 (학부모 이미지가 G,H,I 차지함)
-            width: 250,
-            height: 250
+            width: 300,    // 크기 300으로 통일
+            height: 300
           });
         }
 
         if (imagesToInsert.length > 0) {
           console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
+          console.log('📦 전송 데이터:', JSON.stringify(imagesToInsert, null, 2));
           console.log('🔗 사용 중인 Apps Script URL:', appsScriptUrl);
 
           // CORS Preflight(OPTIONS)를 피하기 위해 Content-Type을 text/plain으로 설정합니다.
