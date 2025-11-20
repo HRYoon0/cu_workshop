@@ -340,13 +340,13 @@ export async function saveSurveyChartToSheet(
 
     // 1행: 설문 제목 + 이미지 (이미지는 E, F열에 배치)
     const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
-    // 학부모 이미지가 있으면 E열에 HYPERLINK로 표시 (Firebase Storage URL은 인증 필요)
+    // 학부모 이미지가 있으면 E열에 IMAGE 함수로 표시
     if (data.parentResultImageUrl) {
-      titleRow[4] = `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모")`;
+      titleRow[4] = `=IMAGE("${data.parentResultImageUrl}")`;
     }
-    // 학생 이미지가 있으면 F열에 HYPERLINK로 표시
+    // 학생 이미지가 있으면 F열에 IMAGE 함수로 표시
     if (data.studentResultImageUrl) {
-      titleRow[5] = `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생")`;
+      titleRow[5] = `=IMAGE("${data.studentResultImageUrl}")`;
     }
     allData.push(titleRow);
 
@@ -444,6 +444,75 @@ export async function saveSurveyChartToSheet(
         body: JSON.stringify(chartRequest),
       }
     );
+
+    // 6. 이미지가 있는 경우 제목 행 높이와 열 너비 조정
+    if (data.parentResultImageUrl || data.studentResultImageUrl) {
+      const dimensionRequests: any[] = [];
+
+      // 제목 행 높이 조정 (이미지 표시를 위해)
+      dimensionRequests.push({
+        updateDimensionProperties: {
+          range: {
+            sheetId: firstSheetId,
+            dimension: 'ROWS',
+            startIndex: startRow - 1, // 제목 행 (0-based)
+            endIndex: startRow,
+          },
+          properties: {
+            pixelSize: 150, // 이미지 높이
+          },
+          fields: 'pixelSize',
+        },
+      });
+
+      // E열 너비 조정 (학부모 이미지)
+      if (data.parentResultImageUrl) {
+        dimensionRequests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: firstSheetId,
+              dimension: 'COLUMNS',
+              startIndex: 4, // E열 (0-based)
+              endIndex: 5,
+            },
+            properties: {
+              pixelSize: 150,
+            },
+            fields: 'pixelSize',
+          },
+        });
+      }
+
+      // F열 너비 조정 (학생 이미지)
+      if (data.studentResultImageUrl) {
+        dimensionRequests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: firstSheetId,
+              dimension: 'COLUMNS',
+              startIndex: 5, // F열 (0-based)
+              endIndex: 6,
+            },
+            properties: {
+              pixelSize: 150,
+            },
+            fields: 'pixelSize',
+          },
+        });
+      }
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ requests: dimensionRequests }),
+        }
+      );
+    }
 
     console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
   } catch (error) {
