@@ -260,6 +260,24 @@ export async function clearSurveySheetData(
 }
 
 /**
+ * 구글 드라이브 URL을 구글 시트 IMAGE 함수용 URL로 변환
+ * lh3.googleusercontent.com/d/{fileId} -> drive.google.com/uc?export=view&id={fileId}
+ */
+function convertToDriveImageUrl(url: string): string {
+  if (!url) return url;
+
+  // lh3.googleusercontent.com 형식인 경우
+  const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([^/?]+)/);
+  if (lh3Match) {
+    const fileId = lh3Match[1];
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+
+  // 이미 drive.google.com/uc 형식이거나 다른 형식인 경우 그대로 반환
+  return url;
+}
+
+/**
  * 설문 완료 시 차트와 이미지를 구글 시트에 저장
  */
 export async function saveSurveyChartToSheet(
@@ -342,11 +360,13 @@ export async function saveSurveyChartToSheet(
     const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
     // 학부모 이미지가 있으면 E열에 IMAGE 함수로 표시
     if (data.parentResultImageUrl) {
-      titleRow[4] = `=IMAGE("${data.parentResultImageUrl}")`;
+      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+      titleRow[4] = `=IMAGE("${imageUrl}")`;
     }
     // 학생 이미지가 있으면 F열에 IMAGE 함수로 표시
     if (data.studentResultImageUrl) {
-      titleRow[5] = `=IMAGE("${data.studentResultImageUrl}")`;
+      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+      titleRow[5] = `=IMAGE("${imageUrl}")`;
     }
     allData.push(titleRow);
 
