@@ -1,0 +1,2 @@
+Force rebuild - 2025-11-20 19:10
+Trigger Vercel rebuild to apply chart spacing fix
