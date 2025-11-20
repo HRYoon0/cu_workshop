@@ -356,18 +356,8 @@ export async function saveSurveyChartToSheet(
     const allData: string[][] = [];
     const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 1행: 설문 제목 + 이미지 (이미지는 E, F열에 배치)
+    // 1행: 설문 제목 (이미지는 OverGridImage로 E, F열에 삽입)
     const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
-    // 학부모 이미지가 있으면 E열에 IMAGE 함수로 표시
-    if (data.parentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
-      titleRow[4] = `=IMAGE("${imageUrl}")`;
-    }
-    // 학생 이미지가 있으면 F열에 IMAGE 함수로 표시
-    if (data.studentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
-      titleRow[5] = `=IMAGE("${imageUrl}")`;
-    }
     allData.push(titleRow);
 
     // 2행: 총 응답
@@ -465,62 +455,46 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. 이미지가 있는 경우 제목 행 높이와 열 너비 조정
-    if (data.parentResultImageUrl || data.studentResultImageUrl) {
-      const dimensionRequests: any[] = [];
+    // 6. 이미지를 OverGridImage로 삽입 (IMAGE 함수는 외부 URL 액세스 허용 필요)
+    const imageRequests: any[] = [];
 
-      // 제목 행 높이 조정 (이미지 표시를 위해)
-      dimensionRequests.push({
-        updateDimensionProperties: {
-          range: {
+    if (data.parentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+
+      // 학부모 이미지를 E열 제목 행 옆에 배치
+      imageRequests.push({
+        createImage: {
+          url: imageUrl,
+          anchorCell: {
             sheetId: firstSheetId,
-            dimension: 'ROWS',
-            startIndex: startRow - 1, // 제목 행 (0-based)
-            endIndex: startRow,
+            rowIndex: startRow - 1, // 제목 행 (0-based)
+            columnIndex: 4 // E열
           },
-          properties: {
-            pixelSize: 150, // 이미지 높이
-          },
-          fields: 'pixelSize',
-        },
+          offsetXPixels: 5,
+          offsetYPixels: 5
+        }
       });
+    }
 
-      // E열 너비 조정 (학부모 이미지)
-      if (data.parentResultImageUrl) {
-        dimensionRequests.push({
-          updateDimensionProperties: {
-            range: {
-              sheetId: firstSheetId,
-              dimension: 'COLUMNS',
-              startIndex: 4, // E열 (0-based)
-              endIndex: 5,
-            },
-            properties: {
-              pixelSize: 150,
-            },
-            fields: 'pixelSize',
+    if (data.studentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+
+      // 학생 이미지를 F열 제목 행 옆에 배치
+      imageRequests.push({
+        createImage: {
+          url: imageUrl,
+          anchorCell: {
+            sheetId: firstSheetId,
+            rowIndex: startRow - 1, // 제목 행 (0-based)
+            columnIndex: 5 // F열
           },
-        });
-      }
+          offsetXPixels: 5,
+          offsetYPixels: 5
+        }
+      });
+    }
 
-      // F열 너비 조정 (학생 이미지)
-      if (data.studentResultImageUrl) {
-        dimensionRequests.push({
-          updateDimensionProperties: {
-            range: {
-              sheetId: firstSheetId,
-              dimension: 'COLUMNS',
-              startIndex: 5, // F열 (0-based)
-              endIndex: 6,
-            },
-            properties: {
-              pixelSize: 150,
-            },
-            fields: 'pixelSize',
-          },
-        });
-      }
-
+    if (imageRequests.length > 0) {
       await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
         {
@@ -529,7 +503,7 @@ export async function saveSurveyChartToSheet(
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ requests: dimensionRequests }),
+          body: JSON.stringify({ requests: imageRequests }),
         }
       );
     }
