@@ -261,24 +261,38 @@ export async function clearSurveySheetData(
 
 /**
  * 구글 드라이브 URL을 구글 시트 IMAGE 함수용 URL로 변환
- * lh3.googleusercontent.com/d/{fileId} -> drive.google.com/thumbnail?id={fileId}
+ * lh3.googleusercontent.com/d/{fileId} -> drive.google.com/uc?export=view&id={fileId}
  */
 function convertToDriveImageUrl(url: string): string {
   if (!url) return url;
 
-  // lh3.googleusercontent.com 형식인 경우
+  let fileId = '';
+
+  // 1. lh3.googleusercontent.com 형식인 경우
   const lh3Match = url.match(/lh3\.googleusercontent\.com\/d\/([^/?]+)/);
   if (lh3Match) {
-    const fileId = lh3Match[1];
-    // 썸네일 URL 사용 - 공개 설정된 이미지는 액세스 허용 없이 표시됨
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
+    fileId = lh3Match[1];
   }
 
-  // 이미 drive.google.com 형식인 경우 파일 ID 추출
-  const driveMatch = url.match(/[?&]id=([^&]+)/);
-  if (driveMatch) {
-    const fileId = driveMatch[1];
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
+  // 2. drive.google.com 형식인 경우
+  if (!fileId) {
+    const driveMatch = url.match(/[?&]id=([^&]+)/);
+    if (driveMatch) {
+      fileId = driveMatch[1];
+    }
+  }
+
+  // 3. /file/d/{fileId} 형식인 경우
+  if (!fileId) {
+    const fileMatch = url.match(/\/file\/d\/([^/?]+)/);
+    if (fileMatch) {
+      fileId = fileMatch[1];
+    }
+  }
+
+  if (fileId) {
+    // Google Sheets API가 가장 잘 인식하는 직접 다운로드/보기 링크 형식
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
   }
 
   // 다른 형식인 경우 그대로 반환
@@ -476,7 +490,8 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. Google Sheets API batchUpdate로 이미지 삽입
+    // 6. Google Sheets API batchUpdate로 이미지 삽입 (Native API)
+    // 이미지가 공개(Viewer 권한)되어 있어야 합니다.
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
         const imageRequests: any[] = [];
@@ -488,16 +503,22 @@ export async function saveSurveyChartToSheet(
 
           imageRequests.push({
             addImage: {
-              url: parentImageUrl,
-              anchorCell: {
-                sheetId: firstSheetId,
-                rowIndex: startRow - 1,
-                columnIndex: 4
+              image: {
+                source: { imageUri: parentImageUrl }
               },
-              offsetXPixels: 5,
-              offsetYPixels: 5,
-              widthPixels: 250,
-              heightPixels: 250
+              position: {
+                overlayPosition: {
+                  anchorCell: {
+                    sheetId: firstSheetId,
+                    rowIndex: startRow - 1,
+                    columnIndex: 4 // E열
+                  },
+                  offsetXPixels: 5,
+                  offsetYPixels: 5,
+                  widthPixels: 250,
+                  heightPixels: 250
+                }
+              }
             }
           });
         }
@@ -509,16 +530,22 @@ export async function saveSurveyChartToSheet(
 
           imageRequests.push({
             addImage: {
-              url: studentImageUrl,
-              anchorCell: {
-                sheetId: firstSheetId,
-                rowIndex: startRow - 1,
-                columnIndex: 5
+              image: {
+                source: { imageUri: studentImageUrl }
               },
-              offsetXPixels: 5,
-              offsetYPixels: 5,
-              widthPixels: 250,
-              heightPixels: 250
+              position: {
+                overlayPosition: {
+                  anchorCell: {
+                    sheetId: firstSheetId,
+                    rowIndex: startRow - 1,
+                    columnIndex: 5 // F열
+                  },
+                  offsetXPixels: 5,
+                  offsetYPixels: 5,
+                  widthPixels: 250,
+                  heightPixels: 250
+                }
+              }
             }
           });
         }
