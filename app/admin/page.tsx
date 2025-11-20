@@ -115,11 +115,22 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 탭 변경 시 Google OAuth 토큰 유효성 체크 (조용히 실행)
+  // 탭 변경 시 Google OAuth 토큰 유효성 체크 및 자동 재인증
   useEffect(() => {
     const checkToken = async () => {
       if (!user) return;
-      await checkTokenValidity();
+
+      const isValid = await checkTokenValidity();
+
+      // 토큰이 유효하지 않으면 자동으로 재인증 시도
+      if (!isValid) {
+        try {
+          const { getGoogleAccessToken } = await import('@/lib/googleDrive');
+          await getGoogleAccessToken(); // 자동으로 재인증 팝업 띄움
+        } catch (error) {
+          console.error('자동 재인증 실패:', error);
+        }
+      }
     };
 
     checkToken();
