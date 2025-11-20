@@ -490,114 +490,65 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. Google Sheets API batchUpdate로 이미지 삽입 (Native API - Formula 방식)
-    // addImage는 유효한 요청이 아니므로, 셀 병합 후 =IMAGE() 함수를 사용합니다.
+    // 6. 이미지 삽입 (Apps Script 사용)
+    // Google Drive 이미지는 Sheets API로 직접 삽입하거나 IMAGE 함수를 쓰면
+    // "액세스 허용" 경고가 뜨거나 이미지가 깨지는 문제가 있습니다.
+    // 따라서 배포된 Apps Script를 통해 이미지를 Blob 형태로 직접 삽입합니다.
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
-        const requests: any[] = [];
-        const imageStartRow = startRow - 1; // 0-based index
-        const imageEndRow = startRow + 9;   // 10행 병합 (0-based index, exclusive -> +10)
+        const appsScriptUrl = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL ||
+          'https://script.google.com/macros/s/AKfycbxyywKrSU93zMfIt-56T0U8L4nprsFEkiKFVLsTy_xfvcOojNDD7FZJt3dxfq-JzidHEA/exec';
 
-        // E열(5번째 열, index 4)에 학부모 이미지
+        if (!appsScriptUrl) {
+          console.warn('Apps Script URL이 설정되지 않아 이미지를 삽입할 수 없습니다.');
+          return;
+        }
+
+        const imagesToInsert = [];
+
+        // E열(5번째 열)에 학부모 이미지
         if (data.parentResultImageUrl) {
-          const parentImageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
-          console.log('📸 학부모 이미지 URL:', parentImageUrl);
-
-          // 1. 셀 병합
-          requests.push({
-            mergeCells: {
-              range: {
-                sheetId: firstSheetId,
-                startRowIndex: imageStartRow,
-                endRowIndex: imageEndRow,
-                startColumnIndex: 4,
-                endColumnIndex: 5
-              },
-              mergeType: 'MERGE_ALL'
-            }
-          });
-
-          // 2. 이미지 수식 입력 (=IMAGE("url", 1)) - 1: 비율 유지하며 크기 맞춤
-          requests.push({
-            updateCells: {
-              rows: [{
-                values: [{
-                  userEnteredValue: {
-                    formulaValue: `=IMAGE("${parentImageUrl}", 1)`
-                  }
-                }]
-              }],
-              fields: 'userEnteredValue',
-              start: {
-                sheetId: firstSheetId,
-                rowIndex: imageStartRow,
-                columnIndex: 4
-              }
-            }
+          imagesToInsert.push({
+            url: data.parentResultImageUrl,
+            row: startRow, // 1-based index
+            column: 5,     // E열
+            width: 250,
+            height: 250
           });
         }
 
-        // F열(6번째 열, index 5)에 학생 이미지
+        // F열(6번째 열)에 학생 이미지
         if (data.studentResultImageUrl) {
-          const studentImageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
-          console.log('📸 학생 이미지 URL:', studentImageUrl);
-
-          // 1. 셀 병합
-          requests.push({
-            mergeCells: {
-              range: {
-                sheetId: firstSheetId,
-                startRowIndex: imageStartRow,
-                endRowIndex: imageEndRow,
-                startColumnIndex: 5,
-                endColumnIndex: 6
-              },
-              mergeType: 'MERGE_ALL'
-            }
-          });
-
-          // 2. 이미지 수식 입력
-          requests.push({
-            updateCells: {
-              rows: [{
-                values: [{
-                  userEnteredValue: {
-                    formulaValue: `=IMAGE("${studentImageUrl}", 1)`
-                  }
-                }]
-              }],
-              fields: 'userEnteredValue',
-              start: {
-                sheetId: firstSheetId,
-                rowIndex: imageStartRow,
-                columnIndex: 5
-              }
-            }
+          imagesToInsert.push({
+            url: data.studentResultImageUrl,
+            row: startRow, // 1-based index
+            column: 6,     // F열
+            width: 250,
+            height: 250
           });
         }
 
-        if (requests.length > 0) {
-          const response = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ requests: requests }),
-            }
-          );
+        if (imagesToInsert.length > 0) {
+          console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ 이미지 삽입(수식) 실패:', errorText);
-          } else {
-            console.log('✅ 이미지 삽입 성공 (IMAGE 함수 사용)');
-          }
+          // no-cors 모드로 요청 (응답을 읽을 수 없지만 요청은 감)
+          // Apps Script는 단순 실행만 하면 되므로 결과 확인 불필요
+          await fetch(appsScriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              spreadsheetId: spreadsheetId,
+              images: imagesToInsert
+            }),
+          });
+
+          console.log('✅ 이미지 삽입 요청 완료 (Apps Script)');
         }
       } catch (error) {
-        console.error('❌ 이미지 삽입 에러:', error);
+        console.error('❌ 이미지 삽입 요청 실패:', error);
       }
     }
 
