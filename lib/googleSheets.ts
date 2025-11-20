@@ -373,10 +373,15 @@ export async function saveSurveyChartToSheet(
       allData.push(row);
     }
 
+    console.log('📊 데이터 행 추가 완료. 현재 allData 길이:', allData.length);
+
     // 차트를 위한 빈 행 추가 (10행)
     for (let i = 0; i < 10; i++) {
       allData.push(['', '', '', '', '', '']);
     }
+
+    console.log('✅ 빈 행 10개 추가 완료. 최종 allData 길이:', allData.length);
+    console.log('📍 저장 범위:', `A${startRow}:F${startRow + allData.length - 1}`);
 
     // 데이터 저장
     const range = `A${startRow}:F${startRow + allData.length - 1}`;
