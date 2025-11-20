@@ -356,16 +356,8 @@ export async function saveSurveyChartToSheet(
     const allData: any[][] = [];
     const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 이미지 URL 준비 (IMAGE 함수용)
-    const parentImageFormula = data.parentResultImageUrl
-      ? `=IMAGE("${convertToDriveImageUrl(data.parentResultImageUrl)}", 1)`
-      : '';
-    const studentImageFormula = data.studentResultImageUrl
-      ? `=IMAGE("${convertToDriveImageUrl(data.studentResultImageUrl)}", 1)`
-      : '';
-
-    // 1행: 설문 제목 + 이미지 수식
-    const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', parentImageFormula, studentImageFormula];
+    // 1행: 설문 제목 (E, F열은 이미지가 들어갈 자리라 비워둠)
+    const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
     allData.push(titleRow);
 
     // 2행: 총 응답
@@ -466,6 +458,59 @@ export async function saveSurveyChartToSheet(
         body: JSON.stringify(chartRequest),
       }
     );
+
+    // 6. Apps Script를 사용하여 이미지 삽입
+    const imageInserterUrl = process.env.NEXT_PUBLIC_IMAGE_INSERTER_URL;
+
+    if (imageInserterUrl && (data.parentResultImageUrl || data.studentResultImageUrl)) {
+      const images: any[] = [];
+
+      // E열(5번째 열)에 학부모 이미지 (1-based index)
+      if (data.parentResultImageUrl) {
+        images.push({
+          url: convertToDriveImageUrl(data.parentResultImageUrl),
+          row: startRow, // 1-based
+          column: 5, // E열
+          width: 250,
+          height: 250
+        });
+      }
+
+      // F열(6번째 열)에 학생 이미지 (1-based index)
+      if (data.studentResultImageUrl) {
+        images.push({
+          url: convertToDriveImageUrl(data.studentResultImageUrl),
+          row: startRow, // 1-based
+          column: 6, // F열
+          width: 250,
+          height: 250
+        });
+      }
+
+      try {
+        const imageResponse = await fetch(imageInserterUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            spreadsheetId: spreadsheetId,
+            images: images
+          }),
+        });
+
+        if (!imageResponse.ok) {
+          console.error('❌ Apps Script 이미지 삽입 실패:', await imageResponse.text());
+        } else {
+          const result = await imageResponse.json();
+          console.log('✅ Apps Script로 이미지 삽입 성공:', result);
+        }
+      } catch (error) {
+        console.error('❌ Apps Script 호출 에러:', error);
+      }
+    } else if (!imageInserterUrl) {
+      console.warn('⚠️ NEXT_PUBLIC_IMAGE_INSERTER_URL이 설정되지 않았습니다. .env 파일을 확인하세요.');
+    }
 
     console.log('✅ 설문 차트 및 이미지를 구글 시트에 저장했습니다.');
   } catch (error) {
