@@ -69,10 +69,11 @@ export default function SurveySessionPage({ params }: PageProps) {
           return; // 사용자가 취소한 경우
         }
 
-        // 기존 시트 데이터 초기화
+        // 기존 시트 데이터 초기화 (A1에 세션 ID 작성)
         const cleared = await clearSurveySheetData(
           session.sheetUrl,
-          session.adminAccessToken
+          session.adminAccessToken,
+          sessionId
         );
 
         if (cleared) {

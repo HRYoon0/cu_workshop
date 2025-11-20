@@ -157,7 +157,8 @@ export async function saveSurveyResultToSheet(
  */
 export async function clearSurveySheetData(
   sheetUrl: string,
-  accessToken: string
+  accessToken: string,
+  sessionId?: string
 ): Promise<boolean> {
   try {
     // 시트 ID 추출
@@ -235,6 +236,21 @@ export async function clearSurveySheetData(
       return false;
     }
 
+    // 4. A1에 세션 ID 작성
+    if (sessionId) {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A1?valueInputOption=RAW`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ values: [[`세션: ${sessionId}`]] }),
+        }
+      );
+    }
+
     console.log('✅ 구글 시트 데이터 초기화 완료');
     return true;
   } catch (error) {
@@ -295,6 +311,7 @@ export async function saveSurveyChartToSheet(
     });
 
     // 3. 결과 저장할 시작 행 찾기 (기존 데이터 뒤에 추가)
+    // A1에는 세션 ID가 있으므로 3행부터 시작
     const existingDataResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:A`,
       {
@@ -302,50 +319,53 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    let startRow = 1;
+    let startRow = 3; // 기본값: 3행부터 시작 (1행=세션ID, 2행=빈줄)
     if (existingDataResponse.ok) {
       const existingData = await existingDataResponse.json();
-      startRow = (existingData.values?.length || 0) + 2; // 빈 행 하나 추가
+      const lastRow = existingData.values?.length || 0;
+      if (lastRow >= 2) {
+        startRow = lastRow + 2; // 기존 데이터 뒤에 빈 행 하나 추가
+      }
     }
 
-    // 4. 데이터 저장 (명확한 레이아웃)
-    // 1행: 설문 제목 | | | | 세션 ID | 학부모 이미지
-    // 2행: 총 응답 | | | | | 학생 이미지
-    // 3행: (빈 줄)
-    // 4행: 옵션 | 응답 수 | 비율(%) (헤더)
-    // 5행~: 데이터
+    // 4. 데이터 저장 (새로운 레이아웃)
+    // 각 설문 항목 블록:
+    // 1행: 📊 설문 제목
+    // 2행: 총 응답
+    // 3행: 헤더 (옵션, 응답 수, 비율)
+    // 4행~: 데이터 + 차트(D열) + 이미지(F열)
 
     const allData: string[][] = [];
+    const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 1행: 제목과 정보
-    allData.push([
-      `📊 ${data.surveyTitle}`,
-      '',
-      '',
-      '',
-      `세션: ${data.sessionId}`,
-      data.parentResultImageUrl ? `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")` : ''
-    ]);
+    // 1행: 설문 제목
+    allData.push([`📊 ${data.surveyTitle}`, '', '', '', '', '']);
 
-    // 2행: 총 응답과 학생 이미지
-    allData.push([
-      `총 응답: ${data.totalResponses}명`,
-      '',
-      '',
-      '',
-      '',
-      data.studentResultImageUrl ? `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")` : ''
-    ]);
+    // 2행: 총 응답
+    allData.push([`총 응답: ${data.totalResponses}명`, '', '', '', '', '']);
 
-    // 3행: 빈 줄
-    allData.push(['', '', '', '', '', '']);
-
-    // 4행: 헤더
+    // 3행: 헤더
     allData.push(['옵션', '응답 수', '비율(%)', '', '', '']);
 
-    // 5행~: 데이터 (chartData의 첫 행은 헤더이므로 건너뜀)
+    // 4행~: 데이터 (이미지는 데이터 첫 두 행의 F열에)
     for (let i = 1; i < chartData.length; i++) {
-      allData.push([chartData[i][0], chartData[i][1], chartData[i][2], '', '', '']);
+      const row = [chartData[i][0], chartData[i][1], chartData[i][2], '', '', ''];
+
+      // 첫 번째 데이터 행에 학부모 이미지
+      if (i === 1 && data.parentResultImageUrl) {
+        row[5] = `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")`;
+      }
+      // 두 번째 데이터 행에 학생 이미지
+      if (i === 2 && data.studentResultImageUrl) {
+        row[5] = `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`;
+      }
+
+      allData.push(row);
+    }
+
+    // 데이터가 1개뿐인데 학생 이미지가 있는 경우 추가 행
+    if (dataCount === 1 && data.studentResultImageUrl) {
+      allData.push(['', '', '', '', '', `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`]);
     }
 
     // 데이터 저장
@@ -363,9 +383,9 @@ export async function saveSurveyChartToSheet(
     );
 
     // 5. 파이 차트 생성
-    // 차트 데이터 범위: 4행(헤더) 다음부터 데이터
-    const chartStartRow = startRow + 4; // 데이터 시작 행 (5행)
-    const chartEndRow = startRow + allData.length; // 데이터 끝 행
+    // 차트 데이터 범위: 3행(헤더) 다음부터 데이터
+    const chartStartRow = startRow + 3; // 데이터 시작 행 (헤더 다음)
+    const chartEndRow = startRow + 3 + dataCount; // 데이터 끝 행
 
     const chartRequest = {
       requests: [{
@@ -403,13 +423,13 @@ export async function saveSurveyChartToSheet(
               overlayPosition: {
                 anchorCell: {
                   sheetId: firstSheetId,
-                  rowIndex: startRow + 2, // 3행부터 차트 시작 (빈 줄 위치)
+                  rowIndex: startRow + 2, // 헤더 행 (0-based index)
                   columnIndex: 3 // D열에 차트 배치
                 },
                 offsetXPixels: 0,
                 offsetYPixels: 0,
-                widthPixels: 350,
-                heightPixels: 250
+                widthPixels: 300,
+                heightPixels: Math.max(200, dataCount * 40 + 80) // 데이터 수에 맞게 높이 조절
               }
             }
           }
