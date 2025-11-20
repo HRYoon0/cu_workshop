@@ -363,17 +363,8 @@ export async function saveSurveyChartToSheet(
     // 2행: 총 응답
     allData.push([`총 응답: ${data.totalResponses}명`, '', '', '', '', '']);
 
-    // 3행: 헤더
+    // 3행: 헤더 (E, F열은 이미지가 들어갈 자리)
     const headerRow = ['옵션', '응답 수', '비율(%)', '', '', ''];
-    // E, F열에 이미지 링크 추가
-    if (data.parentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
-      headerRow[4] = `=HYPERLINK("${imageUrl}", "👨‍👩‍👧 학부모")`;
-    }
-    if (data.studentResultImageUrl) {
-      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
-      headerRow[5] = `=HYPERLINK("${imageUrl}", "👦 학생")`;
-    }
     allData.push(headerRow);
 
     // 4행~: 데이터
@@ -462,6 +453,70 @@ export async function saveSurveyChartToSheet(
         body: JSON.stringify(chartRequest),
       }
     );
+
+    // 6. 이미지 직접 삽입 (차트 오른쪽에 250x250 크기로)
+    const imageRequests: any[] = [];
+
+    if (data.parentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.parentResultImageUrl);
+      imageRequests.push({
+        createImage: {
+          url: imageUrl,
+          anchorCell: {
+            sheetId: firstSheetId,
+            rowIndex: startRow - 1, // 제목 행 (0-based)
+            columnIndex: 4 // E열
+          },
+          offsetXPixels: 0,
+          offsetYPixels: 0,
+          size: {
+            widthPixels: 250,
+            heightPixels: 250
+          }
+        }
+      });
+    }
+
+    if (data.studentResultImageUrl) {
+      const imageUrl = convertToDriveImageUrl(data.studentResultImageUrl);
+      imageRequests.push({
+        createImage: {
+          url: imageUrl,
+          anchorCell: {
+            sheetId: firstSheetId,
+            rowIndex: startRow - 1, // 제목 행 (0-based)
+            columnIndex: 5 // F열
+          },
+          offsetXPixels: 0,
+          offsetYPixels: 0,
+          size: {
+            widthPixels: 250,
+            heightPixels: 250
+          }
+        }
+      });
+    }
+
+    if (imageRequests.length > 0) {
+      const imageResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ requests: imageRequests }),
+        }
+      );
+
+      if (!imageResponse.ok) {
+        const error = await imageResponse.text();
+        console.error('이미지 삽입 실패:', error);
+      } else {
+        console.log('✅ 이미지 삽입 성공');
+      }
+    }
 
     console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
   } catch (error) {
