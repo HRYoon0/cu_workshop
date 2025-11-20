@@ -530,23 +530,34 @@ export async function saveSurveyChartToSheet(
 
         if (imagesToInsert.length > 0) {
           console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
+          console.log('🔗 사용 중인 Apps Script URL:', appsScriptUrl);
 
-          // no-cors 모드로 요청 (응답을 읽을 수 없지만 요청은 감)
-          // Content-Type을 text/plain으로 설정하여 CORS Preflight(OPTIONS) 요청을 방지합니다.
-          // Apps Script는 text/plain으로 들어와도 JSON.parse()로 처리 가능합니다.
-          await fetch(appsScriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-              'Content-Type': 'text/plain', // application/json 대신 사용
-            },
-            body: JSON.stringify({
-              spreadsheetId: spreadsheetId,
-              images: imagesToInsert
-            }),
-          });
+          // 표준 CORS 요청으로 변경 (Apps Script에 doOptions가 추가되었으므로 가능)
+          try {
+            const response = await fetch(appsScriptUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                spreadsheetId: spreadsheetId,
+                images: imagesToInsert
+              }),
+            });
 
-          console.log('✅ 이미지 삽입 요청 완료 (Apps Script)');
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ 이미지 삽입 요청 성공:', result);
+              if (result.serverLog) {
+                console.log('📜 서버 로그:', result.serverLog.join('\n'));
+              }
+            } else {
+              const errorText = await response.text();
+              console.error('❌ 이미지 삽입 요청 실패 (HTTP Error):', response.status, errorText);
+            }
+          } catch (fetchError) {
+            console.error('❌ 이미지 삽입 요청 중 네트워크/CORS 에러:', fetchError);
+          }
         }
       } catch (error) {
         console.error('❌ 이미지 삽입 요청 실패:', error);
