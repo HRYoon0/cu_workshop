@@ -527,8 +527,7 @@ export async function saveSurveyChartToSheet(
                       },
                       targetAxis: 'LEFT_AXIS'
                     }
-                  ],
-                  headerCount: 1
+                  ]
                 }
               },
               position: {
