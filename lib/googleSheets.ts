@@ -308,60 +308,44 @@ export async function saveSurveyChartToSheet(
       startRow = (existingData.values?.length || 0) + 2; // 빈 행 하나 추가
     }
 
-    // 4. 데이터 저장 (새로운 레이아웃)
-    // A-C열: 데이터 테이블
-    // D열: 세션 정보 (상단에 한 번만)
-    // F열: 이미지 하이퍼링크 (차트 오른쪽)
+    // 4. 데이터 저장 (명확한 레이아웃)
+    // 1행: 설문 제목 | | | | 세션 ID | 학부모 이미지
+    // 2행: 총 응답 | | | | | 학생 이미지
+    // 3행: (빈 줄)
+    // 4행: 옵션 | 응답 수 | 비율(%) (헤더)
+    // 5행~: 데이터
 
-    // 데이터 테이블 행 수 계산
-    const dataRowCount = chartData.length;
-
-    // 전체 데이터 배열 준비 (A-F열)
     const allData: string[][] = [];
 
-    for (let i = 0; i < dataRowCount; i++) {
-      const row: string[] = [];
+    // 1행: 제목과 정보
+    allData.push([
+      `📊 ${data.surveyTitle}`,
+      '',
+      '',
+      '',
+      `세션: ${data.sessionId}`,
+      data.parentResultImageUrl ? `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")` : ''
+    ]);
 
-      // A-C열: 데이터 테이블
-      row.push(chartData[i][0]); // 옵션
-      row.push(chartData[i][1]); // 응답 수
-      row.push(chartData[i][2]); // 비율
+    // 2행: 총 응답과 학생 이미지
+    allData.push([
+      `총 응답: ${data.totalResponses}명`,
+      '',
+      '',
+      '',
+      '',
+      data.studentResultImageUrl ? `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")` : ''
+    ]);
 
-      // D열: 세션 정보 (첫 번째 행에만)
-      if (i === 0) {
-        row.push(`세션: ${data.sessionId}`);
-      } else if (i === 1) {
-        row.push(`📊 ${data.surveyTitle}`);
-      } else if (i === 2) {
-        row.push(`총 응답: ${data.totalResponses}명`);
-      } else {
-        row.push('');
-      }
+    // 3행: 빈 줄
+    allData.push(['', '', '', '', '', '']);
 
-      // E열: 차트 영역 (빈칸 - 차트가 overlay됨)
-      row.push('');
+    // 4행: 헤더
+    allData.push(['옵션', '응답 수', '비율(%)', '', '', '']);
 
-      // F열: 이미지 하이퍼링크 (상단에만)
-      if (i === 0 && data.parentResultImageUrl) {
-        row.push(`=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")`);
-      } else if (i === 1 && data.studentResultImageUrl) {
-        row.push(`=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`);
-      } else {
-        row.push('');
-      }
-
-      allData.push(row);
-    }
-
-    // 이미지가 있는데 데이터 행이 부족한 경우 추가 행 생성
-    if (dataRowCount < 2 && data.studentResultImageUrl) {
-      const extraRow = ['', '', '', '', '', `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`];
-      if (dataRowCount === 0) {
-        allData.push(['', '', '', `세션: ${data.sessionId}`, '', data.parentResultImageUrl ? `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")` : '']);
-        allData.push(['', '', '', `📊 ${data.surveyTitle}`, '', `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`]);
-      } else {
-        allData.push(extraRow);
-      }
+    // 5행~: 데이터 (chartData의 첫 행은 헤더이므로 건너뜀)
+    for (let i = 1; i < chartData.length; i++) {
+      allData.push([chartData[i][0], chartData[i][1], chartData[i][2], '', '', '']);
     }
 
     // 데이터 저장
@@ -379,9 +363,9 @@ export async function saveSurveyChartToSheet(
     );
 
     // 5. 파이 차트 생성
-    // 차트 데이터 범위: 첫 행은 헤더이므로 startRow+1부터 데이터 시작
-    const chartStartRow = startRow + 1; // 헤더 다음 행부터
-    const chartEndRow = startRow + chartData.length; // 헤더 + 데이터
+    // 차트 데이터 범위: 4행(헤더) 다음부터 데이터
+    const chartStartRow = startRow + 4; // 데이터 시작 행 (5행)
+    const chartEndRow = startRow + allData.length; // 데이터 끝 행
 
     const chartRequest = {
       requests: [{
@@ -419,13 +403,13 @@ export async function saveSurveyChartToSheet(
               overlayPosition: {
                 anchorCell: {
                   sheetId: firstSheetId,
-                  rowIndex: startRow - 1,
-                  columnIndex: 4 // E열에 차트 배치
+                  rowIndex: startRow + 2, // 3행부터 차트 시작 (빈 줄 위치)
+                  columnIndex: 3 // D열에 차트 배치
                 },
                 offsetXPixels: 0,
                 offsetYPixels: 0,
-                widthPixels: 400,
-                heightPixels: 300
+                widthPixels: 350,
+                heightPixels: 250
               }
             }
           }

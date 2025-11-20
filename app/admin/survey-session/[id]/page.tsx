@@ -24,6 +24,7 @@ export default function SurveySessionPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showQRModal, setShowQRModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // 버튼 중복 클릭 방지
 
   const sessionRef = useRef<any>(null);
 
@@ -98,8 +99,9 @@ export default function SurveySessionPage({ params }: PageProps) {
   };
 
   const handleNextItem = async () => {
-    if (!session || !session.surveyItems) return;
+    if (!session || !session.surveyItems || isProcessing) return;
 
+    setIsProcessing(true);
     const currentItem = session.surveyItems[session.currentItemIndex];
     const nextIndex = session.currentItemIndex + 1;
 
@@ -138,10 +140,15 @@ export default function SurveySessionPage({ params }: PageProps) {
     } catch (err) {
       console.error('다음 항목 이동 실패:', err);
       alert('다음 항목 이동에 실패했습니다.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleEndSurvey = async () => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
     try {
       // 현재 설문 항목의 차트를 구글 시트에 저장
       if (session && session.sheetUrl && session.adminAccessToken) {
@@ -181,6 +188,8 @@ export default function SurveySessionPage({ params }: PageProps) {
     } catch (err) {
       console.error('설문 종료 실패:', err);
       alert('설문 종료에 실패했습니다.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -357,6 +366,7 @@ export default function SurveySessionPage({ params }: PageProps) {
       handleNextItem={handleNextItem}
       handleEndSurvey={handleEndSurvey}
       router={router}
+      isProcessing={isProcessing}
     />;
   }
 
@@ -470,7 +480,8 @@ function SurveyResultView({
   currentItem,
   handleNextItem,
   handleEndSurvey,
-  router
+  router,
+  isProcessing
 }: any) {
   const [chartType, setChartType] = useState<'progress' | 'pie' | 'bar'>('pie');
   const responseCount = session.responseCount || 0;
@@ -722,16 +733,46 @@ function SurveyResultView({
           {!isLastItem ? (
             <button
               onClick={handleNextItem}
-              className="px-12 py-6 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-colors text-2xl font-bold shadow-xl"
+              disabled={isProcessing}
+              className={`px-12 py-6 text-white rounded-2xl transition-colors text-2xl font-bold shadow-xl ${
+                isProcessing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
-              다음 설문
+              {isProcessing ? (
+                <span className="flex items-center gap-3">
+                  <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  저장 중...
+                </span>
+              ) : (
+                '다음 설문'
+              )}
             </button>
           ) : (
             <button
               onClick={handleEndSurvey}
-              className="px-12 py-6 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors text-2xl font-bold shadow-xl"
+              disabled={isProcessing}
+              className={`px-12 py-6 text-white rounded-2xl transition-colors text-2xl font-bold shadow-xl ${
+                isProcessing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
-              설문 완료
+              {isProcessing ? (
+                <span className="flex items-center gap-3">
+                  <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  저장 중...
+                </span>
+              ) : (
+                '설문 완료'
+              )}
             </button>
           )}
         </div>
