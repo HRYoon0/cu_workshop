@@ -437,8 +437,8 @@ function SurveyResultView({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* 설문 결과 차트 */}
+        {/* 설문 결과 차트 - 전체 너비 */}
+        <div className="mb-6">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-800">📊 응답 결과</h3>
@@ -588,7 +588,10 @@ function SurveyResultView({
               </div>
             )}
           </div>
+        </div>
 
+        {/* 학부모, 학생 결과 이미지 - 2열 그리드 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* 학부모 결과 이미지 */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-xl font-bold text-purple-700 mb-4">👨‍👩‍👧 학부모</h3>
