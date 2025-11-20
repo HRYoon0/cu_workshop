@@ -11,7 +11,7 @@ import {
   saveCurrentResponsesAndMoveNext
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
-import { saveSurveyChartToSheet } from '@/lib/googleSheets';
+import { saveSurveyChartToSheet, clearSurveySheetData } from '@/lib/googleSheets';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -56,6 +56,31 @@ export default function SurveySessionPage({ params }: PageProps) {
 
   const handleStartSurvey = async () => {
     try {
+      // 구글 시트가 연결된 경우 초기화 경고
+      if (session?.sheetUrl && session?.adminAccessToken) {
+        const confirmClear = confirm(
+          '⚠️ 경고: 구글 시트에 기존 설문 결과가 있을 수 있습니다.\n\n' +
+          '설문을 시작하면 기존 데이터가 모두 삭제됩니다.\n\n' +
+          '계속하시겠습니까?'
+        );
+
+        if (!confirmClear) {
+          return; // 사용자가 취소한 경우
+        }
+
+        // 기존 시트 데이터 초기화
+        const cleared = await clearSurveySheetData(
+          session.sheetUrl,
+          session.adminAccessToken
+        );
+
+        if (cleared) {
+          console.log('✅ 기존 시트 데이터가 초기화되었습니다.');
+        } else {
+          console.warn('⚠️ 시트 초기화에 실패했지만 설문을 계속 진행합니다.');
+        }
+      }
+
       await updateSurveySessionStatus(sessionId, 'active');
     } catch (err) {
       console.error('설문 시작 실패:', err);

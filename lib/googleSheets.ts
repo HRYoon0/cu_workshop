@@ -153,6 +153,97 @@ export async function saveSurveyResultToSheet(
 }
 
 /**
+ * 구글 시트의 설문 결과 데이터 초기화 (기존 데이터 삭제)
+ */
+export async function clearSurveySheetData(
+  sheetUrl: string,
+  accessToken: string
+): Promise<boolean> {
+  try {
+    // 시트 ID 추출
+    const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) {
+      console.warn('시트 URL에서 ID를 추출할 수 없습니다.');
+      return false;
+    }
+    const spreadsheetId = match[1];
+
+    // 1. 시트 정보 가져오기
+    const sheetInfoResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    if (!sheetInfoResponse.ok) {
+      throw new Error('시트 정보를 가져올 수 없습니다.');
+    }
+
+    const sheetInfo = await sheetInfoResponse.json();
+    const firstSheetId = sheetInfo.sheets?.[0]?.properties?.sheetId || 0;
+
+    // 2. 기존 차트 삭제
+    const chartsResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.charts`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    if (chartsResponse.ok) {
+      const chartsData = await chartsResponse.json();
+      const charts = chartsData.sheets?.[0]?.charts || [];
+
+      if (charts.length > 0) {
+        const deleteChartRequests = charts.map((chart: any) => ({
+          deleteEmbeddedObject: {
+            objectId: chart.chartId
+          }
+        }));
+
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ requests: deleteChartRequests }),
+          }
+        );
+        console.log(`✅ ${charts.length}개의 차트 삭제 완료`);
+      }
+    }
+
+    // 3. 모든 데이터 삭제 (A:F 전체)
+    const clearResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:F:clear`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!clearResponse.ok) {
+      const error = await clearResponse.text();
+      console.error('시트 데이터 삭제 실패:', error);
+      return false;
+    }
+
+    console.log('✅ 구글 시트 데이터 초기화 완료');
+    return true;
+  } catch (error) {
+    console.error('❌ 구글 시트 초기화 실패:', error);
+    return false;
+  }
+}
+
+/**
  * 설문 완료 시 차트와 이미지를 구글 시트에 저장
  */
 export async function saveSurveyChartToSheet(
