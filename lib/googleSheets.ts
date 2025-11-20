@@ -330,16 +330,25 @@ export async function saveSurveyChartToSheet(
 
     // 4. 데이터 저장 (새로운 레이아웃)
     // 각 설문 항목 블록:
-    // 1행: 📊 설문 제목
+    // 1행: 📊 설문 제목 | | | | 학부모 이미지 | 학생 이미지
     // 2행: 총 응답
     // 3행: 헤더 (옵션, 응답 수, 비율)
-    // 4행~: 데이터 + 차트(D열) + 이미지(F열)
+    // 4행~: 데이터 + 차트(D열)
 
     const allData: string[][] = [];
     const dataCount = chartData.length - 1; // 헤더 제외한 데이터 수
 
-    // 1행: 설문 제목
-    allData.push([`📊 ${data.surveyTitle}`, '', '', '', '', '']);
+    // 1행: 설문 제목 + 이미지 (이미지는 E, F열에 배치)
+    const titleRow = [`📊 ${data.surveyTitle}`, '', '', '', '', ''];
+    // 학부모 이미지가 있으면 E열에 IMAGE 함수로 표시
+    if (data.parentResultImageUrl) {
+      titleRow[4] = `=IMAGE("${data.parentResultImageUrl}", 4, 150, 150)`;
+    }
+    // 학생 이미지가 있으면 F열에 IMAGE 함수로 표시
+    if (data.studentResultImageUrl) {
+      titleRow[5] = `=IMAGE("${data.studentResultImageUrl}", 4, 150, 150)`;
+    }
+    allData.push(titleRow);
 
     // 2행: 총 응답
     allData.push([`총 응답: ${data.totalResponses}명`, '', '', '', '', '']);
@@ -347,25 +356,10 @@ export async function saveSurveyChartToSheet(
     // 3행: 헤더
     allData.push(['옵션', '응답 수', '비율(%)', '', '', '']);
 
-    // 4행~: 데이터 (이미지는 데이터 첫 두 행의 F열에)
+    // 4행~: 데이터
     for (let i = 1; i < chartData.length; i++) {
       const row = [chartData[i][0], chartData[i][1], chartData[i][2], '', '', ''];
-
-      // 첫 번째 데이터 행에 학부모 이미지
-      if (i === 1 && data.parentResultImageUrl) {
-        row[5] = `=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지")`;
-      }
-      // 두 번째 데이터 행에 학생 이미지
-      if (i === 2 && data.studentResultImageUrl) {
-        row[5] = `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`;
-      }
-
       allData.push(row);
-    }
-
-    // 데이터가 1개뿐인데 학생 이미지가 있는 경우 추가 행
-    if (dataCount === 1 && data.studentResultImageUrl) {
-      allData.push(['', '', '', '', '', `=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지")`]);
     }
 
     // 데이터 저장
@@ -448,6 +442,75 @@ export async function saveSurveyChartToSheet(
         body: JSON.stringify(chartRequest),
       }
     );
+
+    // 6. 이미지가 있는 경우 제목 행 높이와 열 너비 조정 (150px 이미지를 위해)
+    if (data.parentResultImageUrl || data.studentResultImageUrl) {
+      const dimensionRequests: any[] = [];
+
+      // 행 높이 조정
+      dimensionRequests.push({
+        updateDimensionProperties: {
+          range: {
+            sheetId: firstSheetId,
+            dimension: 'ROWS',
+            startIndex: startRow - 1, // 제목 행 (0-based)
+            endIndex: startRow, // 제목 행만
+          },
+          properties: {
+            pixelSize: 160, // 이미지 높이 + 여백
+          },
+          fields: 'pixelSize',
+        },
+      });
+
+      // E열 너비 조정 (학부모 이미지)
+      if (data.parentResultImageUrl) {
+        dimensionRequests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: firstSheetId,
+              dimension: 'COLUMNS',
+              startIndex: 4, // E열 (0-based)
+              endIndex: 5,
+            },
+            properties: {
+              pixelSize: 160,
+            },
+            fields: 'pixelSize',
+          },
+        });
+      }
+
+      // F열 너비 조정 (학생 이미지)
+      if (data.studentResultImageUrl) {
+        dimensionRequests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: firstSheetId,
+              dimension: 'COLUMNS',
+              startIndex: 5, // F열 (0-based)
+              endIndex: 6,
+            },
+            properties: {
+              pixelSize: 160,
+            },
+            fields: 'pixelSize',
+          },
+        });
+      }
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ requests: dimensionRequests }),
+        }
+      );
+    }
 
     console.log('✅ 설문 차트를 구글 시트에 저장했습니다.');
   } catch (error) {
