@@ -379,9 +379,9 @@ export async function saveSurveyChartToSheet(
     console.log('📊 데이터 행 추가 완료. 현재 allData 길이:', allData.length);
 
     // 차트를 위한 빈 행 추가 (10행)
-    // 공백 하나를 넣어서 Google Sheets API가 인식하도록 함
+    // Zero Width Space를 넣어서 Google Sheets API가 반드시 인식하도록 함
     for (let i = 0; i < 10; i++) {
-      allData.push([' ', '', '', '', '', '']);
+      allData.push(['\u200B', '', '', '', '', '']);
     }
 
     console.log('✅ 빈 행 10개 추가 완료. 최종 allData 길이:', allData.length);
@@ -468,10 +468,8 @@ export async function saveSurveyChartToSheet(
       }
     );
 
-    // 6. Apps Script를 사용하여 이미지 삽입
-    const imageInserterUrl = process.env.NEXT_PUBLIC_IMAGE_INSERTER_URL;
-
-    if (imageInserterUrl && (data.parentResultImageUrl || data.studentResultImageUrl)) {
+    // 6. API Route를 통해 이미지 삽입 (CORS 우회)
+    if (data.parentResultImageUrl || data.studentResultImageUrl) {
       const images: any[] = [];
 
       // E열(5번째 열)에 학부모 이미지 (1-based index)
@@ -497,7 +495,8 @@ export async function saveSurveyChartToSheet(
       }
 
       try {
-        const imageResponse = await fetch(imageInserterUrl, {
+        // Next.js API Route를 통해 Apps Script 호출 (CORS 우회)
+        const imageResponse = await fetch('/api/insert-image', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -509,16 +508,14 @@ export async function saveSurveyChartToSheet(
         });
 
         if (!imageResponse.ok) {
-          console.error('❌ Apps Script 이미지 삽입 실패:', await imageResponse.text());
+          console.error('❌ 이미지 삽입 실패:', await imageResponse.text());
         } else {
           const result = await imageResponse.json();
-          console.log('✅ Apps Script로 이미지 삽입 성공:', result);
+          console.log('✅ 이미지 삽입 성공:', result);
         }
       } catch (error) {
-        console.error('❌ Apps Script 호출 에러:', error);
+        console.error('❌ 이미지 삽입 에러:', error);
       }
-    } else if (!imageInserterUrl) {
-      console.warn('⚠️ NEXT_PUBLIC_IMAGE_INSERTER_URL이 설정되지 않았습니다. .env 파일을 확인하세요.');
     }
 
     console.log('✅ 설문 차트 및 이미지를 구글 시트에 저장했습니다.');
