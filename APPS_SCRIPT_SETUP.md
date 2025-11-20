@@ -2,11 +2,22 @@
 
 Google Sheets에 이미지를 자동으로 삽입하기 위한 Apps Script 설정 방법입니다.
 
-## 1단계: Google Sheets에 Apps Script 추가
+**중요:** 이 Apps Script는 **독립 실행형 프로젝트**로 생성해야 합니다. 특정 시트에 바인딩하면 시트 삭제 시 Apps Script도 사라집니다!
 
-1. **설문 결과가 저장될 Google Sheets**를 엽니다
-2. 상단 메뉴에서 **확장 프로그램 > Apps Script** 클릭
+## 1단계: 독립 실행형 Apps Script 프로젝트 생성
+
+### 방법 1: script.google.com 사용 (권장)
+
+1. 브라우저에서 **https://script.google.com** 접속
+2. 좌측 상단 **새 프로젝트** 클릭
 3. 새 Apps Script 프로젝트가 열립니다
+
+### 방법 2: Google Drive 사용
+
+1. **Google Drive** (https://drive.google.com) 접속
+2. 좌측 상단 **새로 만들기** 클릭
+3. **더보기 > Google Apps Script** 선택
+4. 새 Apps Script 프로젝트가 열립니다
 
 ## 2단계: Apps Script 코드 복사
 
@@ -44,14 +55,36 @@ Google Sheets에 이미지를 자동으로 삽입하기 위한 Apps Script 설�
 3. 파일을 저장합니다
 4. 개발 서버를 재시작합니다 (Ctrl+C 후 `npm run dev`)
 
-## 5단계: 테스트
+## 5단계: Vercel 환경 변수 설정 (중요!)
 
-1. 설문 세션을 새로 시작합니다
-2. 설문을 완료하여 결과를 저장합니다
-3. Google Sheets를 확인하면:
+로컬 `.env` 파일에만 설정하면 Vercel 배포 시 적용되지 않습니다!
+
+1. **Vercel 대시보드** (https://vercel.com) 접속
+2. 프로젝트 선택
+3. **Settings > Environment Variables** 클릭
+4. 새 환경 변수 추가:
+   - **Key**: `NEXT_PUBLIC_IMAGE_INSERTER_URL`
+   - **Value**: 복사한 웹 앱 URL
+   - **Environments**: Production, Preview, Development 모두 체크
+5. **Save** 클릭
+6. 프로젝트를 **Redeploy** (Settings > Deployments > 최신 배포 > ... > Redeploy)
+
+## 6단계: 테스트
+
+1. Vercel 재배포 완료 대기
+2. 설문 세션을 새로 시작합니다
+3. 설문을 완료하여 결과를 저장합니다
+4. Google Sheets를 확인하면:
    - ✅ 차트가 문항 사이에 충분한 간격으로 표시됨
    - ✅ E, F 열에 학부모/학생 이미지가 자동으로 삽입됨
    - ✅ "액세스 허용" 없이 이미지가 바로 표시됨
+
+## 중요: 독립 실행형 프로젝트의 장점
+
+- ✅ 한 번 배포하면 **모든 설문 시트**에서 사용 가능
+- ✅ 시트를 삭제해도 Apps Script는 유지됨
+- ✅ 다른 사용자가 만든 설문 시트에도 자동 적용
+- ✅ 관리자만 한 번 승인하면 끝
 
 ## 문제 해결
 
