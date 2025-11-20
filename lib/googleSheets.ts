@@ -532,12 +532,13 @@ export async function saveSurveyChartToSheet(
           console.log('🚀 Apps Script로 이미지 삽입 요청 전송...', imagesToInsert.length);
 
           // no-cors 모드로 요청 (응답을 읽을 수 없지만 요청은 감)
-          // Apps Script는 단순 실행만 하면 되므로 결과 확인 불필요
+          // Content-Type을 text/plain으로 설정하여 CORS Preflight(OPTIONS) 요청을 방지합니다.
+          // Apps Script는 text/plain으로 들어와도 JSON.parse()로 처리 가능합니다.
           await fetch(appsScriptUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type': 'text/plain', // application/json 대신 사용
             },
             body: JSON.stringify({
               spreadsheetId: spreadsheetId,
