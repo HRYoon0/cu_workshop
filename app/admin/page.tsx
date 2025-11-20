@@ -115,6 +115,20 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router]);
 
+  // 페이지 로드 시 토큰 유효성 체크
+  useEffect(() => {
+    const checkInitialToken = async () => {
+      if (!user) return;
+
+      const isValid = await checkTokenValidity();
+      if (!isValid) {
+        console.warn('⚠️ 토큰이 만료되었습니다. 탭을 클릭하면 재인증됩니다.');
+      }
+    };
+
+    checkInitialToken();
+  }, [user]);
+
   // 모달이 열릴 때 배경 스크롤 방지
   useEffect(() => {
     if (showSchoolNameModal) {
@@ -138,11 +152,13 @@ export default function AdminPage() {
     }
   };
 
-  // 탭 변경 핸들러 - 토큰 체크 및 자동 재인증
+  // 탭 변경 핸들러 - 토큰 유효성 체크 및 자동 재인증
   const handleTabChange = async (tab: 'quiz' | 'survey' | 'discussion' | 'approval') => {
-    // 토큰이 없으면 자동으로 재인증 (클릭 이벤트에서 직접 호출되므로 팝업 허용됨)
-    const accessToken = localStorage.getItem('googleAccessToken');
-    if (!accessToken) {
+    // 토큰 유효성 체크 (만료 여부 확인)
+    const isValid = await checkTokenValidity();
+
+    // 토큰이 없거나 만료되었으면 자동으로 재인증 (클릭 이벤트에서 직접 호출되므로 팝업 허용됨)
+    if (!isValid) {
       try {
         const { getGoogleAccessToken } = await import('@/lib/googleDrive');
         await getGoogleAccessToken(); // 재인증 팝업
