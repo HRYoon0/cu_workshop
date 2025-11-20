@@ -330,8 +330,9 @@ export async function saveSurveyChartToSheet(
 
     // 3. 결과 저장할 시작 행 찾기 (기존 데이터 뒤에 추가)
     // A1에는 세션 ID가 있으므로 3행부터 시작
+    // A:F 전체를 체크해야 빈 행도 포함됨
     const existingDataResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:A`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:F`,
       {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       }
@@ -341,8 +342,10 @@ export async function saveSurveyChartToSheet(
     if (existingDataResponse.ok) {
       const existingData = await existingDataResponse.json();
       const lastRow = existingData.values?.length || 0;
+      console.log('🔍 기존 데이터 마지막 행:', lastRow);
       if (lastRow >= 2) {
         startRow = lastRow + 2; // 기존 데이터 뒤에 빈 행 하나 추가
+        console.log('📍 다음 시작 행:', startRow);
       }
     }
 
