@@ -469,8 +469,8 @@ export async function saveSurveyChartToSheet(
                 },
                 offsetXPixels: 0,
                 offsetYPixels: 0,
-                widthPixels: 300,
-                heightPixels: 300 // 높이를 300으로 통일
+                widthPixels: 400, // 너비 400
+                heightPixels: 300 // 높이 300
               }
             }
           }
@@ -491,9 +491,6 @@ export async function saveSurveyChartToSheet(
     );
 
     // 6. 이미지 삽입 (Apps Script 사용)
-    // Google Drive 이미지는 Sheets API로 직접 삽입하거나 IMAGE 함수를 쓰면
-    // "액세스 허용" 경고가 뜨거나 이미지가 깨지는 문제가 있습니다.
-    // 따라서 배포된 Apps Script를 통해 이미지를 Blob 형태로 직접 삽입합니다.
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       try {
         const appsScriptUrl = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL ||
@@ -506,24 +503,24 @@ export async function saveSurveyChartToSheet(
 
         const imagesToInsert = [];
 
-        // E열(5번째 열)에 학부모 이미지 -> G열(7번째 열)로 이동 (차트와 겹치지 않게)
+        // 1. 학부모 이미지: H열(8번째 열)로 이동 (차트가 D,E,F,G 차지)
         if (data.parentResultImageUrl) {
           imagesToInsert.push({
             url: data.parentResultImageUrl,
             row: startRow, // 1-based index
-            column: 7,     // G열 (차트가 D,E,F 차지함)
-            width: 300,    // 크기 300으로 통일
+            column: 8,     // H열
+            width: 400,    // 400x300
             height: 300
           });
         }
 
-        // F열(6번째 열)에 학생 이미지 -> J열(10번째 열)로 이동 (학부모 이미지 옆)
+        // 2. 학생 이미지: L열(12번째 열)로 이동 (학부모 이미지가 H,I,J,K 차지)
         if (data.studentResultImageUrl) {
           imagesToInsert.push({
             url: data.studentResultImageUrl,
             row: startRow, // 1-based index
-            column: 10,    // J열 (학부모 이미지가 G,H,I 차지함)
-            width: 300,    // 크기 300으로 통일
+            column: 12,    // L열
+            width: 400,    // 400x300
             height: 300
           });
         }
