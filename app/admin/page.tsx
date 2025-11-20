@@ -74,6 +74,7 @@ export default function AdminPage() {
   const [schoolName, setSchoolName] = useState('2025학년도 경남초등학교 교육과정 워크숍');
   const [showSchoolNameModal, setShowSchoolNameModal] = useState(false);
   const [tempSchoolName, setTempSchoolName] = useState('');
+  const [isCreatorInfoOpen, setIsCreatorInfoOpen] = useState(false);
 
   useEffect(() => {
     // 저장된 학교 이름 불러오기
@@ -303,6 +304,31 @@ export default function AdminPage() {
               <p className="text-sm text-gray-500 mt-1">
                 {user?.displayName || user?.email} 님 환영합니다
               </p>
+
+              {/* 제작자 정보 */}
+              <div className="mt-2">
+                <button
+                  onClick={() => setIsCreatorInfoOpen(!isCreatorInfoOpen)}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+                >
+                  <span>제작자 정보</span>
+                  <svg
+                    className={`w-3 h-3 transition-transform ${isCreatorInfoOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isCreatorInfoOpen && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                    <p className="font-semibold">제작자: 황산초 윤희류</p>
+                    <p className="mt-1">이메일: tmdsh2000@naver.com</p>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center space-x-3">
               <Link

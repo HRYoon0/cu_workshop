@@ -1,11 +1,6 @@
-'use client';
-
 import Link from 'next/link';
-import { useState } from 'react';
 
 export default function Home() {
-  const [isCreatorInfoOpen, setIsCreatorInfoOpen] = useState(false);
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -22,30 +17,6 @@ export default function Home() {
             실시간 의견 취합 시스템
           </p>
 
-          {/* 제작자 정보 */}
-          <div className="mt-6">
-            <button
-              onClick={() => setIsCreatorInfoOpen(!isCreatorInfoOpen)}
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center mx-auto gap-2"
-            >
-              <span>제작자 정보</span>
-              <svg
-                className={`w-4 h-4 transition-transform ${isCreatorInfoOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {isCreatorInfoOpen && (
-              <div className="mt-3 p-4 bg-white/50 rounded-lg text-sm text-gray-600">
-                <p className="font-semibold">제작자: 황산초 윤희류</p>
-                <p className="mt-1">이메일: tmdsh2000@naver.com</p>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* 관리자 로그인 버튼 */}
@@ -67,6 +38,10 @@ export default function Home() {
 
         <p className="text-center text-gray-500 text-sm mt-8">
           참여자는 관리자가 제공하는 QR 코드로 접속합니다
+        </p>
+
+        <p className="text-center text-gray-400 text-xs mt-4">
+          © 2025 HuiRyu Yoon. All rights reserved.
         </p>
       </div>
     </main>
