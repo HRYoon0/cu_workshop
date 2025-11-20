@@ -224,25 +224,17 @@ export async function saveSurveyChartToSheet(
       ...chartData,
     ];
 
-    // 학부모/학생 이미지 URL이 있으면 추가
+    // 학부모/학생 이미지 URL이 있으면 추가 (하이퍼링크로 저장)
     if (data.parentResultImageUrl || data.studentResultImageUrl) {
       allData.push([]);
-      allData.push(['📷 비교 이미지']);
+      allData.push(['📷 비교 이미지 링크']);
 
-      const imageRow: string[] = [];
       if (data.parentResultImageUrl) {
-        imageRow.push(`=IMAGE("${data.parentResultImageUrl}", 4, 200, 200)`);
+        allData.push([`=HYPERLINK("${data.parentResultImageUrl}", "👨‍👩‍👧 학부모 이미지 보기")`]);
       }
       if (data.studentResultImageUrl) {
-        imageRow.push(`=IMAGE("${data.studentResultImageUrl}", 4, 200, 200)`);
+        allData.push([`=HYPERLINK("${data.studentResultImageUrl}", "👦 학생 이미지 보기")`]);
       }
-      allData.push(imageRow);
-
-      // 이미지 레이블
-      const labelRow: string[] = [];
-      if (data.parentResultImageUrl) labelRow.push('학부모');
-      if (data.studentResultImageUrl) labelRow.push('학생');
-      allData.push(labelRow);
     }
 
     // 데이터 저장
