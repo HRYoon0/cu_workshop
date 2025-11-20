@@ -429,53 +429,125 @@ export async function saveSurveyChartToSheet(
     const chartEndRow = startRow + 3 + dataCount; // 데이터 끝 행
 
     const chartRequest = {
-      requests: [{
-        addChart: {
-          chart: {
-            spec: {
-              title: data.surveyTitle,
-              pieChart: {
-                legendPosition: 'RIGHT_LEGEND',
-                domain: {
-                  sourceRange: {
-                    sources: [{
-                      sheetId: firstSheetId,
-                      startRowIndex: chartStartRow - 1,
-                      endRowIndex: chartEndRow,
-                      startColumnIndex: 0,
-                      endColumnIndex: 1
-                    }]
-                  }
-                },
-                series: {
-                  sourceRange: {
-                    sources: [{
-                      sheetId: firstSheetId,
-                      startRowIndex: chartStartRow - 1,
-                      endRowIndex: chartEndRow,
-                      startColumnIndex: 1,
-                      endColumnIndex: 2
-                    }]
+      requests: [
+        // 1. 파이 차트 (원그래프)
+        {
+          addChart: {
+            chart: {
+              spec: {
+                title: `${data.surveyTitle} (원그래프)`,
+                pieChart: {
+                  legendPosition: 'RIGHT_LEGEND',
+                  domain: {
+                    sourceRange: {
+                      sources: [{
+                        sheetId: firstSheetId,
+                        startRowIndex: chartStartRow - 1,
+                        endRowIndex: chartEndRow,
+                        startColumnIndex: 0,
+                        endColumnIndex: 1
+                      }]
+                    }
+                  },
+                  series: {
+                    sourceRange: {
+                      sources: [{
+                        sheetId: firstSheetId,
+                        startRowIndex: chartStartRow - 1,
+                        endRowIndex: chartEndRow,
+                        startColumnIndex: 1,
+                        endColumnIndex: 2
+                      }]
+                    }
                   }
                 }
+              },
+              position: {
+                overlayPosition: {
+                  anchorCell: {
+                    sheetId: firstSheetId,
+                    rowIndex: startRow - 1,
+                    columnIndex: 3 // D열
+                  },
+                  offsetXPixels: 0,
+                  offsetYPixels: 0,
+                  widthPixels: 400,
+                  heightPixels: 300
+                }
               }
-            },
-            position: {
-              overlayPosition: {
-                anchorCell: {
-                  sheetId: firstSheetId,
-                  rowIndex: startRow - 1, // 제목 행에서 시작 (0-based index)
-                  columnIndex: 3 // D열에 차트 배치
-                },
-                offsetXPixels: 0,
-                offsetYPixels: 0,
-                widthPixels: 400, // 너비 400
-                heightPixels: 300 // 높이 300
+            }
+          }
+        },
+        // 2. 막대 차트 (세로)
+        {
+          addChart: {
+            chart: {
+              spec: {
+                title: `${data.surveyTitle} (막대그래프)`,
+                basicChart: {
+                  chartType: 'COLUMN',
+                  legendPosition: 'RIGHT_LEGEND',
+                  axis: [
+                    {
+                      position: 'BOTTOM_AXIS',
+                      title: '옵션'
+                    },
+                    {
+                      position: 'LEFT_AXIS',
+                      title: '응답 수'
+                    }
+                  ],
+                  domains: [
+                    {
+                      domain: {
+                        sourceRange: {
+                          sources: [{
+                            sheetId: firstSheetId,
+                            startRowIndex: chartStartRow - 1,
+                            endRowIndex: chartEndRow,
+                            startColumnIndex: 0,
+                            endColumnIndex: 1
+                          }]
+                        }
+                      }
+                    }
+                  ],
+                  series: [
+                    {
+                      series: {
+                        sourceRange: {
+                          sources: [{
+                            sheetId: firstSheetId,
+                            startRowIndex: chartStartRow - 1,
+                            endRowIndex: chartEndRow,
+                            startColumnIndex: 1,
+                            endColumnIndex: 2
+                          }]
+                        }
+                      },
+                      targetAxis: 'LEFT_AXIS'
+                    }
+                  ],
+                  headerCount: 1
+                }
+              },
+              position: {
+                overlayPosition: {
+                  anchorCell: {
+                    sheetId: firstSheetId,
+                    rowIndex: startRow - 1,
+                    columnIndex: 7 // H열 (파이 차트 오른쪽)
+                  },
+                  offsetXPixels: 0,
+                  offsetYPixels: 0,
+                  widthPixels: 400,
+                  heightPixels: 300
+                }
               }
             }
           }
         }
-      }]
+      ]
     };
 
     await fetch(
