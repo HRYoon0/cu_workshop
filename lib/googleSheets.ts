@@ -548,10 +548,8 @@ export async function saveSurveyChartToSheet(
 
             if (response.ok) {
               const result = await response.json();
-              console.log('✅ 이미지 삽입 요청 성공:', result);
-              if (result.serverLog) {
-                console.log('📜 서버 로그:', result.serverLog.join('\n'));
-              }
+              console.log('✅ 이미지 삽입 요청 성공!');
+              console.log('📋 상세 결과:', JSON.stringify(result, null, 2));
             } else {
               const errorText = await response.text();
               console.error('❌ 이미지 삽입 요청 실패 (HTTP Error):', response.status, errorText);
