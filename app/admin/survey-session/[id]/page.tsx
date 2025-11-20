@@ -81,10 +81,22 @@ export default function SurveySessionPage({ params }: PageProps) {
     try {
       // 현재 설문 항목의 차트를 구글 시트에 저장
       if (session.sheetUrl && session.adminAccessToken && currentItem.type === 'multiple') {
+        // statistics.optionCounts를 옵션명으로 변환
+        const optionStats: { [key: string]: number } = {};
+        const stats = session.statistics || {};
+        if (stats.optionCounts) {
+          Object.entries(stats.optionCounts).forEach(([index, count]) => {
+            const option = currentItem.options[parseInt(index)];
+            if (option) {
+              optionStats[option] = count as number;
+            }
+          });
+        }
+
         await saveSurveyChartToSheet(
           {
             surveyTitle: currentItem.question || '설문',
-            statistics: session.statistics || {},
+            statistics: optionStats,
             options: currentItem.options || [],
             totalResponses: session.responseCount || 0,
             parentResultImageUrl: currentItem.parentResultImageUrl,
@@ -109,10 +121,22 @@ export default function SurveySessionPage({ params }: PageProps) {
       if (session && session.sheetUrl && session.adminAccessToken) {
         const currentItem = session.surveyItems[session.currentItemIndex];
         if (currentItem && currentItem.type === 'multiple') {
+          // statistics.optionCounts를 옵션명으로 변환
+          const optionStats: { [key: string]: number } = {};
+          const stats = session.statistics || {};
+          if (stats.optionCounts) {
+            Object.entries(stats.optionCounts).forEach(([index, count]) => {
+              const option = currentItem.options[parseInt(index)];
+              if (option) {
+                optionStats[option] = count as number;
+              }
+            });
+          }
+
           await saveSurveyChartToSheet(
             {
               surveyTitle: currentItem.question || '설문',
-              statistics: session.statistics || {},
+              statistics: optionStats,
               options: currentItem.options || [],
               totalResponses: session.responseCount || 0,
               parentResultImageUrl: currentItem.parentResultImageUrl,
