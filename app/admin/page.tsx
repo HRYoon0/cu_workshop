@@ -115,27 +115,6 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // 탭 변경 시 Google OAuth 토큰 유효성 체크 및 자동 재인증
-  useEffect(() => {
-    const checkToken = async () => {
-      if (!user) return;
-
-      const isValid = await checkTokenValidity();
-
-      // 토큰이 유효하지 않으면 자동으로 재인증 시도
-      if (!isValid) {
-        try {
-          const { getGoogleAccessToken } = await import('@/lib/googleDrive');
-          await getGoogleAccessToken(); // 자동으로 재인증 팝업 띄움
-        } catch (error) {
-          console.error('자동 재인증 실패:', error);
-        }
-      }
-    };
-
-    checkToken();
-  }, [activeTab, user]);
-
   // 모달이 열릴 때 배경 스크롤 방지
   useEffect(() => {
     if (showSchoolNameModal) {
@@ -157,6 +136,21 @@ export default function AdminPage() {
     } catch (error) {
       console.error('로그아웃 실패:', error);
     }
+  };
+
+  // 탭 변경 핸들러 - 토큰 체크 및 자동 재인증
+  const handleTabChange = async (tab: 'quiz' | 'survey' | 'discussion' | 'approval') => {
+    // 토큰이 없으면 자동으로 재인증 (클릭 이벤트에서 직접 호출되므로 팝업 허용됨)
+    const accessToken = localStorage.getItem('googleAccessToken');
+    if (!accessToken) {
+      try {
+        const { getGoogleAccessToken } = await import('@/lib/googleDrive');
+        await getGoogleAccessToken(); // 재인증 팝업
+      } catch (error) {
+        console.error('재인증 실패:', error);
+      }
+    }
+    setActiveTab(tab);
   };
 
   const handleSchoolNameSave = async () => {
@@ -316,7 +310,7 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <div className="flex space-x-4 border-b border-gray-200">
           <button
-            onClick={() => setActiveTab('quiz')}
+            onClick={() => handleTabChange('quiz')}
             className={`px-6 py-3 font-semibold transition-all ${
               activeTab === 'quiz'
                 ? 'border-b-4 border-blue-500 text-blue-600'
@@ -326,7 +320,7 @@ export default function AdminPage() {
             퀴즈 관리
           </button>
           <button
-            onClick={() => setActiveTab('survey')}
+            onClick={() => handleTabChange('survey')}
             className={`px-6 py-3 font-semibold transition-all ${
               activeTab === 'survey'
                 ? 'border-b-4 border-green-500 text-green-600'
@@ -336,7 +330,7 @@ export default function AdminPage() {
             설문 관리
           </button>
           <button
-            onClick={() => setActiveTab('discussion')}
+            onClick={() => handleTabChange('discussion')}
             className={`px-6 py-3 font-semibold transition-all ${
               activeTab === 'discussion'
                 ? 'border-b-4 border-orange-500 text-orange-600'
@@ -347,7 +341,7 @@ export default function AdminPage() {
           </button>
           {isAdmin && (
             <button
-              onClick={() => setActiveTab('approval')}
+              onClick={() => handleTabChange('approval')}
               className={`px-6 py-3 font-semibold transition-all ${
                 activeTab === 'approval'
                   ? 'border-b-4 border-purple-500 text-purple-600'
