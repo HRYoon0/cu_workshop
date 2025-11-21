@@ -1124,6 +1124,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
   const handleItemUpdated = () => {
     loadItems();
     setEditingItem(null);
+    setShowItemForm(false);
   };
 
   const handleDeleteItem = async (itemId: string) => {
@@ -1141,12 +1142,29 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
     }
   };
 
+  const handleEditClick = (item: any) => {
+    setEditingItem(item);
+    setShowItemForm(true);
+  };
+
+  const handleAddClick = () => {
+    if (showItemForm) {
+      // 취소할 때
+      setShowItemForm(false);
+      setEditingItem(null);
+    } else {
+      // 추가할 때
+      setEditingItem(null);
+      setShowItemForm(true);
+    }
+  };
+
   return (
     <div className="p-6 bg-gray-50">
       <div className="flex justify-between items-center mb-4">
         <h4 className="text-lg font-bold text-gray-800">설문 항목 목록</h4>
         <button
-          onClick={() => setShowItemForm(!showItemForm)}
+          onClick={handleAddClick}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
         >
           {showItemForm ? '취소' : '+ 설문 항목 추가'}
@@ -1159,7 +1177,10 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
           userId={userId}
           onCreated={handleItemCreated}
           onUpdated={handleItemUpdated}
-          onClose={() => setShowItemForm(false)}
+          onClose={() => {
+            setShowItemForm(false);
+            setEditingItem(null);
+          }}
           editingItem={editingItem}
         />
       )}
@@ -1211,7 +1232,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => setEditingItem(item)}
+                    onClick={() => handleEditClick(item)}
                     className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                   >
                     수정
