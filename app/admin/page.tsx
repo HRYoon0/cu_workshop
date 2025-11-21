@@ -1558,7 +1558,7 @@ function SurveyItemForm({
           {questions.map((q: any, qIndex: number) => (
             <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
-                <h5 className="font-semibold text-gray-800">설문 {existingItemsCount + qIndex + 1}</h5>
+                <h5 className="font-semibold text-gray-800">설문 {isEditMode ? qIndex + 1 : existingItemsCount + qIndex + 1}</h5>
                 {questions.length > 1 && (
                   <button
                     type="button"
