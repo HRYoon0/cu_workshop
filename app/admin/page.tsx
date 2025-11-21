@@ -908,10 +908,7 @@ function TopicCard({
   };
 
   return (
-    <div
-      className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow cursor-pointer"
-      onClick={() => onClick(topic)}
-    >
+    <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow">
       <div className="flex justify-between items-start gap-6">
         <div className="flex-1">
           <h3 className="text-lg font-bold text-gray-800">{topic.title}</h3>
@@ -971,7 +968,6 @@ function TopicCard({
 function SurveyManager({ userId }: { userId: string }) {
   const [topics, setTopics] = useState<any[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingTopic, setEditingTopic] = useState<any>(null);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [showItemsModal, setShowItemsModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -997,17 +993,6 @@ function SurveyManager({ userId }: { userId: string }) {
   const handleTopicCreated = async () => {
     // Firebase에서 최신 주제 목록 다시 로드
     await loadTopics();
-    setShowCreateForm(false);
-  };
-
-  const handleTopicUpdated = async () => {
-    // Firebase에서 최신 주제 목록 다시 로드
-    await loadTopics();
-    setEditingTopic(null);
-  };
-
-  const handleTopicEdit = (topic: any) => {
-    setEditingTopic(topic);
     setShowCreateForm(false);
   };
 
@@ -1083,26 +1068,12 @@ function SurveyManager({ userId }: { userId: string }) {
               <TopicCard
                 key={topic.id}
                 topic={topic}
-                onClick={handleTopicClick}
-                onEdit={handleTopicEdit}
+                onClick={() => {}}
+                onEdit={handleTopicClick}
                 onDelete={handleTopicDelete}
               />
             ))
           )}
-        </div>
-      )}
-
-      {/* 설문 주제 수정 폼 */}
-      {editingTopic && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <SurveyTopicEditForm
-              topic={editingTopic}
-              userId={userId}
-              onClose={() => setEditingTopic(null)}
-              onUpdated={handleTopicUpdated}
-            />
-          </div>
         </div>
       )}
 
