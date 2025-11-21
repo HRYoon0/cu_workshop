@@ -1202,57 +1202,73 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
         />
       )}
 
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">설문 항목을 불러오는 중...</p>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500">아직 생성된 설문 항목이 없습니다</p>
-          <p className="text-gray-400 mt-2 text-sm">위의 버튼을 클릭하여 설문 항목을 추가하세요!</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item: any, itemIndex: number) => (
-            <div key={item.id} className="bg-white rounded-lg p-4 shadow">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <p className="text-gray-900 font-medium">{item.question}</p>
-                  {item.type === 'multiple' && item.options && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.options.map((option: string, idx: number) => (
-                        <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                          {idx + 1}. {option}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {(item.studentResultImageUrl || item.parentResultImageUrl) && (
-                    <div className="mt-2 flex gap-2 text-sm text-gray-500">
-                      {item.studentResultImageUrl && <span>📊 학생 결과 이미지</span>}
-                      {item.parentResultImageUrl && <span>📊 학부모 결과 이미지</span>}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEditClick(item, itemIndex)}
-                    className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                  >
-                    수정
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
+      {!showItemForm && (
+        <>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500">설문 항목을 불러오는 중...</p>
             </div>
-          ))}
-        </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">아직 생성된 설문 항목이 없습니다</p>
+              <p className="text-gray-400 mt-2 text-sm">위의 버튼을 클릭하여 설문 항목을 추가하세요!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item: any, itemIndex: number) => (
+                <div key={item.id} className="bg-white rounded-lg p-4 shadow">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                          item.type === 'multiple' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                        }`}>
+                          {item.type === 'multiple' ? '선다형' : '서술형'}
+                        </span>
+                        {item.allowOther && (
+                          <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-100 text-orange-700">
+                            기타 의견 허용
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-900 font-medium">{item.question}</p>
+                      {item.type === 'multiple' && item.options && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {item.options.map((option: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                              {idx + 1}. {option}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(item.studentResultImageUrl || item.parentResultImageUrl) && (
+                        <div className="mt-2 flex gap-2 text-sm text-gray-500">
+                          {item.studentResultImageUrl && <span>📊 학생 결과 이미지</span>}
+                          {item.parentResultImageUrl && <span>📊 학부모 결과 이미지</span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEditClick(item, itemIndex)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
