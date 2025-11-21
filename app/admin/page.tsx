@@ -1218,18 +1218,6 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
             <div key={item.id} className="bg-white rounded-lg p-4 shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                      item.type === 'multiple' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                    }`}>
-                      {item.type === 'multiple' ? '선다형' : '서술형'}
-                    </span>
-                    {item.allowOther && (
-                      <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-100 text-orange-700">
-                        기타 의견 허용
-                      </span>
-                    )}
-                  </div>
                   <p className="text-gray-900 font-medium">{item.question}</p>
                   {item.type === 'multiple' && item.options && (
                     <div className="mt-2 flex flex-wrap gap-2">
