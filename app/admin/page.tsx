@@ -1324,7 +1324,7 @@ function SurveyTopicEditForm({
 
     try {
       setIsSubmitting(true);
-      await updateSurveyTopic(topic.id, { title: title.trim() });
+      await updateSurveyTopic(topic.id, title.trim());
       alert('설문 주제가 수정되었습니다.');
       onUpdated();
       onClose();
