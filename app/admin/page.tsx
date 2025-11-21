@@ -1182,6 +1182,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
             setEditingItem(null);
           }}
           editingItem={editingItem}
+          existingItemsCount={items.length}
         />
       )}
 
@@ -1261,7 +1262,8 @@ function SurveyItemForm({
   onUpdated,
   onClose,
   hasSheet,
-  topicId
+  topicId,
+  existingItemsCount = 0
 }: {
   userId: string;
   editingItem?: any;
@@ -1270,12 +1272,13 @@ function SurveyItemForm({
   onClose: () => void;
   hasSheet?: boolean;
   topicId?: string;
+  existingItemsCount?: number;
 }) {
   const isEditMode = !!editingItem;
   const [sheetTitle, setSheetTitle] = useState(editingItem?.sheetTitle || '');
   const [topicTitle, setTopicTitle] = useState('');
   const [hasExistingSheet, setHasExistingSheet] = useState(false);
-  const [questionIdCounter, setQuestionIdCounter] = useState(1);
+  const [questionIdCounter, setQuestionIdCounter] = useState(isEditMode ? 1 : existingItemsCount + 1);
   const [questions, setQuestions] = useState(
     editingItem ? [{
       id: 0,
