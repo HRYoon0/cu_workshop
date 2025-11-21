@@ -1098,6 +1098,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
   const [items, setItems] = useState<any[]>([]);
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItemIndex, setEditingItemIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -1124,6 +1125,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
   const handleItemUpdated = () => {
     loadItems();
     setEditingItem(null);
+    setEditingItemIndex(-1);
     setShowItemForm(false);
   };
 
@@ -1142,8 +1144,9 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
     }
   };
 
-  const handleEditClick = (item: any) => {
+  const handleEditClick = (item: any, index: number) => {
     setEditingItem(item);
+    setEditingItemIndex(index);
     setShowItemForm(true);
   };
 
@@ -1152,9 +1155,11 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
       // 취소할 때
       setShowItemForm(false);
       setEditingItem(null);
+      setEditingItemIndex(-1);
     } else {
       // 추가할 때
       setEditingItem(null);
+      setEditingItemIndex(-1);
       setShowItemForm(true);
     }
   };
@@ -1180,8 +1185,10 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
           onClose={() => {
             setShowItemForm(false);
             setEditingItem(null);
+            setEditingItemIndex(-1);
           }}
           editingItem={editingItem}
+          editingItemIndex={editingItemIndex}
           existingItemsCount={items.length}
         />
       )}
@@ -1198,7 +1205,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((item: any) => (
+          {items.map((item: any, itemIndex: number) => (
             <div key={item.id} className="bg-white rounded-lg p-4 shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -1233,7 +1240,7 @@ function SurveyItemsManager({ topicId, userId }: { topicId: string; userId: stri
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => handleEditClick(item)}
+                    onClick={() => handleEditClick(item, itemIndex)}
                     className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                   >
                     수정
@@ -1263,7 +1270,8 @@ function SurveyItemForm({
   onClose,
   hasSheet,
   topicId,
-  existingItemsCount = 0
+  existingItemsCount = 0,
+  editingItemIndex = -1
 }: {
   userId: string;
   editingItem?: any;
@@ -1273,12 +1281,13 @@ function SurveyItemForm({
   hasSheet?: boolean;
   topicId?: string;
   existingItemsCount?: number;
+  editingItemIndex?: number;
 }) {
   const isEditMode = !!editingItem;
   const [sheetTitle, setSheetTitle] = useState(editingItem?.sheetTitle || '');
   const [topicTitle, setTopicTitle] = useState('');
   const [hasExistingSheet, setHasExistingSheet] = useState(false);
-  const [questionIdCounter, setQuestionIdCounter] = useState(isEditMode ? 1 : existingItemsCount + 1);
+  const [questionIdCounter, setQuestionIdCounter] = useState(isEditMode ? editingItemIndex + 1 : existingItemsCount + 1);
   const [questions, setQuestions] = useState(
     editingItem ? [{
       id: 0,
@@ -1558,7 +1567,7 @@ function SurveyItemForm({
           {questions.map((q: any, qIndex: number) => (
             <div key={q.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
-                <h5 className="font-semibold text-gray-800">설문 {isEditMode ? qIndex + 1 : existingItemsCount + qIndex + 1}</h5>
+                <h5 className="font-semibold text-gray-800">설문 {isEditMode ? editingItemIndex + qIndex + 1 : existingItemsCount + qIndex + 1}</h5>
                 {questions.length > 1 && (
                   <button
                     type="button"
