@@ -1703,19 +1703,21 @@ function SurveyItemForm({
             </div>
           ))}
 
-          {/* 설문 추가 버튼 */}
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-green-400 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 hover:border-green-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
-          >
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            설문 추가하기
-          </button>
+          {/* 설문 추가 버튼 - 수정 모드가 아닐 때만 표시 */}
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="w-full py-4 border-2 border-dashed border-green-400 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 hover:border-green-500 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+            >
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              설문 추가하기
+            </button>
+          )}
         </div>
 
         {/* 버튼 */}
