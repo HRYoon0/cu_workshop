@@ -1969,18 +1969,12 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       const accessToken = localStorage.getItem('googleAccessToken');
       if (!accessToken) return;
 
-      // 현재 로그인한 사용자 이메일 가져오기
-      const currentUser = auth.currentUser;
-      if (!currentUser?.email) {
-        console.error('사용자 이메일을 찾을 수 없습니다.');
-        return;
-      }
+      const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
 
-      // 1. 사용자별 폴더 찾기
-      const userFolderName = `CU Workshop - ${currentUser.email}`;
-      const userFolderQuery = encodeURIComponent(`name='${userFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+      // 1. 학교 폴더 찾기
+      const schoolFolderQuery = encodeURIComponent(`name='${schoolName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
       const folderResponse = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${userFolderQuery}&fields=files(id,name)`,
+        `https://www.googleapis.com/drive/v3/files?q=${schoolFolderQuery}&fields=files(id,name)`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -2000,14 +1994,14 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       const folderData = await folderResponse.json();
       if (!folderData.files || folderData.files.length === 0) {
-        console.log('사용자 폴더가 없습니다.');
+        console.log('학교 폴더가 없습니다.');
         return;
       }
 
-      const userFolderId = folderData.files[0].id;
+      const schoolFolderId = folderData.files[0].id;
 
-      // 2. 해당 폴더 내에서 시트 검색
-      const searchQuery = encodeURIComponent(`name='교육과정 워크숍 논의 자료' and mimeType='application/vnd.google-apps.spreadsheet' and '${userFolderId}' in parents and trashed=false`);
+      // 2. 학교 폴더 내에서 시트 검색
+      const searchQuery = encodeURIComponent(`name='교육과정 워크숍 논의 자료' and mimeType='application/vnd.google-apps.spreadsheet' and '${schoolFolderId}' in parents and trashed=false`);
       const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&fields=files(id,name,webViewLink,createdTime)&orderBy=createdTime desc`,
         {
@@ -2125,17 +2119,10 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      // 현재 로그인한 사용자 이메일 가져오기
-      const currentUser = auth.currentUser;
-      if (!currentUser?.email) {
-        throw new Error('사용자 이메일을 찾을 수 없습니다. 다시 로그인해주세요.');
-      }
+      // 2. 학교 폴더 찾기 또는 생성 (각 사용자의 드라이브 root에)
+      const schoolFolderId = await findOrCreateFolder(schoolName, accessToken);
 
-      // 2. 사용자별 폴더 찾기 또는 생성
-      const userFolderName = `CU Workshop - ${currentUser.email}`;
-      const userFolderId = await findOrCreateFolder(userFolderName, accessToken);
-
-      // 3. 템플릿 시트 복사 (사용자 폴더에 저장)
+      // 3. 템플릿 시트 복사 (학교 폴더에 저장)
       const sheetName = '교육과정 워크숍 논의 자료';
 
       const copyResponse = await fetch(
@@ -2148,7 +2135,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
           },
           body: JSON.stringify({
             name: sheetName,
-            parents: [userFolderId],
+            parents: [schoolFolderId],
           }),
         }
       );
@@ -2195,7 +2182,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         // 권한 부여 실패는 치명적이지 않으므로 계속 진행
       }
 
-      // 4-1. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
+      // 5. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
       try {
         await fetch(
           `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
@@ -2217,10 +2204,10 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         // 권한 부여 실패는 치명적이지 않으므로 계속 진행
       }
 
-      // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
+      // 6. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
 
-      // 6. Firestore에 저장
+      // 7. Firestore에 저장
       await saveUserSheet({
         userId,
         sheetId: newSheetId,
@@ -2232,7 +2219,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       // 오래된 시트 히스토리 정리 (Firestore 용량 절약)
       await cleanOldUserSheetHistory(userId);
 
-      // 7. 즉시 UI 업데이트 (실시간 반영)
+      // 8. 즉시 UI 업데이트 (실시간 반영)
       setUserSheet({
         userId,
         sheetId: newSheetId,
