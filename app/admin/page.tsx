@@ -2158,31 +2158,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       console.log('시트 복사 완료:', newSheetId);
 
-      // 4. 관리자에게 편집 권한 부여
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'tmdsh2000@gmail.com';
-      try {
-        await fetch(
-          `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              role: 'writer',
-              type: 'user',
-              emailAddress: adminEmail,
-            }),
-          }
-        );
-        console.log('관리자 편집 권한 부여 완료');
-      } catch (permError) {
-        console.error('관리자 권한 부여 실패:', permError);
-        // 권한 부여 실패는 치명적이지 않으므로 계속 진행
-      }
-
-      // 5. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
+      // 4. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
       try {
         await fetch(
           `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
@@ -2204,13 +2180,13 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         // 권한 부여 실패는 치명적이지 않으므로 계속 진행
       }
 
-      // 6. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
+      // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
 
-      // 6-1. 모든 탭의 학교 이름 다시 업데이트 (확실하게)
+      // 5-1. 모든 탭의 학교 이름 다시 업데이트 (확실하게)
       await updateSchoolNameInAllTabs(newSheetId, schoolName, accessToken);
 
-      // 7. Firestore에 저장
+      // 6. Firestore에 저장
       await saveUserSheet({
         userId,
         sheetId: newSheetId,
@@ -2222,7 +2198,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       // 오래된 시트 히스토리 정리 (Firestore 용량 절약)
       await cleanOldUserSheetHistory(userId);
 
-      // 8. 즉시 UI 업데이트 (실시간 반영)
+      // 7. 즉시 UI 업데이트 (실시간 반영)
       setUserSheet({
         userId,
         sheetId: newSheetId,
