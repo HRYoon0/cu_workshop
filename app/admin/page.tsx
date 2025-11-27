@@ -1969,8 +1969,45 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       const accessToken = localStorage.getItem('googleAccessToken');
       if (!accessToken) return;
 
-      // Google Drive에서 고정된 시트 이름으로 검색
-      const searchQuery = encodeURIComponent(`name='교육과정 워크숍 논의 자료' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUser = auth.currentUser;
+      if (!currentUser?.email) {
+        console.error('사용자 이메일을 찾을 수 없습니다.');
+        return;
+      }
+
+      // 1. 사용자별 폴더 찾기
+      const userFolderName = `CU Workshop - ${currentUser.email}`;
+      const userFolderQuery = encodeURIComponent(`name='${userFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+      const folderResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${userFolderQuery}&fields=files(id,name)`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (folderResponse.status === 401) {
+        await handleTokenExpired();
+        return;
+      }
+
+      if (!folderResponse.ok) {
+        console.error('폴더 검색 실패');
+        return;
+      }
+
+      const folderData = await folderResponse.json();
+      if (!folderData.files || folderData.files.length === 0) {
+        console.log('사용자 폴더가 없습니다.');
+        return;
+      }
+
+      const userFolderId = folderData.files[0].id;
+
+      // 2. 해당 폴더 내에서 시트 검색
+      const searchQuery = encodeURIComponent(`name='교육과정 워크숍 논의 자료' and mimeType='application/vnd.google-apps.spreadsheet' and '${userFolderId}' in parents and trashed=false`);
       const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=${searchQuery}&fields=files(id,name,webViewLink,createdTime)&orderBy=createdTime desc`,
         {
@@ -2088,10 +2125,17 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
         throw new Error('Google 액세스 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      // 2. 학교 폴더 찾기 또는 생성
-      const schoolFolderId = await findOrCreateFolder(schoolName, accessToken);
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUser = auth.currentUser;
+      if (!currentUser?.email) {
+        throw new Error('사용자 이메일을 찾을 수 없습니다. 다시 로그인해주세요.');
+      }
 
-      // 3. 템플릿 시트 복사 (학교 폴더에 저장)
+      // 2. 사용자별 폴더 찾기 또는 생성
+      const userFolderName = `CU Workshop - ${currentUser.email}`;
+      const userFolderId = await findOrCreateFolder(userFolderName, accessToken);
+
+      // 3. 템플릿 시트 복사 (사용자 폴더에 저장)
       const sheetName = '교육과정 워크숍 논의 자료';
 
       const copyResponse = await fetch(
@@ -2104,7 +2148,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
           },
           body: JSON.stringify({
             name: sheetName,
-            parents: [schoolFolderId],
+            parents: [userFolderId],
           }),
         }
       );
