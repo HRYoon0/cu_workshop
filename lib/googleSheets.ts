@@ -1323,10 +1323,11 @@ export async function initializeUserSheet(
         const namesArray = sourceSheets.map(sheetName => `"${sheetName}"`).join(';');
 
         // A4에 FILTER 배열 수식 (논의할 점 - 빈 값 제외)
-        const formulaA = `=FILTER({${topicsArray}},{${topicsArray}}<>"")`;
+        // IFERROR로 감싸서 필터 결과가 없을 때 #N/A 대신 빈 값 표시
+        const formulaA = `=IFERROR(FILTER({${topicsArray}},{${topicsArray}}<>""),"")`;
 
         // B4에 FILTER 배열 수식 (시트 이름 - 동일한 조건으로 필터링)
-        const formulaB = `=FILTER({${namesArray}},{${topicsArray}}<>"")`;
+        const formulaB = `=IFERROR(FILTER({${namesArray}},{${topicsArray}}<>""),"")`;
 
         // A4:B4에 수식 입력
         await updateSheetRange(
