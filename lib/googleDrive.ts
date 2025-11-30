@@ -1,20 +1,31 @@
 // Google Drive 이미지 업로드 헬퍼 함수
 
 /**
- * 저장된 학교 이름 가져오기
- * @param userId 사용자 ID (선택사항)
+ * 저장된 학교 이름 가져오기 (Firestore 기반)
+ * @param userId 사용자 ID (필수)
  * @returns 학교 이름 (없으면 기본값)
  */
-function getSchoolName(userId?: string): string {
-  if (typeof window === 'undefined') return '2025학년도 경남초등학교 교육과정 워크숍';
-
-  // userId가 있으면 사용자별 학교 이름 가져오기
-  if (userId) {
-    return localStorage.getItem(`schoolName_${userId}`) || '2025학년도 경남초등학교 교육과정 워크숍';
+async function getSchoolName(userId: string): Promise<string> {
+  // 서버 사이드에서는 기본값 반환
+  if (typeof window === 'undefined') {
+    return '2025학년도 경남초등학교 교육과정 워크숍';
   }
 
-  // 하위 호환성을 위해 기존 방식도 지원
-  return localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+  try {
+    // Firestore에서 사용자별 학교 이름 가져오기
+    const { getUserSchoolName } = await import('./firestore');
+    const firestoreSchoolName = await getUserSchoolName(userId);
+
+    if (firestoreSchoolName) {
+      return firestoreSchoolName;
+    }
+
+    // Firestore에 없으면 기본값 반환
+    return '2025학년도 경남초등학교 교육과정 워크숍';
+  } catch (error) {
+    console.error('학교 이름 가져오기 실패:', error);
+    return '2025학년도 경남초등학교 교육과정 워크숍';
+  }
 }
 
 /**
@@ -256,11 +267,11 @@ export async function uploadImageToDrive(
   file: File,
   accessToken: string,
   subfolder: string = '이미지', // 기본값은 '이미지'
-  userId?: string // 사용자 ID (선택사항)
+  userId: string // 사용자 ID (필수)
 ): Promise<string> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName(userId);
+    const schoolName = await getSchoolName(userId);
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. 지정된 서브폴더 찾기/생성 (학교 폴더 안에)
@@ -478,11 +489,12 @@ export async function copyTemplateSheet(
   templateFileId: string,
   userName: string,
   adminEmail: string,
-  accessToken: string
+  accessToken: string,
+  userId: string // 사용자 ID (필수)
 ): Promise<{ id: string; url: string; webAppUrl: string | null }> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName();
+    const schoolName = await getSchoolName(userId);
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. 템플릿 시트 복사
@@ -567,11 +579,12 @@ export async function copyTemplateSheet(
  */
 export async function createGoogleSheet(
   title: string,
-  accessToken: string
+  accessToken: string,
+  userId: string // 사용자 ID (필수)
 ): Promise<{ id: string; url: string }> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName();
+    const schoolName = await getSchoolName(userId);
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. Google Sheets 생성
@@ -633,13 +646,13 @@ export async function createGoogleSheet(
 export async function createSurveyResultSheet(
   sheetTitle: string,
   accessToken: string,
-  userId?: string // 사용자 ID (선택사항)
+  userId: string // 사용자 ID (필수)
 ): Promise<{ id: string; url: string }> {
   try {
     console.log('📊 설문 결과 시트 생성 시작:', sheetTitle);
 
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName(userId);
+    const schoolName = await getSchoolName(userId);
     console.log('학교 이름:', schoolName);
 
     console.log('📁 폴더 찾기/생성 중...');

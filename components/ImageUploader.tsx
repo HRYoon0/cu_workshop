@@ -59,6 +59,11 @@ export default function ImageUploader({
       setUploading(true);
       setError('');
 
+      // 0. userId 확인
+      if (!userId) {
+        throw new Error('사용자 ID가 필요합니다. 로그인 상태를 확인해주세요.');
+      }
+
       // 1. 즉시 로컬 미리보기 표시
       const reader = new FileReader();
       reader.onload = (e) => {
