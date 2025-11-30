@@ -1308,27 +1308,28 @@ export async function initializeUserSheet(
         .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        // VSTACK을 사용하여 다른 크기의 배열을 세로로 쌓기
-        // 각 시트의 D5를 SPLIT하고, 시트 이름과 함께 HSTACK으로 붙임
-        const vstackParts = sourceSheets.map(sheetName => {
-          // D5가 비어있지 않으면 SPLIT 후 시트 이름과 결합, 비어있으면 빈 행
-          return `IFERROR(IF('${sheetName}'!D5<>"",HSTACK(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))),IF(LEN(TRIM(TRANSPOSE(SPLIT('${sheetName}'!D5,CHAR(10)))))>0,"${sheetName}","")),{"",""}),{"",""})`;
+        // 각 시트별로 하나의 행 할당 (더 간단하고 안정적인 방식)
+        // A열: D5의 내용, B열: 시트 이름 (D5에 값이 있을 때만)
+        const formulas: string[][] = sourceSheets.map(sheetName => {
+          // 시트 이름에 작은따옴표가 있는 경우 이스케이프 처리
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          return [
+            `=IF(LEN('${escapedSheetName}'!D5)>0,'${escapedSheetName}'!D5,"")`,
+            `=IF(LEN('${escapedSheetName}'!D5)>0,"${sheetName}","")`
+          ];
         });
 
-        // VSTACK으로 모든 시트 데이터를 합치고, FILTER로 빈 행 제거
-        // IFERROR로 감싸서 모든 셀이 비어있을 때 #N/A 에러 방지
-        const combinedFormula = `=IFERROR(FILTER(VSTACK(${vstackParts.join(',')}),INDEX(VSTACK(${vstackParts.join(',')}),0,1)<>""),{"",""})`;
-
-        // A4에 수식 입력 (논의할 점과 시트 이름이 함께)
+        // A4부터 각 시트별로 순서대로 수식 입력
+        const endRow = 3 + formulas.length;
         await updateSheetRange(
           spreadsheetId,
-          '논의 및 결정사항!A4',
-          [[combinedFormula]],
+          `논의 및 결정사항!A4:B${endRow}`,
+          formulas,
           accessToken,
           'USER_ENTERED'
         );
 
-        console.log('논의 및 결정사항 자동 집계 수식 추가 완료');
+        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${formulas.length}개 시트)`);
 
         // 13. "논의 및 결정사항" 시트의 A열과 B열을 보호 (수식 보호)
         try {
