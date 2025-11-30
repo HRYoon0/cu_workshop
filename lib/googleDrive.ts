@@ -2,10 +2,18 @@
 
 /**
  * 저장된 학교 이름 가져오기
+ * @param userId 사용자 ID (선택사항)
  * @returns 학교 이름 (없으면 기본값)
  */
-function getSchoolName(): string {
+function getSchoolName(userId?: string): string {
   if (typeof window === 'undefined') return '2025학년도 경남초등학교 교육과정 워크숍';
+
+  // userId가 있으면 사용자별 학교 이름 가져오기
+  if (userId) {
+    return localStorage.getItem(`schoolName_${userId}`) || '2025학년도 경남초등학교 교육과정 워크숍';
+  }
+
+  // 하위 호환성을 위해 기존 방식도 지원
   return localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
 }
 
@@ -247,11 +255,12 @@ export async function renameSchoolFolder(
 export async function uploadImageToDrive(
   file: File,
   accessToken: string,
-  subfolder: string = '이미지' // 기본값은 '이미지'
+  subfolder: string = '이미지', // 기본값은 '이미지'
+  userId?: string // 사용자 ID (선택사항)
 ): Promise<string> {
   try {
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName();
+    const schoolName = getSchoolName(userId);
     const workshopFolderId = await findOrCreateFolder(schoolName, accessToken);
 
     // 2. 지정된 서브폴더 찾기/생성 (학교 폴더 안에)
@@ -634,13 +643,14 @@ export async function createGoogleSheet(
  */
 export async function createSurveyResultSheet(
   sheetTitle: string,
-  accessToken: string
+  accessToken: string,
+  userId?: string // 사용자 ID (선택사항)
 ): Promise<{ id: string; url: string }> {
   try {
     console.log('📊 설문 결과 시트 생성 시작:', sheetTitle);
 
     // 1. 학교 이름 폴더 찾기/생성
-    const schoolName = getSchoolName();
+    const schoolName = getSchoolName(userId);
     console.log('학교 이름:', schoolName);
 
     console.log('📁 폴더 찾기/생성 중...');

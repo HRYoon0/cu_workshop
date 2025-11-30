@@ -73,14 +73,6 @@ export default function AdminPage() {
   const [isCreatorInfoOpen, setIsCreatorInfoOpen] = useState(false);
 
   useEffect(() => {
-    // 저장된 학교 이름 불러오기
-    const savedSchoolName = localStorage.getItem('schoolName');
-    if (savedSchoolName) {
-      setSchoolName(savedSchoolName);
-    }
-  }, []);
-
-  useEffect(() => {
     // 로그인 상태 확인
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (!currentUser) {
@@ -92,6 +84,12 @@ export default function AdminPage() {
       // 관리자인지 확인
       const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
       const isAdminUser = currentUser.uid === adminUid;
+
+      // 사용자별 학교 이름 불러오기
+      const savedSchoolName = localStorage.getItem(`schoolName_${currentUser.uid}`);
+      if (savedSchoolName) {
+        setSchoolName(savedSchoolName);
+      }
 
       // state 업데이트를 다음 tick으로 미루어 React error #310 방지
       setTimeout(() => {
@@ -159,7 +157,7 @@ export default function AdminPage() {
   };
 
   const handleSchoolNameSave = async () => {
-    if (!tempSchoolName.trim()) {
+    if (!tempSchoolName.trim() || !user?.uid) {
       return;
     }
 
@@ -167,9 +165,9 @@ export default function AdminPage() {
       const newName = tempSchoolName.trim();
       const oldName = schoolName;
 
-      // 1. localStorage와 state 업데이트
+      // 1. localStorage와 state 업데이트 (사용자별로 저장)
       setSchoolName(newName);
-      localStorage.setItem('schoolName', newName);
+      localStorage.setItem(`schoolName_${user.uid}`, newName);
       setShowSchoolNameModal(false);
       setTempSchoolName('');
 
@@ -762,6 +760,7 @@ function QuizCreateForm({
                   uploaderId={`image-upload-${q.id}`}
                   onImageUploaded={(imageUrl) => updateQuestion(qIndex, 'imageUrl', imageUrl)}
                   currentImageUrl={q.imageUrl}
+                  userId={userId}
                 />
               </div>
             </div>
@@ -1543,7 +1542,8 @@ function SurveyItemForm({
           const accessToken = await getGoogleAccessToken();
           const { id: sheetId, url: sheetUrl } = await createSurveyResultSheet(
             finalSheetTitle,
-            accessToken
+            accessToken,
+            userId // 사용자 ID 전달
           );
 
           createdSheetUrl = sheetUrl;
@@ -1785,6 +1785,7 @@ function SurveyItemForm({
                     onUploadSuccess={(url) => updateQuestion(qIndex, 'parentResultImageUrl', url)}
                     currentImageUrl={q.parentResultImageUrl}
                     folder={`survey_images`}
+                    userId={userId}
                   />
                 </div>
 
@@ -1796,6 +1797,7 @@ function SurveyItemForm({
                     onUploadSuccess={(url) => updateQuestion(qIndex, 'studentResultImageUrl', url)}
                     currentImageUrl={q.studentResultImageUrl}
                     folder={`survey_images`}
+                    userId={userId}
                   />
                 </div>
               </div>
@@ -1969,7 +1971,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       const accessToken = localStorage.getItem('googleAccessToken');
       if (!accessToken) return;
 
-      const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+      const schoolName = localStorage.getItem(`schoolName_${userId}`) || '2025학년도 경남초등학교 교육과정 워크숍';
 
       // 1. 학교 폴더 찾기
       const schoolFolderQuery = encodeURIComponent(`name='${schoolName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
@@ -2100,7 +2102,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
   const handleCreateUserSheet = async () => {
     const templateId = process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
-    const schoolName = localStorage.getItem('schoolName') || '2025학년도 경남초등학교 교육과정 워크숍';
+    const schoolName = localStorage.getItem(`schoolName_${userId}`) || '2025학년도 경남초등학교 교육과정 워크숍';
 
     console.log('템플릿 ID:', templateId);
     console.log('환경 변수:', process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID);

@@ -10,6 +10,7 @@ interface ImageUploaderProps {
   uploaderId?: string;
   folderName?: string; // 구글 드라이브 내 서브폴더명 (기본값: '이미지')
   folder?: string; // folderName의 별칭
+  userId?: string; // 사용자 ID (학교 이름 폴더 구분용)
 }
 
 export default function ImageUploader({
@@ -18,7 +19,8 @@ export default function ImageUploader({
   currentImageUrl,
   uploaderId = 'image-upload',
   folderName,
-  folder
+  folder,
+  userId
 }: ImageUploaderProps) {
   // 콜백 함수 통합
   const handleUpload = onUploadSuccess || onImageUploaded || (() => {});
@@ -82,14 +84,14 @@ export default function ImageUploader({
       // 4. Google Drive에 업로드
       let imageUrl: string;
       try {
-        imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder);
+        imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder, userId);
       } catch (uploadError: any) {
         // 토큰 만료 시 재요청
         if (uploadError.message?.includes('401') || uploadError.message?.includes('unauthorized')) {
           token = await getGoogleAccessToken();
           setAccessToken(token);
           localStorage.setItem('googleAccessToken', token);
-          imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder);
+          imageUrl = await uploadImageToDrive(fileToUpload, token, targetFolder, userId);
         } else {
           throw uploadError;
         }
