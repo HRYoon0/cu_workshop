@@ -40,7 +40,9 @@ import {
   updateSurveyItem,
   deleteSurveyItem,
   getUserSurveySheet,
-  deleteUserSurveySheet
+  deleteUserSurveySheet,
+  getUserSchoolName,
+  saveUserSchoolName
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
@@ -85,10 +87,24 @@ export default function AdminPage() {
       const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
       const isAdminUser = currentUser.uid === adminUid;
 
-      // 사용자별 학교 이름 불러오기
-      const savedSchoolName = localStorage.getItem(`schoolName_${currentUser.uid}`);
-      if (savedSchoolName) {
-        setSchoolName(savedSchoolName);
+      // Firestore에서 사용자별 학교 이름 불러오기
+      try {
+        const firestoreSchoolName = await getUserSchoolName(currentUser.uid);
+        if (firestoreSchoolName) {
+          setSchoolName(firestoreSchoolName);
+          // localStorage에도 캐시 (빠른 로드용)
+          localStorage.setItem(`schoolName_${currentUser.uid}`, firestoreSchoolName);
+        } else {
+          // Firestore에 없으면 localStorage 확인 (마이그레이션)
+          const localSchoolName = localStorage.getItem(`schoolName_${currentUser.uid}`);
+          if (localSchoolName) {
+            // localStorage 값을 Firestore로 마이그레이션
+            await saveUserSchoolName(currentUser.uid, localSchoolName);
+            setSchoolName(localSchoolName);
+          }
+        }
+      } catch (error) {
+        console.error('학교 이름 불러오기 실패:', error);
       }
 
       // state 업데이트를 다음 tick으로 미루어 React error #310 방지
@@ -165,8 +181,11 @@ export default function AdminPage() {
       const newName = tempSchoolName.trim();
       const oldName = schoolName;
 
-      // 1. localStorage와 state 업데이트 (사용자별로 저장)
+      // 1. Firestore, localStorage, state 업데이트
       setSchoolName(newName);
+      // Firestore에 저장 (구글 계정에 영구 저장)
+      await saveUserSchoolName(user.uid, newName);
+      // localStorage에도 캐시 (빠른 로드용)
       localStorage.setItem(`schoolName_${user.uid}`, newName);
       setShowSchoolNameModal(false);
       setTempSchoolName('');

@@ -1603,6 +1603,63 @@ export async function deleteSurveyItem(itemId: string) {
   }
 }
 
+// ===== 사용자 설정 관련 함수 =====
+
+/**
+ * 사용자의 학교 이름 저장
+ */
+export async function saveUserSchoolName(userId: string, schoolName: string): Promise<void> {
+  try {
+    const q = query(
+      collection(db, 'userSettings'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      // 기존 설정 업데이트
+      const docRef = querySnapshot.docs[0].ref;
+      await updateDoc(docRef, {
+        schoolName,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      // 새 설정 생성
+      await addDoc(collection(db, 'userSettings'), {
+        userId,
+        schoolName,
+        createdAt: serverTimestamp(),
+      });
+    }
+    console.log('✅ 학교 이름 저장 완료:', schoolName);
+  } catch (error) {
+    console.error('❌ 학교 이름 저장 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 사용자의 학교 이름 가져오기
+ */
+export async function getUserSchoolName(userId: string): Promise<string | null> {
+  try {
+    const q = query(
+      collection(db, 'userSettings'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    return querySnapshot.docs[0].data().schoolName || null;
+  } catch (error) {
+    console.error('❌ 학교 이름 가져오기 실패:', error);
+    return null;
+  }
+}
+
 // ===== 설문 시트 관련 함수 =====
 
 /**
