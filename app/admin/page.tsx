@@ -46,7 +46,7 @@ import {
 } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 import ImageUploader from '@/components/ImageUploader';
-import { renameSchoolFolder, findOrCreateFolder, checkTokenValidity } from '@/lib/googleDrive';
+import { findOrCreateFolder, checkTokenValidity } from '@/lib/googleDrive';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   updateSchoolNameInAllTabs,
@@ -195,14 +195,15 @@ export default function AdminPage() {
 
       const accessToken = localStorage.getItem('googleAccessToken');
 
-      // 2. Google Drive 폴더 이름 변경 (비동기로 처리, 실패해도 앱은 계속 작동)
+      // 2. Google Drive 폴더 생성 (비동기로 처리, 실패해도 앱은 계속 작동)
+      // 매년 새 이름으로 새 폴더를 생성 (예: 2025학년도 -> 2026학년도)
       if (accessToken && oldName !== newName) {
         try {
           setSchoolNameSaveProgress('Google Drive 폴더 생성 중...');
-          const result = await renameSchoolFolder(oldName, newName, accessToken);
-          console.log('Google Drive 폴더 이름 변경:', result.message);
+          const newFolderId = await findOrCreateFolder(newName, accessToken);
+          console.log('Google Drive 새 폴더 생성 완료:', newFolderId, newName);
         } catch (driveError: any) {
-          console.error('Google Drive 폴더 이름 변경 실패:', driveError);
+          console.error('Google Drive 폴더 생성 실패:', driveError);
         }
 
         // 3. 모든 사용자의 Google Sheets 업데이트
