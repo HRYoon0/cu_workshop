@@ -529,6 +529,22 @@ export async function copyTemplateSheet(
       }
     );
 
+    // 3-1. 시트를 링크를 아는 사람은 편집 가능하도록 설정 (외부 공유 경고 해결)
+    await fetch(
+      `https://www.googleapis.com/drive/v3/files/${sheetId}/permissions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'writer', // 편집 권한
+          type: 'anyone', // 링크를 아는 사람 누구나
+        }),
+      }
+    );
+
     // 4. 시트 URL 생성
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
 
