@@ -330,33 +330,6 @@ export async function uploadImageToDrive(
       console.log('✅ 파일 공개 설정 완료:', fileId);
     }
 
-    // 5. 관리자에게 writer 권한 부여 (Apps Script가 접근할 수 있도록)
-    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    if (adminEmail) {
-      const adminPermResponse = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            role: 'writer',
-            type: 'user',
-            emailAddress: adminEmail,
-          }),
-        }
-      );
-
-      if (!adminPermResponse.ok) {
-        const adminPermError = await adminPermResponse.text();
-        console.error('⚠️ 관리자 권한 부여 실패:', adminPermError);
-      } else {
-        console.log('✅ 관리자 권한 부여 완료:', adminEmail);
-      }
-    }
-
     // 5. 공개 URL 반환 (직접 이미지 표시 가능한 형식)
     // lh3.googleusercontent.com 형식은 img 태그에서 직접 표시 가능
     const imageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
