@@ -73,6 +73,8 @@ export default function AdminPage() {
   const [showSchoolNameModal, setShowSchoolNameModal] = useState(false);
   const [tempSchoolName, setTempSchoolName] = useState('');
   const [isCreatorInfoOpen, setIsCreatorInfoOpen] = useState(false);
+  const [isSavingSchoolName, setIsSavingSchoolName] = useState(false);
+  const [schoolNameSaveProgress, setSchoolNameSaveProgress] = useState('');
 
   useEffect(() => {
     // 로그인 상태 확인
@@ -178,6 +180,9 @@ export default function AdminPage() {
     }
 
     try {
+      setIsSavingSchoolName(true);
+      setSchoolNameSaveProgress('학교 이름 저장 중...');
+
       const newName = tempSchoolName.trim();
       const oldName = schoolName;
 
@@ -187,14 +192,13 @@ export default function AdminPage() {
       await saveUserSchoolName(user.uid, newName);
       // localStorage에도 캐시 (빠른 로드용)
       localStorage.setItem(`schoolName_${user.uid}`, newName);
-      setShowSchoolNameModal(false);
-      setTempSchoolName('');
 
       const accessToken = localStorage.getItem('googleAccessToken');
 
       // 2. Google Drive 폴더 이름 변경 (비동기로 처리, 실패해도 앱은 계속 작동)
       if (accessToken && oldName !== newName) {
         try {
+          setSchoolNameSaveProgress('Google Drive 폴더 생성 중...');
           const result = await renameSchoolFolder(oldName, newName, accessToken);
           console.log('Google Drive 폴더 이름 변경:', result.message);
         } catch (driveError: any) {
@@ -203,6 +207,7 @@ export default function AdminPage() {
 
         // 3. 모든 사용자의 Google Sheets 업데이트
         try {
+          setSchoolNameSaveProgress('Google Sheets 업데이트 중...');
           const userSheets = await getAllUserSheets();
           if (userSheets.length > 0) {
             let successCount = 0;
@@ -210,6 +215,7 @@ export default function AdminPage() {
 
             for (const userSheet of userSheets) {
               try {
+                setSchoolNameSaveProgress(`Google Sheets 업데이트 중... (${successCount + failureCount + 1}/${userSheets.length})`);
                 await updateSchoolNameInAllTabs(userSheet.sheetId, newName, accessToken);
                 successCount++;
               } catch (sheetError) {
@@ -218,25 +224,48 @@ export default function AdminPage() {
               }
             }
 
+            setIsSavingSchoolName(false);
+            setSchoolNameSaveProgress('');
+            setShowSchoolNameModal(false);
+            setTempSchoolName('');
+
             if (successCount > 0 || failureCount > 0) {
               alert(`학교 이름이 변경되었습니다.\n\nGoogle Sheets 업데이트 결과:\n- 성공: ${successCount}개 시트\n- 실패: ${failureCount}개 시트`);
             } else {
               alert('학교 이름이 변경되었습니다.');
             }
           } else {
+            setIsSavingSchoolName(false);
+            setSchoolNameSaveProgress('');
+            setShowSchoolNameModal(false);
+            setTempSchoolName('');
             alert('학교 이름이 변경되었습니다.\n\n아직 생성된 사용자 시트가 없습니다.');
           }
         } catch (sheetsError: any) {
           console.error('Google Sheets 업데이트 실패:', sheetsError);
+          setIsSavingSchoolName(false);
+          setSchoolNameSaveProgress('');
+          setShowSchoolNameModal(false);
+          setTempSchoolName('');
           alert(`학교 이름은 변경되었지만, Google Sheets 업데이트에 실패했습니다.\n에러: ${sheetsError.message}`);
         }
       } else if (!accessToken) {
+        setIsSavingSchoolName(false);
+        setSchoolNameSaveProgress('');
+        setShowSchoolNameModal(false);
+        setTempSchoolName('');
         alert('학교 이름이 변경되었습니다.\n\nGoogle Drive 및 Sheets를 업데이트하려면 먼저 Google에 연결해주세요.');
       } else {
+        setIsSavingSchoolName(false);
+        setSchoolNameSaveProgress('');
+        setShowSchoolNameModal(false);
+        setTempSchoolName('');
         alert('학교 이름이 변경되었습니다.');
       }
     } catch (error) {
       console.error('학교 이름 변경 실패:', error);
+      setIsSavingSchoolName(false);
+      setSchoolNameSaveProgress('');
       alert('학교 이름 변경에 실패했습니다.');
     }
   };
@@ -268,21 +297,39 @@ export default function AdminPage() {
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 mb-6"
               placeholder="예: OO중학교"
               maxLength={50}
-              onKeyPress={(e) => e.key === 'Enter' && handleSchoolNameSave()}
+              onKeyPress={(e) => e.key === 'Enter' && !isSavingSchoolName && handleSchoolNameSave()}
+              disabled={isSavingSchoolName}
             />
+
+            {/* 진행 상태 표시 */}
+            {isSavingSchoolName && (
+              <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                <div className="flex items-center">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
+                  <p className="text-blue-700 font-semibold">{schoolNameSaveProgress}</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex space-x-3">
               <button
                 onClick={handleSchoolNameSave}
-                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                disabled={isSavingSchoolName}
+                className={`flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold ${
+                  isSavingSchoolName ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                저장
+                {isSavingSchoolName ? '저장 중...' : '저장'}
               </button>
               <button
                 onClick={() => {
                   setShowSchoolNameModal(false);
                   setTempSchoolName('');
                 }}
-                className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+                disabled={isSavingSchoolName}
+                className={`flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold ${
+                  isSavingSchoolName ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 취소
               </button>
