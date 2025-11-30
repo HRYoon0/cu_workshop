@@ -2226,7 +2226,47 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
       console.log('시트 복사 완료:', newSheetId);
 
-      // 4. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
+      // 4. 템플릿에서 복사된 모든 권한 제거 (관리자 권한 등)
+      try {
+        // 4-1. 현재 권한 목록 가져오기
+        const permissionsResponse = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions?fields=permissions(id,emailAddress,role,type)`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (permissionsResponse.ok) {
+          const permissionsData = await permissionsResponse.json();
+          const permissions = permissionsData.permissions || [];
+
+          // 4-2. 소유자가 아닌 모든 권한 삭제
+          for (const permission of permissions) {
+            if (permission.role !== 'owner') {
+              try {
+                await fetch(
+                  `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions/${permission.id}`,
+                  {
+                    method: 'DELETE',
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                    },
+                  }
+                );
+                console.log(`권한 삭제 완료: ${permission.emailAddress || permission.type}`);
+              } catch (deleteError) {
+                console.error('권한 삭제 실패:', deleteError);
+              }
+            }
+          }
+        }
+      } catch (permError) {
+        console.error('기존 권한 정리 실패:', permError);
+      }
+
+      // 4-3. 링크를 아는 모든 사용자에게 편집 권한 부여 (선생님들 공유용)
       try {
         await fetch(
           `https://www.googleapis.com/drive/v3/files/${newSheetId}/permissions`,
