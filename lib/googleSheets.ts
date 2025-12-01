@@ -729,8 +729,13 @@ export async function updateSchoolNameInAllTabs(
     // 모든 시트 탭 가져오기
     const tabs = await getSheetTabs(spreadsheetId, accessToken);
 
-    // 각 탭의 A1:D2 범위에 학교명 업데이트
-    const updatePromises = tabs.map(async (tab) => {
+    // Rate Limiting 방지를 위한 딜레이 함수
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // 각 탭의 A1:D2 범위에 학교명 업데이트 (순차 처리)
+    const results = [];
+    for (let i = 0; i < tabs.length; i++) {
+      const tab = tabs[i];
       const range = `${tab.title}!A1:D2`;
       // 2행 x 4열 배열 (병합된 셀이므로 첫 번째 셀에만 값 입력)
       const values = [
@@ -740,14 +745,19 @@ export async function updateSchoolNameInAllTabs(
 
       try {
         await updateSheetRange(spreadsheetId, range, values, accessToken);
-        return { tab: tab.title, success: true };
+        console.log(`학교명 업데이트 완료 (${i + 1}/${tabs.length}): ${tab.title}`);
+        results.push({ tab: tab.title, success: true });
+
+        // 각 탭 업데이트 후 200ms 대기 (Rate Limiting 방지)
+        if (i < tabs.length - 1) {
+          await delay(200);
+        }
       } catch (error) {
         console.error(`${tab.title} 탭 업데이트 실패:`, error);
-        return { tab: tab.title, success: false, error };
+        results.push({ tab: tab.title, success: false, error });
       }
-    });
+    }
 
-    const results = await Promise.all(updatePromises);
     const failedTabs = results.filter(r => !r.success);
 
     if (failedTabs.length > 0) {
@@ -1266,7 +1276,12 @@ export async function initializeUserSheet(
 
     // 11. 모든 탭에 초기 데이터 설정
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
-    for (const tab of finalTabs) {
+
+    // Rate Limiting 방지를 위한 딜레이 함수
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    for (let i = 0; i < finalTabs.length; i++) {
+      const tab = finalTabs[i];
       try {
         // A1:D2에 학교명
         await updateSheetRange(
@@ -1292,7 +1307,12 @@ export async function initializeUserSheet(
           );
         }
 
-        console.log(`초기 데이터 설정 완료: ${tab.title}`);
+        console.log(`초기 데이터 설정 완료 (${i + 1}/${finalTabs.length}): ${tab.title}`);
+
+        // 각 탭 업데이트 후 200ms 대기 (Rate Limiting 방지)
+        if (i < finalTabs.length - 1) {
+          await delay(200);
+        }
       } catch (error) {
         console.error(`초기 데이터 설정 실패 (${tab.title}):`, error);
       }
