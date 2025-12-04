@@ -2012,10 +2012,8 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       setIsLoading(true);
       const topicList = await getDepartments(userId);
       setTopics(topicList);
-      return topicList;
     } catch (error) {
       console.error('업무 목록 불러오기 실패:', error);
-      return [];
     } finally {
       setIsLoading(false);
     }
@@ -2355,28 +2353,11 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       await createDepartment({ name: topicName, order }, userId);
 
       // 2. 부서 목록 새로고침
-      const updatedTopics = await loadTopics();
+      await loadTopics();
       setNewTopicName('');
       setShowCreateForm(false);
 
-      // 3. 기존 시트가 있다면 해당 시트에 새 부서 탭 추가
-      if (userSheet?.sheetId && updatedTopics.length > 0) {
-        try {
-          const accessToken = localStorage.getItem('googleAccessToken');
-          if (accessToken) {
-            // 시트에 새 부서 탭 추가 및 학교 이름 적용
-            await initializeUserSheet(userSheet.sheetId, updatedTopics, schoolName, accessToken);
-            alert('부서가 추가되었으며, 시트에도 적용되었습니다.');
-          } else {
-            alert('부서가 추가되었습니다.\n\n시트에 적용하려면 Google 로그인이 필요합니다.');
-          }
-        } catch (sheetError) {
-          console.error('시트 업데이트 실패:', sheetError);
-          alert('부서가 추가되었으나, 시트 업데이트에 실패했습니다.\n\n새로 시트를 생성하시면 자동으로 적용됩니다.');
-        }
-      } else {
-        alert('부서가 추가되었습니다.\n\n새로 시트를 생성하는 사용자에게 자동으로 이 부서 탭이 추가됩니다.');
-      }
+      alert('부서가 추가되었습니다.\n\n새로 시트를 생성하는 사용자에게 자동으로 이 부서 탭이 추가됩니다.');
     } catch (error) {
       console.error('부서 생성 실패:', error);
       alert('부서 생성에 실패했습니다.');
