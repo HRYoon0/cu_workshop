@@ -1305,6 +1305,19 @@ export async function initializeUserSheet(
             ],
             accessToken
           );
+
+          // E5에 자동 라벨 수식 추가 (D5에 값이 있으면 탭 이름 표시)
+          // 시트 이름에 작은따옴표가 있을 경우 이스케이프
+          const escapedTabTitle = tab.title.replace(/'/g, "''");
+          const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
+
+          await updateSheetRange(
+            spreadsheetId,
+            `${tab.title}!E5`,
+            [[labelFormula]],
+            accessToken,
+            'USER_ENTERED'
+          );
         }
 
         console.log(`초기 데이터 설정 완료 (${i + 1}/${finalTabs.length}): ${tab.title}`);
@@ -1330,17 +1343,20 @@ export async function initializeUserSheet(
 
       if (sourceSheets.length > 0) {
         // FILTER 배열 수식 사용 - 빈 값은 자동으로 제외됨
-        // A열: 모든 시트의 D5 중 비어있지 않은 것만
-        // B열: 해당하는 시트 이름
+        // A열: 모든 시트의 D5:D50 중 비어있지 않은 것만
+        // B열: 해당하는 시트의 E5:E50 (자동 라벨)
 
-        // 모든 시트의 D5를 세로로 쌓기
+        // 모든 시트의 D5:D50을 세로로 쌓기
         const topicsArray = sourceSheets.map(sheetName => {
           const escapedSheetName = sheetName.replace(/'/g, "''");
-          return `'${escapedSheetName}'!D5`;
+          return `'${escapedSheetName}'!D5:D50`;
         }).join(';');
 
-        // 시트 이름 배열
-        const namesArray = sourceSheets.map(sheetName => `"${sheetName}"`).join(';');
+        // 모든 시트의 E5:E50 (라벨) 배열
+        const namesArray = sourceSheets.map(sheetName => {
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          return `'${escapedSheetName}'!E5:E50`;
+        }).join(';');
 
         // A4에 FILTER 배열 수식 (논의할 점 - 빈 값 제외)
         // IFERROR로 감싸서 필터 결과가 없을 때 #N/A 대신 빈 값 표시
@@ -1366,7 +1382,7 @@ export async function initializeUserSheet(
           'USER_ENTERED'
         );
 
-        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${sourceSheets.length}개 시트, FILTER 배열 수식)`);
+        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${sourceSheets.length}개 시트, D5:D50 범위)`);
 
         // 13. "논의 및 결정사항" 시트의 A열과 B열을 보호 (수식 보호)
         try {
