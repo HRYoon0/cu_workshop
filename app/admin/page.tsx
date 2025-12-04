@@ -2363,7 +2363,7 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
           const accessToken = localStorage.getItem('googleAccessToken');
           if (accessToken) {
             // 최신 부서 목록 가져오기
-            const updatedTopics = await getDepartments(userId);
+            const updatedTopics = await getDepartments(userId) as { name: string; order: number; id: string }[];
             // 시트에 새 부서 탭 추가 및 학교 이름 적용
             await initializeUserSheet(userSheet.sheetId, updatedTopics, schoolName, accessToken);
             alert('부서가 추가되었으며, 시트에도 적용되었습니다.');
