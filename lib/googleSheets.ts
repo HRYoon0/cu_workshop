@@ -1294,16 +1294,17 @@ export async function initializeUserSheet(
           accessToken
         );
 
-        // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경 (모든 탭)
-        await updateSheetRange(
-          spreadsheetId,
-          `${tab.title}!C4`,
-          [['개선할 점 및 아쉬운 점']],
-          accessToken
-        );
-
-        // 학년/업무/부서 탭인 경우 E1:E2에 탭 이름
+        // 학년/업무/부서 탭인 경우만 처리
         if (!tab.title.includes('논의 및 결정사항')) {
+          // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경
+          await updateSheetRange(
+            spreadsheetId,
+            `${tab.title}!C4`,
+            [['개선할 점 및 아쉬운 점']],
+            accessToken
+          );
+
+          // E1:E2에 탭 이름
           await updateSheetRange(
             spreadsheetId,
             `${tab.title}!E1:E2`,
