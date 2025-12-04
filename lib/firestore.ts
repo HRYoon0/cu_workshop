@@ -1024,7 +1024,7 @@ export async function createDepartment(
 /**
  * 사용자의 모든 부서 가져오기
  */
-export async function getDepartments(userId: string) {
+export async function getDepartments(userId: string): Promise<Array<{ id: string; name: string; order: number; userId: string; createdAt: Date }>> {
   try {
     const q = query(
       collection(db, 'departments'),
@@ -1035,7 +1035,7 @@ export async function getDepartments(userId: string) {
       id: doc.id,
       ...doc.data(),
       createdAt: (doc.data().createdAt as Timestamp)?.toDate() || new Date(),
-    }));
+    })) as Array<{ id: string; name: string; order: number; userId: string; createdAt: Date }>;
 
     // JavaScript에서 order 기준으로 정렬
     depts.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
