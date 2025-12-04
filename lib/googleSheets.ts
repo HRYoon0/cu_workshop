@@ -1299,62 +1299,61 @@ export async function initializeUserSheet(
       const tab = tabsToProcess[i];
       console.log(`\n[${i + 1}/${tabsToProcess.length}] 🔵 ${tab.title} 탭 처리 시작`);
 
-      // A1:D2에 학교명
       try {
-        console.log(`  - A1:D2에 학교명 설정: "${schoolName}"`);
-        await updateSheetRange(
-          spreadsheetId,
-          `${tab.title}!A1:D2`,
-          [
+        // 배치 업데이트 준비 (한 번의 API 호출로 모든 작업 처리)
+        const data = [];
+
+        // 1. A1:D2에 학교명
+        data.push({
+          range: `${tab.title}!A1:D2`,
+          values: [
             [schoolName, '', '', ''],
             ['', '', '', '']
-          ],
-          accessToken
+          ]
+        });
+
+        // 학년/부서 탭인 경우만 추가 작업
+        if (!tab.title.includes('논의 및 결정사항')) {
+          // 2. C4 헤더
+          data.push({
+            range: `${tab.title}!C4`,
+            values: [['개선할 점\n및\n아쉬운 점']]
+          });
+
+          // 3. E1:E2에 탭 이름
+          data.push({
+            range: `${tab.title}!E1:E2`,
+            values: [[tab.title], ['']]
+          });
+        }
+
+        // 배치 업데이트 실행 (일반 값)
+        console.log(`  - 배치 업데이트 실행 중... (${data.length}개 범위)`);
+        const batchResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              valueInputOption: 'RAW',
+              data: data
+            })
+          }
         );
-        console.log(`  ✅ 학교명 설정 완료`);
-        await delay(300);
-      } catch (error) {
-        console.error(`  ❌ 학교명 설정 실패:`, error);
-      }
 
-      // 학년 탭인 경우만 처리 (논의 및 결정사항은 제외)
-      if (!tab.title.includes('논의 및 결정사항')) {
-        // C4 헤더
-        try {
-          console.log(`  - C4에 "개선할 점\\n및\\n아쉬운 점" 설정`);
-          await updateSheetRange(
-            spreadsheetId,
-            `${tab.title}!C4`,
-            [['개선할 점\n및\n아쉬운 점']],
-            accessToken
-          );
-          console.log(`  ✅ C4 헤더 설정 완료`);
-          await delay(300);
-        } catch (error) {
-          console.error(`  ❌ C4 헤더 설정 실패:`, error);
+        if (!batchResponse.ok) {
+          throw new Error(`배치 업데이트 실패: ${batchResponse.status}`);
         }
 
-        // E1:E2에 탭 이름
-        try {
-          console.log(`  - E1:E2에 탭 이름 설정`);
-          await updateSheetRange(
-            spreadsheetId,
-            `${tab.title}!E1:E2`,
-            [
-              [tab.title],
-              ['']
-            ],
-            accessToken
-          );
-          console.log(`  ✅ E1:E2 설정 완료`);
-          await delay(300);
-        } catch (error) {
-          console.error(`  ❌ E1:E2 설정 실패:`, error);
-        }
+        console.log(`  ✅ 배치 업데이트 완료`);
 
-        // E5에 자동 라벨 수식
-        try {
-          console.log(`  - E5에 자동 라벨 수식 설정`);
+        // 수식은 별도로 처리 (USER_ENTERED 필요)
+        if (!tab.title.includes('논의 및 결정사항')) {
+          await delay(500);
+          console.log(`  - E5 수식 설정 중...`);
           const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
           await updateSheetRange(
             spreadsheetId,
@@ -1364,18 +1363,19 @@ export async function initializeUserSheet(
             'USER_ENTERED'
           );
           console.log(`  ✅ E5 수식 설정 완료`);
-          await delay(300);
-        } catch (error) {
-          console.error(`  ❌ E5 수식 설정 실패:`, error);
         }
+
+        console.log(`✅ ${tab.title} 탭 처리 완료\n`);
+
+      } catch (error) {
+        console.error(`❌ ${tab.title} 탭 처리 실패:`, error);
+        console.error(`에러 상세:`, error);
       }
 
-      console.log(`✅ ${tab.title} 탭 처리 완료\n`);
-
-      // 각 탭 업데이트 후 1초 대기 (Rate Limiting 완벽 방지)
+      // 각 탭 업데이트 후 2초 대기 (Rate Limiting 완벽 방지)
       if (i < tabsToProcess.length - 1) {
-        console.log(`⏳ 1초 대기 중... (Rate Limiting 방지)\n`);
-        await delay(1000);
+        console.log(`⏳ 2초 대기 중... (Rate Limiting 방지)\n`);
+        await delay(2000);
       }
     }
 
