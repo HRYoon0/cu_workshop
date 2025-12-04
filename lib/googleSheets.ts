@@ -1321,11 +1321,11 @@ export async function initializeUserSheet(
       if (!tab.title.includes('논의 및 결정사항')) {
         // C4 헤더
         try {
-          console.log(`  - C4에 "개선할 점 및 아쉬운 점" 설정`);
+          console.log(`  - C4에 "개선할 점\\n및\\n아쉬운 점" 설정`);
           await updateSheetRange(
             spreadsheetId,
             `${tab.title}!C4`,
-            [['개선할 점 및 아쉬운 점']],
+            [['개선할 점\n및\n아쉬운 점']],
             accessToken
           );
           console.log(`  ✅ C4 헤더 설정 완료`);
