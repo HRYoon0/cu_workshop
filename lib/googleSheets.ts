@@ -1294,10 +1294,10 @@ export async function initializeUserSheet(
           accessToken
         );
 
-        // D3 헤더를 "개선할 점 및 아쉬운 점"으로 변경 (모든 탭)
+        // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경 (모든 탭)
         await updateSheetRange(
           spreadsheetId,
-          `${tab.title}!D3`,
+          `${tab.title}!C4`,
           [['개선할 점 및 아쉬운 점']],
           accessToken
         );
