@@ -440,7 +440,7 @@ export default function AdminPage() {
         <div className="mt-8">
           {activeTab === 'quiz' && <QuizManager userId={user?.uid} />}
           {activeTab === 'survey' && <SurveyManager userId={user?.uid} />}
-          {activeTab === 'discussion' && <DepartmentManager userId={user?.uid} />}
+          {activeTab === 'discussion' && <DepartmentManager userId={user?.uid} schoolName={schoolName} />}
         </div>
       </div>
     </div>
@@ -1911,7 +1911,7 @@ function SurveyItemForm({
   );
 }
 // 논의 자료 관리 컴포넌트
-function DepartmentManager({ userId }: { userId: string | undefined }) {
+function DepartmentManager({ userId, schoolName }: { userId: string | undefined; schoolName: string }) {
   const router = useRouter();
   const [topics, setTopics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -2176,15 +2176,10 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       return;
     }
 
-    // Firestore에서 최신 학교 이름 가져오기
-    console.log('userId:', userId);
-    const firestoreSchoolName = await getUserSchoolName(userId);
-    console.log('Firestore에서 읽은 학교 이름:', firestoreSchoolName);
-    const schoolName = firestoreSchoolName || '2025학년도 경남초등학교 교육과정 워크숍';
-
+    // props로 받은 학교 이름 사용 (이미 Firestore에서 읽어온 값)
+    console.log('사용할 학교 이름:', schoolName);
     console.log('템플릿 ID:', templateId);
     console.log('환경 변수:', process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID);
-    console.log('최종 사용할 학교 이름:', schoolName);
 
     if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.')) {
       return;
