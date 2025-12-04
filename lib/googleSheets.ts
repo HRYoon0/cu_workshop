@@ -1341,10 +1341,11 @@ export async function initializeUserSheet(
 
     for (let i = 0; i < tabsToProcess.length; i++) {
       const tab = tabsToProcess[i];
-      try {
-        console.log(`[${i + 1}/${tabsToProcess.length}] ${tab.title} 탭 처리 중...`);
+      console.log(`\n[${i + 1}/${tabsToProcess.length}] 🔵 ${tab.title} 탭 처리 시작`);
 
-        // A1:D2에 학교명
+      // A1:D2에 학교명
+      try {
+        console.log(`  - A1:D2에 학교명 설정: "${schoolName}"`);
         await updateSheetRange(
           spreadsheetId,
           `${tab.title}!A1:D2`,
@@ -1354,18 +1355,32 @@ export async function initializeUserSheet(
           ],
           accessToken
         );
+        console.log(`  ✅ 학교명 설정 완료`);
+        await delay(100);
+      } catch (error) {
+        console.error(`  ❌ 학교명 설정 실패:`, error);
+      }
 
-        // 학년 탭인 경우만 처리 (논의 및 결정사항은 제외)
-        if (!tab.title.includes('논의 및 결정사항')) {
-          // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경
+      // 학년 탭인 경우만 처리 (논의 및 결정사항은 제외)
+      if (!tab.title.includes('논의 및 결정사항')) {
+        // C4 헤더
+        try {
+          console.log(`  - C4에 "개선할 점 및 아쉬운 점" 설정`);
           await updateSheetRange(
             spreadsheetId,
             `${tab.title}!C4`,
             [['개선할 점 및 아쉬운 점']],
             accessToken
           );
+          console.log(`  ✅ C4 헤더 설정 완료`);
+          await delay(100);
+        } catch (error) {
+          console.error(`  ❌ C4 헤더 설정 실패:`, error);
+        }
 
-          // E1:E2에 탭 이름
+        // E1:E2에 탭 이름
+        try {
+          console.log(`  - E1:E2에 탭 이름 설정`);
           await updateSheetRange(
             spreadsheetId,
             `${tab.title}!E1:E2`,
@@ -1375,8 +1390,15 @@ export async function initializeUserSheet(
             ],
             accessToken
           );
+          console.log(`  ✅ E1:E2 설정 완료`);
+          await delay(100);
+        } catch (error) {
+          console.error(`  ❌ E1:E2 설정 실패:`, error);
+        }
 
-          // E5에 자동 라벨 수식 추가
+        // E5에 자동 라벨 수식
+        try {
+          console.log(`  - E5에 자동 라벨 수식 설정`);
           const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
           await updateSheetRange(
             spreadsheetId,
@@ -1385,17 +1407,18 @@ export async function initializeUserSheet(
             accessToken,
             'USER_ENTERED'
           );
+          console.log(`  ✅ E5 수식 설정 완료`);
+          await delay(100);
+        } catch (error) {
+          console.error(`  ❌ E5 수식 설정 실패:`, error);
         }
+      }
 
-        console.log(`✅ ${tab.title} 탭 초기 데이터 설정 완료`);
+      console.log(`✅ ${tab.title} 탭 처리 완료\n`);
 
-        // 각 탭 업데이트 후 300ms 대기 (Rate Limiting 방지)
-        if (i < tabsToProcess.length - 1) {
-          await delay(300);
-        }
-      } catch (error) {
-        console.error(`❌ ${tab.title} 탭 초기 데이터 설정 실패:`, error);
-        // 에러가 발생해도 계속 진행
+      // 각 탭 업데이트 후 500ms 대기 (Rate Limiting 방지)
+      if (i < tabsToProcess.length - 1) {
+        await delay(500);
       }
     }
 
