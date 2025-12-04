@@ -1243,56 +1243,9 @@ export async function initializeUserSheet(
           // 텍스트 변경 실패는 치명적이지 않으므로 계속 진행
         }
 
-        // 복제된 부서 탭에 바로 초기 데이터 설정 (학교명, 헤더, 수식)
-        try {
-          // A1:D2에 학교명
-          await updateSheetRange(
-            spreadsheetId,
-            `${topic.name}!A1:D2`,
-            [
-              [schoolName, '', '', ''],
-              ['', '', '', '']
-            ],
-            accessToken
-          );
-
-          // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경
-          await updateSheetRange(
-            spreadsheetId,
-            `${topic.name}!C4`,
-            [['개선할 점 및 아쉬운 점']],
-            accessToken
-          );
-
-          // E1:E2에 탭 이름
-          await updateSheetRange(
-            spreadsheetId,
-            `${topic.name}!E1:E2`,
-            [
-              [topic.name],
-              ['']
-            ],
-            accessToken
-          );
-
-          // E5에 자동 라벨 수식 추가
-          const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${topic.name}", ""))`;
-          await updateSheetRange(
-            spreadsheetId,
-            `${topic.name}!E5`,
-            [[labelFormula]],
-            accessToken,
-            'USER_ENTERED'
-          );
-
-          console.log(`부서 탭 초기 데이터 설정 완료: ${topic.name}`);
-
-          // Rate Limiting 방지를 위해 200ms 대기
-          if (i < topicsToAdd.length - 1) {
-            await delay(200);
-          }
-        } catch (dataError) {
-          console.error(`부서 탭 초기 데이터 설정 실패 (${topic.name}):`, dataError);
+        // Rate Limiting 방지를 위해 500ms 대기
+        if (i < topicsToAdd.length - 1) {
+          await delay(500);
         }
       } catch (error) {
         console.error(`탭 복제 실패 (${topic.name}):`, error);
@@ -1329,15 +1282,18 @@ export async function initializeUserSheet(
       }
     }
 
-    // 11. 학년 탭과 논의 및 결정사항 탭에 초기 데이터 설정
-    // (부서 탭은 이미 복제 직후에 설정했으므로 제외)
+    // 11. 모든 탭(학년+부서+논의)에 초기 데이터 설정
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
 
-    // 학년 탭 목록
-    const gradeTabs = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년', '논의 및 결정사항'];
-    const tabsToProcess = finalTabs.filter(tab => gradeTabs.includes(tab.title));
+    // 논의 및 결정사항을 제외한 모든 탭 처리
+    const tabsToProcess = finalTabs.filter(tab => tab.title !== '논의 및 결정사항');
+    // 논의 및 결정사항은 마지막에 처리
+    const discussionTab = finalTabs.find(tab => tab.title === '논의 및 결정사항');
+    if (discussionTab) {
+      tabsToProcess.push(discussionTab);
+    }
 
-    console.log(`학년 탭 및 논의 탭 처리 시작 (총 ${tabsToProcess.length}개)`);
+    console.log(`\n🔥 모든 탭 초기 데이터 설정 시작 (총 ${tabsToProcess.length}개)\n`);
 
     for (let i = 0; i < tabsToProcess.length; i++) {
       const tab = tabsToProcess[i];
@@ -1356,7 +1312,7 @@ export async function initializeUserSheet(
           accessToken
         );
         console.log(`  ✅ 학교명 설정 완료`);
-        await delay(100);
+        await delay(300);
       } catch (error) {
         console.error(`  ❌ 학교명 설정 실패:`, error);
       }
@@ -1373,7 +1329,7 @@ export async function initializeUserSheet(
             accessToken
           );
           console.log(`  ✅ C4 헤더 설정 완료`);
-          await delay(100);
+          await delay(300);
         } catch (error) {
           console.error(`  ❌ C4 헤더 설정 실패:`, error);
         }
@@ -1391,7 +1347,7 @@ export async function initializeUserSheet(
             accessToken
           );
           console.log(`  ✅ E1:E2 설정 완료`);
-          await delay(100);
+          await delay(300);
         } catch (error) {
           console.error(`  ❌ E1:E2 설정 실패:`, error);
         }
@@ -1408,7 +1364,7 @@ export async function initializeUserSheet(
             'USER_ENTERED'
           );
           console.log(`  ✅ E5 수식 설정 완료`);
-          await delay(100);
+          await delay(300);
         } catch (error) {
           console.error(`  ❌ E5 수식 설정 실패:`, error);
         }
@@ -1416,9 +1372,10 @@ export async function initializeUserSheet(
 
       console.log(`✅ ${tab.title} 탭 처리 완료\n`);
 
-      // 각 탭 업데이트 후 500ms 대기 (Rate Limiting 방지)
+      // 각 탭 업데이트 후 1초 대기 (Rate Limiting 완벽 방지)
       if (i < tabsToProcess.length - 1) {
-        await delay(500);
+        console.log(`⏳ 1초 대기 중... (Rate Limiting 방지)\n`);
+        await delay(1000);
       }
     }
 
