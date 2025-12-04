@@ -1329,12 +1329,21 @@ export async function initializeUserSheet(
       }
     }
 
-    // 11. 모든 탭에 초기 데이터 설정
+    // 11. 학년 탭과 논의 및 결정사항 탭에 초기 데이터 설정
+    // (부서 탭은 이미 복제 직후에 설정했으므로 제외)
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
 
-    for (let i = 0; i < finalTabs.length; i++) {
-      const tab = finalTabs[i];
+    // 학년 탭 목록
+    const gradeTabs = ['1학년', '2학년', '3학년', '4학년', '5학년', '6학년', '논의 및 결정사항'];
+    const tabsToProcess = finalTabs.filter(tab => gradeTabs.includes(tab.title));
+
+    console.log(`학년 탭 및 논의 탭 처리 시작 (총 ${tabsToProcess.length}개)`);
+
+    for (let i = 0; i < tabsToProcess.length; i++) {
+      const tab = tabsToProcess[i];
       try {
+        console.log(`[${i + 1}/${tabsToProcess.length}] ${tab.title} 탭 처리 중...`);
+
         // A1:D2에 학교명
         await updateSheetRange(
           spreadsheetId,
@@ -1346,7 +1355,7 @@ export async function initializeUserSheet(
           accessToken
         );
 
-        // 학년/업무/부서 탭인 경우만 처리
+        // 학년 탭인 경우만 처리 (논의 및 결정사항은 제외)
         if (!tab.title.includes('논의 및 결정사항')) {
           // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경
           await updateSheetRange(
@@ -1367,11 +1376,8 @@ export async function initializeUserSheet(
             accessToken
           );
 
-          // E5에 자동 라벨 수식 추가 (D5에 값이 있으면 탭 이름 표시)
-          // 시트 이름에 작은따옴표가 있을 경우 이스케이프
-          const escapedTabTitle = tab.title.replace(/'/g, "''");
+          // E5에 자동 라벨 수식 추가
           const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
-
           await updateSheetRange(
             spreadsheetId,
             `${tab.title}!E5`,
@@ -1381,16 +1387,19 @@ export async function initializeUserSheet(
           );
         }
 
-        console.log(`초기 데이터 설정 완료 (${i + 1}/${finalTabs.length}): ${tab.title}`);
+        console.log(`✅ ${tab.title} 탭 초기 데이터 설정 완료`);
 
-        // 각 탭 업데이트 후 200ms 대기 (Rate Limiting 방지)
-        if (i < finalTabs.length - 1) {
-          await delay(200);
+        // 각 탭 업데이트 후 300ms 대기 (Rate Limiting 방지)
+        if (i < tabsToProcess.length - 1) {
+          await delay(300);
         }
       } catch (error) {
-        console.error(`초기 데이터 설정 실패 (${tab.title}):`, error);
+        console.error(`❌ ${tab.title} 탭 초기 데이터 설정 실패:`, error);
+        // 에러가 발생해도 계속 진행
       }
     }
+
+    console.log('학년 탭 및 논의 탭 처리 완료');
 
     // 12. "논의 및 결정사항" 시트에 자동 집계 수식 추가
     // 각 시트의 D5에서 논의할 점을 가져와서 A4부터 자동으로 채움
@@ -1467,6 +1476,17 @@ export async function initializeUserSheet(
     } catch (error) {
       console.error('자동 집계 수식 추가 실패:', error);
       // 수식 추가 실패는 치명적이지 않으므로 계속 진행
+    }
+
+    // 14. 마지막으로 모든 탭의 학교 이름을 한 번 더 확실하게 적용
+    console.log('모든 탭에 학교 이름 최종 적용 중...');
+    try {
+      await delay(500); // 이전 작업 완료를 위해 잠시 대기
+      await updateSchoolNameInAllTabs(spreadsheetId, schoolName, accessToken);
+      console.log('✅ 모든 탭에 학교 이름 최종 적용 완료');
+    } catch (finalUpdateError) {
+      console.error('❌ 학교 이름 최종 적용 실패:', finalUpdateError);
+      // 실패해도 계속 진행 (이미 대부분은 설정됨)
     }
 
     console.log('사용자 시트 초기화 완료');
