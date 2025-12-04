@@ -1369,87 +1369,81 @@ export async function initializeUserSheet(
       throw error;
     }
 
-    // 12. "논의 및 결정사항" 시트에 자동 집계 (줄바꿈 분리 포함)
-    // 각 시트의 D5:D50에서 논의할 점을 가져와서 줄바꿈으로 분리 후 A4부터 입력
+    // 12. "논의 및 결정사항" 시트에 자동 집계 수식 추가
+    // 각 시트의 D5에서 논의할 점을 가져와서 A4부터 자동으로 채움
+    // FILTER 배열 수식을 사용하여 빈 값은 자동으로 제외
     try {
-      const sourceSheets = finalTabs.filter(tab => tab.title !== '논의 및 결정사항');
+      // 모든 시트에서 D5를 가져오는 수식 생성
+      // 시트 이름 목록 (논의 및 결정사항 제외)
+      const sourceSheets = finalTabs
+        .filter(tab => tab.title !== '논의 및 결정사항')
+        .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        console.log(`\n📊 논의 및 결정사항 집계 시작 (${sourceSheets.length}개 탭)\n`);
+        // FILTER 배열 수식 사용 - 빈 값은 자동으로 제외됨
+        // A열: 모든 시트의 D5:D50 중 비어있지 않은 것만
+        // B열: 해당하는 시트의 E5:E50 (자동 라벨)
 
-        // 모든 시트의 D5:D50, E5:E50 값을 읽어옴
-        const allDiscussionItems: Array<{ topic: string; tabName: string }> = [];
+        // 모든 시트의 D5:D50을 세로로 쌓기
+        const topicsArray = sourceSheets.map(sheetName => {
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          return `'${escapedSheetName}'!D5:D50`;
+        }).join(';');
 
-        for (const sheet of sourceSheets) {
-          try {
-            // D5:E50 범위 읽기
-            const escapedSheetName = sheet.title.replace(/'/g, "''");
-            const range = `'${escapedSheetName}'!D5:E50`;
-            const response = await fetch(
-              `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
-              {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-              }
+        // 모든 시트의 E5:E50 (라벨) 배열
+        const namesArray = sourceSheets.map(sheetName => {
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          return `'${escapedSheetName}'!E5:E50`;
+        }).join(';');
+
+        // A4에 FILTER 배열 수식 (논의할 점 - 빈 값 제외)
+        // IFERROR로 감싸서 필터 결과가 없을 때 #N/A 대신 빈 값 표시
+        const formulaA = `=IFERROR(FILTER({${topicsArray}},{${topicsArray}}<>""),"")`;
+
+        // B4에 FILTER 배열 수식 (시트 이름 - 동일한 조건으로 필터링)
+        const formulaB = `=IFERROR(FILTER({${namesArray}},{${topicsArray}}<>""),"")`;
+
+        // A4:B4에 수식 입력
+        await updateSheetRange(
+          spreadsheetId,
+          `논의 및 결정사항!A4`,
+          [[formulaA]],
+          accessToken,
+          'USER_ENTERED'
+        );
+
+        await updateSheetRange(
+          spreadsheetId,
+          `논의 및 결정사항!B4`,
+          [[formulaB]],
+          accessToken,
+          'USER_ENTERED'
+        );
+
+        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${sourceSheets.length}개 시트, D5:D50 범위)`);
+
+        // 13. "논의 및 결정사항" 시트의 A열과 B열을 보호 (수식 보호)
+        try {
+          const discussionTab = finalTabs.find(tab => tab.title === '논의 및 결정사항');
+          if (discussionTab) {
+            await protectSheetRange(
+              spreadsheetId,
+              discussionTab.sheetId,
+              0, // A열 (index 0)
+              2, // B열까지 (index 2는 exclusive, 즉 A와 B만)
+              '자동 집계 수식이 있는 영역입니다. 수정하지 마세요.',
+              accessToken
             );
-
-            if (response.ok) {
-              const data = await response.json();
-              const rows = data.values || [];
-
-              // 각 행 처리
-              rows.forEach((row: string[]) => {
-                const topicCell = row[0] || '';
-                const tabNameCell = row[1] || sheet.title; // E열 값 (없으면 탭 이름 사용)
-
-                if (topicCell.trim()) {
-                  // 줄바꿈으로 분리
-                  const topics = topicCell.split('\n').map(t => t.trim()).filter(t => t);
-
-                  // 각 줄을 별도 항목으로 추가
-                  topics.forEach(topic => {
-                    allDiscussionItems.push({
-                      topic: topic,
-                      tabName: tabNameCell
-                    });
-                  });
-
-                  console.log(`  - ${sheet.title}: ${topics.length}개 항목 수집`);
-                }
-              });
-            }
-          } catch (error) {
-            console.error(`  ❌ ${sheet.title} 데이터 읽기 실패:`, error);
+            console.log('논의 및 결정사항 A, B열 보호 설정 완료');
           }
-        }
-
-        console.log(`\n✅ 논의 항목 총 ${allDiscussionItems.length}개 수집 완료\n`);
-
-        // "논의 및 결정사항" 탭에 데이터 입력
-        if (allDiscussionItems.length > 0) {
-          const discussionData = allDiscussionItems.map(item => [
-            item.topic,      // A열: 논의할 점
-            item.tabName,    // B열: 학년/업무 탭 이름
-            '',              // C열: 논의 과정 (빈칸)
-            ''               // D열: 결정 사항 (빈칸)
-          ]);
-
-          // A4부터 입력
-          const targetRange = `논의 및 결정사항!A4:D${4 + discussionData.length - 1}`;
-          await updateSheetRange(
-            spreadsheetId,
-            targetRange,
-            discussionData,
-            accessToken
-          );
-
-          console.log(`✅ 논의 및 결정사항 집계 완료 (${allDiscussionItems.length}개 항목)\n`);
-        } else {
-          console.log(`ℹ️  논의할 항목이 없습니다.\n`);
+        } catch (protectError) {
+          console.error('시트 보호 설정 실패:', protectError);
+          // 보호 실패는 치명적이지 않으므로 계속 진행
         }
       }
     } catch (error) {
-      console.error('❌ 논의 및 결정사항 집계 실패:', error);
-      // 집계 실패는 치명적이지 않으므로 계속 진행
+      console.error('자동 집계 수식 추가 실패:', error);
+      // 수식 추가 실패는 치명적이지 않으므로 계속 진행
     }
 
     console.log('✅ 사용자 시트 초기화 완료');
