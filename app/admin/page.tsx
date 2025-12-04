@@ -2012,8 +2012,10 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       setIsLoading(true);
       const topicList = await getDepartments(userId);
       setTopics(topicList);
+      return topicList;
     } catch (error) {
       console.error('업무 목록 불러오기 실패:', error);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -2353,17 +2355,15 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
       await createDepartment({ name: topicName, order }, userId);
 
       // 2. 부서 목록 새로고침
-      await loadTopics();
+      const updatedTopics = await loadTopics();
       setNewTopicName('');
       setShowCreateForm(false);
 
       // 3. 기존 시트가 있다면 해당 시트에 새 부서 탭 추가
-      if (userSheet?.sheetId) {
+      if (userSheet?.sheetId && updatedTopics.length > 0) {
         try {
           const accessToken = localStorage.getItem('googleAccessToken');
           if (accessToken) {
-            // 최신 부서 목록 가져오기
-            const updatedTopics = await getDepartments(userId) as { name: string; order: number; id: string }[];
             // 시트에 새 부서 탭 추가 및 학교 이름 적용
             await initializeUserSheet(userSheet.sheetId, updatedTopics, schoolName, accessToken);
             alert('부서가 추가되었으며, 시트에도 적용되었습니다.');
