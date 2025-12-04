@@ -1370,8 +1370,8 @@ export async function initializeUserSheet(
     }
 
     // 12. "논의 및 결정사항" 시트에 자동 집계 수식 추가
-    // 각 시트의 D5에서 논의할 점을 가져와서 A4부터 자동으로 채움
-    // FILTER 배열 수식을 사용하여 빈 값은 자동으로 제외
+    // 각 시트의 D5에서 논의할 점을 가져와서 줄바꿈 분리 후 A4부터 자동으로 채움
+    // SPLIT + VSTACK + FILTER 배열 수식을 사용하여 줄바꿈 분리 및 빈 값 제외
     try {
       // 모든 시트에서 D5를 가져오는 수식 생성
       // 시트 이름 목록 (논의 및 결정사항 제외)
@@ -1380,47 +1380,30 @@ export async function initializeUserSheet(
         .map(tab => tab.title);
 
       if (sourceSheets.length > 0) {
-        // FILTER 배열 수식 사용 - 빈 값은 자동으로 제외됨
-        // A열: 모든 시트의 D5:D50 중 비어있지 않은 것만
-        // B열: 해당하는 시트의 E5:E50 (자동 라벨)
-
-        // 모든 시트의 D5:D50을 세로로 쌓기
-        const topicsArray = sourceSheets.map(sheetName => {
+        // SPLIT + VSTACK 방식: D5 셀 내 줄바꿈을 각 행으로 분리
+        // 각 시트의 D5를 SPLIT(D5, CHAR(10))으로 줄바꿈 분리 후 시트 이름과 결합
+        const vstackParts = sourceSheets.map(sheetName => {
           const escapedSheetName = sheetName.replace(/'/g, "''");
-          return `'${escapedSheetName}'!D5:D50`;
-        }).join(';');
+          // D5가 비어있지 않으면 SPLIT 후 시트 이름과 결합, 비어있으면 빈 행
+          // SPLIT으로 줄바꿈 분리, TRANSPOSE로 세로 배열 전환, TRIM으로 공백 제거
+          // HSTACK으로 [논의할 점, 시트이름] 조합
+          return `IFERROR(IF('${escapedSheetName}'!D5<>"",HSTACK(TRIM(TRANSPOSE(SPLIT('${escapedSheetName}'!D5,CHAR(10)))),IF(LEN(TRIM(TRANSPOSE(SPLIT('${escapedSheetName}'!D5,CHAR(10)))))>0,"${sheetName}","")),{"",""}),{"",""})`;
+        });
 
-        // 모든 시트의 E5:E50 (라벨) 배열
-        const namesArray = sourceSheets.map(sheetName => {
-          const escapedSheetName = sheetName.replace(/'/g, "''");
-          return `'${escapedSheetName}'!E5:E50`;
-        }).join(';');
+        // VSTACK으로 모든 시트 데이터를 합치고, FILTER로 빈 행 제거
+        // IFERROR로 감싸서 모든 셀이 비어있을 때 #N/A 에러 방지
+        const combinedFormula = `=IFERROR(FILTER(VSTACK(${vstackParts.join(',')}),INDEX(VSTACK(${vstackParts.join(',')}),0,1)<>""),{"",""})`;
 
-        // A4에 FILTER 배열 수식 (논의할 점 - 빈 값 제외)
-        // IFERROR로 감싸서 필터 결과가 없을 때 #N/A 대신 빈 값 표시
-        const formulaA = `=IFERROR(FILTER({${topicsArray}},{${topicsArray}}<>""),"")`;
-
-        // B4에 FILTER 배열 수식 (시트 이름 - 동일한 조건으로 필터링)
-        const formulaB = `=IFERROR(FILTER({${namesArray}},{${topicsArray}}<>""),"")`;
-
-        // A4:B4에 수식 입력
+        // A4에 수식 입력 (논의할 점과 시트 이름이 함께)
         await updateSheetRange(
           spreadsheetId,
-          `논의 및 결정사항!A4`,
-          [[formulaA]],
+          '논의 및 결정사항!A4',
+          [[combinedFormula]],
           accessToken,
           'USER_ENTERED'
         );
 
-        await updateSheetRange(
-          spreadsheetId,
-          `논의 및 결정사항!B4`,
-          [[formulaB]],
-          accessToken,
-          'USER_ENTERED'
-        );
-
-        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${sourceSheets.length}개 시트, D5:D50 범위)`);
+        console.log(`논의 및 결정사항 자동 집계 수식 추가 완료 (${sourceSheets.length}개 시트, 줄바꿈 분리)`);
 
         // 13. "논의 및 결정사항" 시트의 A열과 B열을 보호 (수식 보호)
         try {
