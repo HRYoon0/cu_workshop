@@ -1222,6 +1222,9 @@ export async function initializeUserSheet(
     // 현재 탭 수 계산 (복제 시 맨 뒤에 배치하기 위해)
     const currentTabCount = currentTabs.length;
 
+    // Rate Limiting 방지를 위한 딜레이 함수
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     for (let i = 0; i < topicsToAdd.length; i++) {
       const topic = topicsToAdd[i];
       try {
@@ -1238,6 +1241,58 @@ export async function initializeUserSheet(
         } catch (replaceError) {
           console.error(`텍스트 변경 실패 (${topic.name}):`, replaceError);
           // 텍스트 변경 실패는 치명적이지 않으므로 계속 진행
+        }
+
+        // 복제된 부서 탭에 바로 초기 데이터 설정 (학교명, 헤더, 수식)
+        try {
+          // A1:D2에 학교명
+          await updateSheetRange(
+            spreadsheetId,
+            `${topic.name}!A1:D2`,
+            [
+              [schoolName, '', '', ''],
+              ['', '', '', '']
+            ],
+            accessToken
+          );
+
+          // C4 헤더를 "개선할 점 및 아쉬운 점"으로 변경
+          await updateSheetRange(
+            spreadsheetId,
+            `${topic.name}!C4`,
+            [['개선할 점 및 아쉬운 점']],
+            accessToken
+          );
+
+          // E1:E2에 탭 이름
+          await updateSheetRange(
+            spreadsheetId,
+            `${topic.name}!E1:E2`,
+            [
+              [topic.name],
+              ['']
+            ],
+            accessToken
+          );
+
+          // E5에 자동 라벨 수식 추가
+          const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${topic.name}", ""))`;
+          await updateSheetRange(
+            spreadsheetId,
+            `${topic.name}!E5`,
+            [[labelFormula]],
+            accessToken,
+            'USER_ENTERED'
+          );
+
+          console.log(`부서 탭 초기 데이터 설정 완료: ${topic.name}`);
+
+          // Rate Limiting 방지를 위해 200ms 대기
+          if (i < topicsToAdd.length - 1) {
+            await delay(200);
+          }
+        } catch (dataError) {
+          console.error(`부서 탭 초기 데이터 설정 실패 (${topic.name}):`, dataError);
         }
       } catch (error) {
         console.error(`탭 복제 실패 (${topic.name}):`, error);
@@ -1276,9 +1331,6 @@ export async function initializeUserSheet(
 
     // 11. 모든 탭에 초기 데이터 설정
     const finalTabs = await getSheetTabs(spreadsheetId, accessToken);
-
-    // Rate Limiting 방지를 위한 딜레이 함수
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     for (let i = 0; i < finalTabs.length; i++) {
       const tab = finalTabs[i];
