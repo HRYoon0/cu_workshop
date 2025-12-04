@@ -2169,10 +2169,14 @@ function DepartmentManager({ userId }: { userId: string | undefined }) {
 
   const handleCreateUserSheet = async () => {
     const templateId = process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID || '1Fe5kFAqGN8A-cd8iVXlmVuPgD0ZmCTin9yrFlOFP69s';
-    const schoolName = localStorage.getItem(`schoolName_${userId}`) || '2025학년도 경남초등학교 교육과정 워크숍';
+
+    // Firestore에서 최신 학교 이름 가져오기
+    const firestoreSchoolName = await getUserSchoolName(userId);
+    const schoolName = firestoreSchoolName || '2025학년도 경남초등학교 교육과정 워크숍';
 
     console.log('템플릿 ID:', templateId);
     console.log('환경 변수:', process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID);
+    console.log('사용할 학교 이름:', schoolName);
 
     if (!confirm('내 전용 논의 자료 시트를 생성하시겠습니까?\n\n템플릿을 복사하여 새 시트를 만듭니다.')) {
       return;
