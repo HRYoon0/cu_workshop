@@ -2168,8 +2168,14 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
       return;
     }
 
-    // props로 받은 학교 이름 사용 (이미 Firestore에서 읽어온 값)
-    console.log('사용할 학교 이름:', schoolName);
+    // Firestore에서 최신 학교 이름을 확실하게 다시 읽기
+    console.log('🔵 Firestore에서 최신 학교 이름 읽는 중...');
+    const latestSchoolName = await getUserSchoolName(userId);
+    const finalSchoolName = latestSchoolName || '2025학년도 경남초등학교 교육과정 워크숍';
+
+    console.log('📌 props로 받은 학교 이름:', schoolName);
+    console.log('📌 Firestore에서 읽은 최신 학교 이름:', latestSchoolName);
+    console.log('✅ 최종 사용할 학교 이름:', finalSchoolName);
     console.log('템플릿 ID:', templateId);
     console.log('환경 변수:', process.env.NEXT_PUBLIC_DISCUSSION_TEMPLATE_ID);
 
@@ -2188,7 +2194,7 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
       }
 
       // 2. 학교 폴더 찾기 또는 생성 (각 사용자의 드라이브 root에)
-      const schoolFolderId = await findOrCreateFolder(schoolName, accessToken);
+      const schoolFolderId = await findOrCreateFolder(finalSchoolName, accessToken);
 
       // 3. 템플릿 시트 복사 (학교 폴더에 저장)
       const sheetName = '교육과정 워크숍 논의 자료';
@@ -2289,10 +2295,10 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
       }
 
       // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
-      await initializeUserSheet(newSheetId, topics, schoolName, accessToken);
+      await initializeUserSheet(newSheetId, topics, finalSchoolName, accessToken);
 
       // 5-1. 모든 탭의 학교 이름 다시 업데이트 (확실하게)
-      await updateSchoolNameInAllTabs(newSheetId, schoolName, accessToken);
+      await updateSchoolNameInAllTabs(newSheetId, finalSchoolName, accessToken);
 
       // 6. Firestore에 저장
       await saveUserSheet({
