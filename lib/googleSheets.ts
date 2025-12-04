@@ -1294,92 +1294,80 @@ export async function initializeUserSheet(
     }
 
     console.log(`\n🔥 모든 탭 초기 데이터 설정 시작 (총 ${tabsToProcess.length}개)\n`);
+    console.log(`📦 모든 탭을 한 번의 배치 업데이트로 처리합니다...\n`);
 
-    for (let i = 0; i < tabsToProcess.length; i++) {
-      const tab = tabsToProcess[i];
-      console.log(`\n[${i + 1}/${tabsToProcess.length}] 🔵 ${tab.title} 탭 처리 시작`);
+    // 모든 탭의 모든 범위를 하나의 배열에 담기
+    const allData = [];
 
-      try {
-        // 배치 업데이트 준비 (한 번의 API 호출로 모든 작업 처리)
-        const data = [];
+    for (const tab of tabsToProcess) {
+      console.log(`  - ${tab.title} 탭 데이터 준비`);
 
-        // 1. A1:D2에 학교명
-        data.push({
-          range: `${tab.title}!A1:D2`,
-          values: [
-            [schoolName, '', '', ''],
-            ['', '', '', '']
-          ]
+      // 1. A1:D2에 학교명
+      allData.push({
+        range: `${tab.title}!A1:D2`,
+        values: [
+          [schoolName, '', '', ''],
+          ['', '', '', '']
+        ]
+      });
+
+      // 학년/부서 탭인 경우만 추가 작업
+      if (!tab.title.includes('논의 및 결정사항')) {
+        // 2. C4 헤더
+        allData.push({
+          range: `${tab.title}!C4`,
+          values: [['개선할 점\n및\n아쉬운 점']]
         });
 
-        // 학년/부서 탭인 경우만 추가 작업
-        if (!tab.title.includes('논의 및 결정사항')) {
-          // 2. C4 헤더
-          data.push({
-            range: `${tab.title}!C4`,
-            values: [['개선할 점\n및\n아쉬운 점']]
-          });
+        // 3. E1:E2에 탭 이름
+        allData.push({
+          range: `${tab.title}!E1:E2`,
+          values: [[tab.title], ['']]
+        });
 
-          // 3. E1:E2에 탭 이름
-          data.push({
-            range: `${tab.title}!E1:E2`,
-            values: [[tab.title], ['']]
-          });
-        }
-
-        // 배치 업데이트 실행 (일반 값)
-        console.log(`  - 배치 업데이트 실행 중... (${data.length}개 범위)`);
-        const batchResponse = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              valueInputOption: 'RAW',
-              data: data
-            })
-          }
-        );
-
-        if (!batchResponse.ok) {
-          throw new Error(`배치 업데이트 실패: ${batchResponse.status}`);
-        }
-
-        console.log(`  ✅ 배치 업데이트 완료`);
-
-        // 수식은 별도로 처리 (USER_ENTERED 필요)
-        if (!tab.title.includes('논의 및 결정사항')) {
-          await delay(500);
-          console.log(`  - E5 수식 설정 중...`);
-          const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
-          await updateSheetRange(
-            spreadsheetId,
-            `${tab.title}!E5`,
-            [[labelFormula]],
-            accessToken,
-            'USER_ENTERED'
-          );
-          console.log(`  ✅ E5 수식 설정 완료`);
-        }
-
-        console.log(`✅ ${tab.title} 탭 처리 완료\n`);
-
-      } catch (error) {
-        console.error(`❌ ${tab.title} 탭 처리 실패:`, error);
-        console.error(`에러 상세:`, error);
-      }
-
-      // 각 탭 업데이트 후 2초 대기 (Rate Limiting 완벽 방지)
-      if (i < tabsToProcess.length - 1) {
-        console.log(`⏳ 2초 대기 중... (Rate Limiting 방지)\n`);
-        await delay(2000);
+        // 4. E5에 자동 라벨 수식
+        const labelFormula = `=ARRAYFORMULA(IF(D5:D50<>"", "${tab.title}", ""))`;
+        allData.push({
+          range: `${tab.title}!E5`,
+          values: [[labelFormula]]
+        });
       }
     }
 
-    console.log('학년 탭 및 논의 탭 처리 완료');
+    console.log(`\n✅ 데이터 준비 완료 (총 ${allData.length}개 범위)`);
+    console.log(`🚀 단 1번의 API 호출로 모든 탭 업데이트 시작...\n`);
+
+    // 모든 탭을 한 번의 배치 업데이트로 처리
+    try {
+      const batchResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            valueInputOption: 'USER_ENTERED', // 수식도 함께 처리
+            data: allData
+          })
+        }
+      );
+
+      if (!batchResponse.ok) {
+        const errorText = await batchResponse.text();
+        throw new Error(`배치 업데이트 실패 (${batchResponse.status}): ${errorText}`);
+      }
+
+      const result = await batchResponse.json();
+      console.log(`\n✅✅✅ 모든 탭 업데이트 성공! ✅✅✅`);
+      console.log(`📊 총 ${result.totalUpdatedCells || allData.length}개 범위 업데이트 완료\n`);
+
+    } catch (error) {
+      console.error(`\n❌❌❌ 배치 업데이트 실패 ❌❌❌`);
+      console.error(`에러:`, error);
+      throw error;
+    }
 
     // 12. "논의 및 결정사항" 시트에 자동 집계 수식 추가
     // 각 시트의 D5에서 논의할 점을 가져와서 A4부터 자동으로 채움
