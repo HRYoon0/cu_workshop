@@ -1458,18 +1458,7 @@ export async function initializeUserSheet(
       // 수식 추가 실패는 치명적이지 않으므로 계속 진행
     }
 
-    // 14. 마지막으로 모든 탭의 학교 이름을 한 번 더 확실하게 적용
-    console.log('모든 탭에 학교 이름 최종 적용 중...');
-    try {
-      await delay(500); // 이전 작업 완료를 위해 잠시 대기
-      await updateSchoolNameInAllTabs(spreadsheetId, schoolName, accessToken);
-      console.log('✅ 모든 탭에 학교 이름 최종 적용 완료');
-    } catch (finalUpdateError) {
-      console.error('❌ 학교 이름 최종 적용 실패:', finalUpdateError);
-      // 실패해도 계속 진행 (이미 대부분은 설정됨)
-    }
-
-    console.log('사용자 시트 초기화 완료');
+    console.log('✅ 사용자 시트 초기화 완료');
   } catch (error) {
     console.error('사용자 시트 초기화 실패:', error);
     throw error;

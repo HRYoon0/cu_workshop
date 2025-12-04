@@ -2297,9 +2297,6 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
       // 5. 사용자 시트 초기화 (탭 구조 조정 및 초기 데이터 설정)
       await initializeUserSheet(newSheetId, topics, finalSchoolName, accessToken);
 
-      // 5-1. 모든 탭의 학교 이름 다시 업데이트 (확실하게)
-      await updateSchoolNameInAllTabs(newSheetId, finalSchoolName, accessToken);
-
       // 6. Firestore에 저장
       await saveUserSheet({
         userId,
