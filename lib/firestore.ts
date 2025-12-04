@@ -1610,6 +1610,7 @@ export async function deleteSurveyItem(itemId: string) {
  */
 export async function saveUserSchoolName(userId: string, schoolName: string): Promise<void> {
   try {
+    console.log('🔵 학교 이름 저장 시작 - userId:', userId, ', schoolName:', schoolName);
     const q = query(
       collection(db, 'userSettings'),
       where('userId', '==', userId)
@@ -1619,17 +1620,21 @@ export async function saveUserSchoolName(userId: string, schoolName: string): Pr
     if (!querySnapshot.empty) {
       // 기존 설정 업데이트
       const docRef = querySnapshot.docs[0].ref;
+      console.log('🔵 기존 설정 업데이트 중... docId:', querySnapshot.docs[0].id);
       await updateDoc(docRef, {
         schoolName,
         updatedAt: serverTimestamp(),
       });
+      console.log('✅ 기존 설정 업데이트 완료');
     } else {
       // 새 설정 생성
-      await addDoc(collection(db, 'userSettings'), {
+      console.log('🔵 새 설정 생성 중...');
+      const docRef = await addDoc(collection(db, 'userSettings'), {
         userId,
         schoolName,
         createdAt: serverTimestamp(),
       });
+      console.log('✅ 새 설정 생성 완료, docId:', docRef.id);
     }
     console.log('✅ 학교 이름 저장 완료:', schoolName);
   } catch (error) {
@@ -1643,6 +1648,7 @@ export async function saveUserSchoolName(userId: string, schoolName: string): Pr
  */
 export async function getUserSchoolName(userId: string): Promise<string | null> {
   try {
+    console.log('🔍 학교 이름 조회 시작 - userId:', userId);
     const q = query(
       collection(db, 'userSettings'),
       where('userId', '==', userId)
@@ -1650,10 +1656,13 @@ export async function getUserSchoolName(userId: string): Promise<string | null> 
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
+      console.log('⚠️ 저장된 학교 이름 없음');
       return null;
     }
 
-    return querySnapshot.docs[0].data().schoolName || null;
+    const schoolName = querySnapshot.docs[0].data().schoolName || null;
+    console.log('✅ 학교 이름 조회 완료:', schoolName);
+    return schoolName;
   } catch (error) {
     console.error('❌ 학교 이름 가져오기 실패:', error);
     return null;
