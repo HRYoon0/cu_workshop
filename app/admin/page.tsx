@@ -206,49 +206,41 @@ export default function AdminPage() {
           console.error('Google Drive 폴더 생성 실패:', driveError);
         }
 
-        // 3. 모든 사용자의 Google Sheets 업데이트
+        // 3. 내 Google Sheets만 업데이트 (다른 사용자 시트는 건드리지 않음)
         try {
-          setSchoolNameSaveProgress('Google Sheets 업데이트 중...');
-          const userSheets = await getAllUserSheets();
-          if (userSheets.length > 0) {
-            let successCount = 0;
-            let failureCount = 0;
+          setSchoolNameSaveProgress('내 시트 업데이트 중...');
+          const mySheet = await getUserSheet(user.uid);
 
-            for (const userSheet of userSheets) {
-              try {
-                setSchoolNameSaveProgress(`Google Sheets 업데이트 중... (${successCount + failureCount + 1}/${userSheets.length})`);
-                await updateSchoolNameInAllTabs(userSheet.sheetId, newName, accessToken);
-                successCount++;
-              } catch (sheetError) {
-                console.error(`시트 업데이트 실패 (userId: ${userSheet.userId}):`, sheetError);
-                failureCount++;
-              }
-            }
-
-            setIsSavingSchoolName(false);
-            setSchoolNameSaveProgress('');
-            setShowSchoolNameModal(false);
-            setTempSchoolName('');
-
-            if (successCount > 0 || failureCount > 0) {
-              alert(`학교 이름이 변경되었습니다.\n\nGoogle Sheets 업데이트 결과:\n- 성공: ${successCount}개 시트\n- 실패: ${failureCount}개 시트`);
-            } else {
-              alert('학교 이름이 변경되었습니다.');
+          if (mySheet?.sheetId) {
+            try {
+              await updateSchoolNameInAllTabs(mySheet.sheetId, newName, accessToken);
+              setIsSavingSchoolName(false);
+              setSchoolNameSaveProgress('');
+              setShowSchoolNameModal(false);
+              setTempSchoolName('');
+              alert('학교 이름이 변경되었습니다.\n\n내 시트에 적용되었습니다.');
+            } catch (sheetError) {
+              console.error('시트 업데이트 실패:', sheetError);
+              setIsSavingSchoolName(false);
+              setSchoolNameSaveProgress('');
+              setShowSchoolNameModal(false);
+              setTempSchoolName('');
+              alert(`학교 이름은 변경되었지만, 시트 업데이트에 실패했습니다.\n\n다음에 시트를 생성하면 새 이름이 적용됩니다.`);
             }
           } else {
             setIsSavingSchoolName(false);
             setSchoolNameSaveProgress('');
             setShowSchoolNameModal(false);
             setTempSchoolName('');
-            alert('학교 이름이 변경되었습니다.\n\n아직 생성된 사용자 시트가 없습니다.');
+            alert('학교 이름이 변경되었습니다.\n\n다음에 시트를 생성하면 새 이름이 적용됩니다.');
           }
         } catch (sheetsError: any) {
-          console.error('Google Sheets 업데이트 실패:', sheetsError);
+          console.error('시트 조회 실패:', sheetsError);
           setIsSavingSchoolName(false);
           setSchoolNameSaveProgress('');
           setShowSchoolNameModal(false);
           setTempSchoolName('');
-          alert(`학교 이름은 변경되었지만, Google Sheets 업데이트에 실패했습니다.\n에러: ${sheetsError.message}`);
+          alert(`학교 이름은 변경되었지만, 시트 조회에 실패했습니다.\n\n다음에 시트를 생성하면 새 이름이 적용됩니다.`);
         }
       } else if (!accessToken) {
         setIsSavingSchoolName(false);
