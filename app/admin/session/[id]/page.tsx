@@ -741,31 +741,28 @@ function LeaderboardView({
   router: any;
   sessionId: string;
 }) {
-  // 점수 기준으로 내림차순 정렬, 상위 10명만
+  // 점수 기준으로 내림차순 정렬, 상위 10명만 (1등부터 10등까지)
   const topParticipants = [...session.participants]
     .filter(p => (p.score ?? 0) > 0) // 점수가 0보다 큰 참가자만
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 10);
 
-  // 10등부터 1등까지 역순으로 정렬 (순차적 표시를 위해)
-  const reversedParticipants = [...topParticipants].reverse();
-
   // 순차적으로 표시할 참가자 수
   const [visibleCount, setVisibleCount] = useState(0);
 
-  // 순차적으로 참가자 표시 및 폭죽 효과
+  // 순차적으로 참가자 표시 및 폭죽 효과 (1등부터 순서대로)
   useEffect(() => {
-    if (reversedParticipants.length === 0) return;
+    if (topParticipants.length === 0) return;
 
     const interval = setInterval(() => {
       setVisibleCount(prev => {
-        if (prev >= reversedParticipants.length) {
+        if (prev >= topParticipants.length) {
           clearInterval(interval);
           return prev;
         }
 
-        // 현재 표시될 참가자의 순위 (역순이므로 계산 필요)
-        const currentRank = reversedParticipants.length - prev;
+        // 현재 표시될 참가자의 순위 (1등부터 순서대로)
+        const currentRank = prev + 1;
 
         // 폭죽 효과
         const colors = currentRank <= 3
@@ -796,7 +793,7 @@ function LeaderboardView({
     }, 1500); // 1.5초마다 한 명씩 표시
 
     return () => clearInterval(interval);
-  }, [reversedParticipants.length]);
+  }, [topParticipants.length]);
 
   const getMedalIcon = (rank: number) => {
     switch (rank) {
@@ -853,9 +850,9 @@ function LeaderboardView({
             </div>
           ) : (
             <div className="space-y-4">
-              {reversedParticipants.map((participant, index) => {
-                // 역순이므로 실제 순위는 역계산
-                const rank = reversedParticipants.length - index;
+              {topParticipants.map((participant, index) => {
+                // 1등부터 순서대로 표시
+                const rank = index + 1;
                 const medal = getMedalIcon(rank);
                 const isTopThree = rank <= 3;
 
