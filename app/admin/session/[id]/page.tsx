@@ -235,9 +235,13 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  // 활성 참가자 필터링 (30초 이내 heartbeat 전송한 참가자만 표시)
+  // 활성 참가자 필터링 (60초 이내 heartbeat 전송한 참가자만 표시)
   const activeParticipants = (session.participants || []).filter(p => {
-    if (!p.lastActiveAt) return true; // 신규 참가자는 표시
+    // joinedAt만 있고 lastActiveAt이 없는 경우 (첫 heartbeat 전) - 표시
+    if (!p.lastActiveAt && p.joinedAt) return true;
+
+    // lastActiveAt도 없고 joinedAt도 없는 경우 - 표시 (안전장치)
+    if (!p.lastActiveAt) return true;
 
     try {
       const lastActive = p.lastActiveAt as any;
@@ -245,7 +249,7 @@ export default function QuizSessionPage({ params }: PageProps) {
       const now = new Date();
       const diffSeconds = (now.getTime() - date.getTime()) / 1000;
       console.log('참가자:', p.nickname, 'lastActive:', date, '경과시간:', diffSeconds, '초'); // 디버깅
-      return diffSeconds < 30; // 30초 이내 활동한 참가자만 표시
+      return diffSeconds < 60; // 60초 이내 활동한 참가자만 표시 (30초 → 60초로 완화)
     } catch (e) {
       console.error('참가자 필터링 에러:', p.nickname, e);
       return true; // 에러 시 표시

@@ -171,6 +171,7 @@ export async function addParticipantToQuizSession(sessionId: string, participant
     const now = Timestamp.now();
     const participantWithTimestamp = {
       ...participant,
+      score: 0, // 초기 점수 0으로 설정
       joinedAt: now,
       lastActiveAt: now,
     };
