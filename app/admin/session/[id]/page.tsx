@@ -750,7 +750,7 @@ function LeaderboardView({
   // 순차적으로 표시할 참가자 수
   const [visibleCount, setVisibleCount] = useState(0);
 
-  // 순차적으로 참가자 표시 및 폭죽 효과 (1등부터 순서대로)
+  // 순차적으로 참가자 표시 및 폭죽 효과 (10등부터 1등까지)
   useEffect(() => {
     if (topParticipants.length === 0) return;
 
@@ -761,8 +761,8 @@ function LeaderboardView({
           return prev;
         }
 
-        // 현재 표시될 참가자의 순위 (1등부터 순서대로)
-        const currentRank = prev + 1;
+        // 현재 표시될 참가자의 순위 (10등부터 1등까지)
+        const currentRank = topParticipants.length - prev;
 
         // 폭죽 효과
         const colors = currentRank <= 3
@@ -851,13 +851,13 @@ function LeaderboardView({
           ) : (
             <div className="space-y-4">
               {topParticipants.map((participant, index) => {
-                // 1등부터 순서대로 표시
+                // 1등부터 순서대로 배치 (화면상 위치)
                 const rank = index + 1;
                 const medal = getMedalIcon(rank);
                 const isTopThree = rank <= 3;
 
-                // visibleCount에 따라 표시 여부 결정
-                const isVisible = index < visibleCount;
+                // visibleCount에 따라 표시 여부 결정 (10등부터 애니메이션)
+                const isVisible = index >= topParticipants.length - visibleCount;
 
                 if (!isVisible) return null;
 
