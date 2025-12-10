@@ -158,31 +158,39 @@ export async function updateQuizSessionQuestion(
  */
 export async function addParticipantToQuizSession(sessionId: string, participant: Participant) {
   try {
+    console.log('=== addParticipantToQuizSession 시작 ===');
+    console.log('sessionId:', sessionId);
+    console.log('participant:', participant);
+
     const sessionRef = doc(db, 'quizSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
 
     if (!sessionDoc.exists()) {
+      console.error('❌ 세션을 찾을 수 없습니다:', sessionId);
       throw new Error('세션을 찾을 수 없습니다.');
     }
 
     const currentParticipants = sessionDoc.data().participants || [];
+    console.log('현재 참가자 수:', currentParticipants.length);
 
     // Firestore 배열 안에서는 serverTimestamp() 사용 불가 -> Timestamp.now() 사용
     const now = Timestamp.now();
     const participantWithTimestamp = {
       ...participant,
-      score: 0, // 초기 점수 0으로 설정
+      score: 0, // 초기 점수 0으로 명시적 설정
       joinedAt: now,
       lastActiveAt: now,
     };
+
+    console.log('추가할 참가자 객체:', participantWithTimestamp);
 
     await updateDoc(sessionRef, {
       participants: [...currentParticipants, participantWithTimestamp],
     });
 
-    console.log('참가자 추가 성공:', participant.nickname, participant.id);
+    console.log('✅ 참가자 추가 성공:', participant.nickname, participant.id, 'score: 0');
   } catch (error) {
-    console.error('참여자 추가 실패:', error);
+    console.error('❌ 참여자 추가 실패:', error);
     throw error;
   }
 }
@@ -264,19 +272,37 @@ export async function updateParticipantScore(
   scoreToAdd: number
 ) {
   try {
+    console.log('=== updateParticipantScore 시작 ===');
+    console.log('sessionId:', sessionId);
+    console.log('participantId:', participantId);
+    console.log('scoreToAdd:', scoreToAdd);
+
     const sessionRef = doc(db, 'quizSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
 
     if (!sessionDoc.exists()) {
+      console.error('❌ 세션을 찾을 수 없습니다:', sessionId);
       return;
     }
 
     const currentParticipants = sessionDoc.data().participants || [];
+    const targetParticipant = currentParticipants.find((p: Participant) => p.id === participantId);
+
+    if (!targetParticipant) {
+      console.error('❌ 참가자를 찾을 수 없습니다:', participantId);
+      return;
+    }
+
+    console.log('현재 점수:', targetParticipant.score ?? 0);
+
     const updatedParticipants = currentParticipants.map((p: Participant) => {
       if (p.id === participantId) {
+        const oldScore = p.score ?? 0;
+        const newScore = oldScore + scoreToAdd;
+        console.log('점수 업데이트:', oldScore, '+', scoreToAdd, '=', newScore);
         return {
           ...p,
-          score: (p.score || 0) + scoreToAdd,
+          score: newScore,
         };
       }
       return p;
@@ -285,9 +311,9 @@ export async function updateParticipantScore(
     await updateDoc(sessionRef, {
       participants: updatedParticipants,
     });
-    console.log('점수 업데이트 성공:', participantId, '+', scoreToAdd, '점');
+    console.log('✅ 점수 업데이트 성공:', targetParticipant.nickname, scoreToAdd, '점 획득');
   } catch (error) {
-    console.error('점수 업데이트 실패:', error);
+    console.error('❌ 점수 업데이트 실패:', error);
   }
 }
 

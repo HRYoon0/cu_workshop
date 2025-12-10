@@ -123,16 +123,22 @@ function ParticipantContent() {
       const newParticipantId = Date.now().toString();
       setParticipantId(newParticipantId);
 
-      // 세션에 참가자 추가 (joinedAt, lastActiveAt은 함수에서 자동 설정됨)
+      console.log('퀴즈 참가 시도:', {
+        sessionId,
+        participantId: newParticipantId,
+        nickname: nickname
+      });
+
+      // 세션에 참가자 추가 (score, joinedAt, lastActiveAt은 함수에서 자동 설정됨)
       await addParticipantToQuizSession(sessionId, {
         id: newParticipantId,
         nickname: nickname,
       } as any);
 
-      console.log('참가 완료:', nickname, newParticipantId);
+      console.log('✅ 퀴즈 참가 완료:', nickname, newParticipantId);
       setView('waiting');
     } catch (err: any) {
-      console.error('참가자 추가 실패:', err);
+      console.error('❌ 참가자 추가 실패:', err);
       setError(err?.message || '참가 신청에 실패했습니다. 다시 시도해주세요.');
       setView('error');
     }

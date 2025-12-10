@@ -237,22 +237,44 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   // 활성 참가자 필터링 (60초 이내 heartbeat 전송한 참가자만 표시)
   const activeParticipants = (session.participants || []).filter(p => {
-    // joinedAt만 있고 lastActiveAt이 없는 경우 (첫 heartbeat 전) - 표시
-    if (!p.lastActiveAt && p.joinedAt) return true;
+    console.log('=== 참가자 필터링 ===');
+    console.log('nickname:', p.nickname);
+    console.log('id:', p.id);
+    console.log('score:', p.score);
+    console.log('joinedAt:', p.joinedAt);
+    console.log('lastActiveAt:', p.lastActiveAt);
 
-    // lastActiveAt도 없고 joinedAt도 없는 경우 - 표시 (안전장치)
-    if (!p.lastActiveAt) return true;
+    // lastActiveAt이 없으면 무조건 표시 (첫 heartbeat 전 또는 데이터 누락)
+    if (!p.lastActiveAt) {
+      console.log('→ lastActiveAt 없음 - 표시');
+      return true;
+    }
 
     try {
+      // Firestore Timestamp 객체를 Date로 변환
       const lastActive = p.lastActiveAt as any;
       const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
+
+      // 유효한 날짜인지 확인
+      if (isNaN(date.getTime())) {
+        console.warn('→ 잘못된 날짜 형식 - 표시');
+        return true;
+      }
+
       const now = new Date();
       const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-      console.log('참가자:', p.nickname, 'lastActive:', date, '경과시간:', diffSeconds, '초'); // 디버깅
-      return diffSeconds < 60; // 60초 이내 활동한 참가자만 표시 (30초 → 60초로 완화)
+      console.log('→ lastActive:', date.toISOString(), '경과시간:', diffSeconds.toFixed(1), '초');
+
+      if (diffSeconds < 60) {
+        console.log('→ 60초 이내 - 표시');
+        return true;
+      } else {
+        console.log('→ 60초 초과 - 숨김');
+        return false;
+      }
     } catch (e) {
-      console.error('참가자 필터링 에러:', p.nickname, e);
-      return true; // 에러 시 표시
+      console.error('→ 필터링 에러 - 표시:', e);
+      return true; // 에러 시 표시 (안전장치)
     }
   });
 
