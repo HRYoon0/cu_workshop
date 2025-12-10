@@ -235,47 +235,14 @@ export default function QuizSessionPage({ params }: PageProps) {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  // 활성 참가자 필터링 (60초 이내 heartbeat 전송한 참가자만 표시)
-  const activeParticipants = (session.participants || []).filter(p => {
-    console.log('=== 참가자 필터링 ===');
-    console.log('nickname:', p.nickname);
-    console.log('id:', p.id);
-    console.log('score:', p.score);
-    console.log('joinedAt:', p.joinedAt);
-    console.log('lastActiveAt:', p.lastActiveAt);
+  // 모든 참가자 표시 (필터링 제거 - 긴급 수정)
+  const activeParticipants = session.participants || [];
 
-    // lastActiveAt이 없으면 무조건 표시 (첫 heartbeat 전 또는 데이터 누락)
-    if (!p.lastActiveAt) {
-      console.log('→ lastActiveAt 없음 - 표시');
-      return true;
-    }
-
-    try {
-      // Firestore Timestamp 객체를 Date로 변환
-      const lastActive = p.lastActiveAt as any;
-      const date = lastActive?.toDate ? lastActive.toDate() : new Date(lastActive);
-
-      // 유효한 날짜인지 확인
-      if (isNaN(date.getTime())) {
-        console.warn('→ 잘못된 날짜 형식 - 표시');
-        return true;
-      }
-
-      const now = new Date();
-      const diffSeconds = (now.getTime() - date.getTime()) / 1000;
-      console.log('→ lastActive:', date.toISOString(), '경과시간:', diffSeconds.toFixed(1), '초');
-
-      if (diffSeconds < 60) {
-        console.log('→ 60초 이내 - 표시');
-        return true;
-      } else {
-        console.log('→ 60초 초과 - 숨김');
-        return false;
-      }
-    } catch (e) {
-      console.error('→ 필터링 에러 - 표시:', e);
-      return true; // 에러 시 표시 (안전장치)
-    }
+  // 디버깅용 로그
+  console.log('=== 전체 참가자 목록 ===');
+  console.log('참가자 수:', activeParticipants.length);
+  activeParticipants.forEach((p, idx) => {
+    console.log(`[${idx + 1}] ${p.nickname} - ID: ${p.id} - Score: ${p.score ?? 0}`);
   });
 
   const participantCount = activeParticipants.length;
