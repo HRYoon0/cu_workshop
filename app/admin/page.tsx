@@ -2655,23 +2655,57 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
             console.log('🤖 AI 요약 생성 중...');
             alert('AI가 의견을 정리하고 있습니다. 잠시만 기다려주세요...');
 
-            const summaryResponse = await fetch('/api/summarize-opinions', {
+            const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+            if (!apiKey) {
+              console.error('❌ OpenAI API 키가 설정되지 않았습니다.');
+              throw new Error('OpenAI API 키가 없습니다.');
+            }
+
+            // 클라이언트에서 직접 OpenAI API 호출
+            const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                opinions: opinions.map((op: any) => ({ content: op.content })),
-                discussionTopic: selectedDiscussionItem.topic,
+                model: 'gpt-4o-mini',
+                messages: [
+                  {
+                    role: 'system',
+                    content: `당신은 교육과정 워크숍에서 수집된 선생님들의 의견을 정리하는 전문가입니다.
+수집된 의견들을 분석하여 다음 내용을 포함한 요약을 작성해주세요:
+
+1. **주요 의견 요약**: 어떤 내용이 가장 많이 나왔는지
+2. **공통점과 차이점**: 의견들의 공통점과 차이점
+3. **구체적인 제안**: 의견들을 어떻게 취합하여 적용하면 좋을지
+
+응답은 한국어로 작성하고, 간결하고 명확하게 정리해주세요.`
+                  },
+                  {
+                    role: 'user',
+                    content: `논의 주제: ${selectedDiscussionItem.topic}
+
+수집된 의견:
+${opinionsListText}
+
+위 의견들을 분석하여 정리해주세요.`
+                  }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000,
               }),
             });
 
             if (summaryResponse.ok) {
-              const { summary } = await summaryResponse.json();
+              const data = await summaryResponse.json();
+              const summary = data.choices[0].message.content;
               console.log('✅ AI 요약 생성 완료');
               resultText += `\n\n[AI 의견 정리]\n${summary}`;
             } else {
-              console.error('⚠️ AI 요약 실패, 원본 의견만 저장합니다.');
+              const errorData = await summaryResponse.json();
+              console.error('⚠️ AI 요약 실패:', errorData);
+              console.error('⚠️ 원본 의견만 저장합니다.');
             }
           } catch (aiError) {
             console.error('⚠️ AI 요약 중 오류:', aiError);
