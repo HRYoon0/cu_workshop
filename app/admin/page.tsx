@@ -2652,28 +2652,33 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
         // AI 요약 추가 (자유 의견일 때만)
         if (opinions.length > 0) {
           try {
-            console.log('🤖 AI 요약 생성 중...');
-            alert('AI가 의견을 정리하고 있습니다. 잠시만 기다려주세요...');
+            console.log('🤖 AI 요약 생성 시작...');
 
+            // 환경 변수 확인
             const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-            if (!apiKey) {
-              console.error('❌ OpenAI API 키가 설정되지 않았습니다.');
-              throw new Error('OpenAI API 키가 없습니다.');
-            }
+            console.log('API 키 존재 여부:', !!apiKey);
+            console.log('API 키 앞 10자:', apiKey?.substring(0, 10));
 
-            // 클라이언트에서 직접 OpenAI API 호출
-            const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-              },
-              body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                  {
-                    role: 'system',
-                    content: `당신은 교육과정 워크숍에서 수집된 선생님들의 의견을 정리하는 전문가입니다.
+            if (!apiKey) {
+              const errorMsg = '❌ OpenAI API 키가 설정되지 않았습니다. .env.local 파일을 확인해주세요.';
+              console.error(errorMsg);
+              alert(errorMsg + '\n원본 의견만 저장됩니다.');
+              // API 키 없으면 요약 건너뛰고 원본 의견만 저장
+            } else {
+              // 클라이언트에서 직접 OpenAI API 호출
+              console.log('OpenAI API 호출 중...');
+              const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                  model: 'gpt-4o-mini',
+                  messages: [
+                    {
+                      role: 'system',
+                      content: `당신은 교육과정 워크숍에서 수집된 선생님들의 의견을 정리하는 전문가입니다.
 수집된 의견들을 분석하여 다음 내용을 포함한 요약을 작성해주세요:
 
 1. **주요 의견 요약**: 어떤 내용이 가장 많이 나왔는지
@@ -2681,34 +2686,40 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
 3. **구체적인 제안**: 의견들을 어떻게 취합하여 적용하면 좋을지
 
 응답은 한국어로 작성하고, 간결하고 명확하게 정리해주세요.`
-                  },
-                  {
-                    role: 'user',
-                    content: `논의 주제: ${selectedDiscussionItem.topic}
+                    },
+                    {
+                      role: 'user',
+                      content: `논의 주제: ${selectedDiscussionItem.topic}
 
 수집된 의견:
 ${opinionsListText}
 
 위 의견들을 분석하여 정리해주세요.`
-                  }
-                ],
-                temperature: 0.7,
-                max_tokens: 1000,
-              }),
-            });
+                    }
+                  ],
+                  temperature: 0.7,
+                  max_tokens: 1000,
+                }),
+              });
 
-            if (summaryResponse.ok) {
-              const data = await summaryResponse.json();
-              const summary = data.choices[0].message.content;
-              console.log('✅ AI 요약 생성 완료');
-              resultText += `\n\n[AI 의견 정리]\n${summary}`;
-            } else {
-              const errorData = await summaryResponse.json();
-              console.error('⚠️ AI 요약 실패:', errorData);
-              console.error('⚠️ 원본 의견만 저장합니다.');
+              console.log('OpenAI API 응답 상태:', summaryResponse.status);
+
+              if (summaryResponse.ok) {
+                const data = await summaryResponse.json();
+                const summary = data.choices[0].message.content;
+                console.log('✅ AI 요약 생성 완료');
+                console.log('요약 내용:', summary);
+                resultText += `\n\n[AI 의견 정리]\n${summary}`;
+                alert('✅ AI 요약이 생성되었습니다!');
+              } else {
+                const errorData = await summaryResponse.json();
+                console.error('⚠️ AI 요약 API 실패:', errorData);
+                alert(`⚠️ AI 요약 생성 실패: ${errorData.error?.message || '알 수 없는 오류'}\n원본 의견만 저장됩니다.`);
+              }
             }
-          } catch (aiError) {
+          } catch (aiError: any) {
             console.error('⚠️ AI 요약 중 오류:', aiError);
+            alert(`⚠️ AI 요약 중 오류 발생: ${aiError.message}\n원본 의견만 저장됩니다.`);
             // AI 요약 실패 시에도 원본 의견은 저장됨
           }
         }
