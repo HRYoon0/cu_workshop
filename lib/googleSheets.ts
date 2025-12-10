@@ -3,6 +3,85 @@
  */
 
 import { getUserSheet, getUserSurveySheet } from './firestore';
+import { checkTokenValidity } from './googleDrive';
+
+/**
+ * Google OAuth 토큰 유효성 확인 및 자동 재인증
+ * @returns 유효한 액세스 토큰
+ */
+async function ensureValidToken(): Promise<string> {
+  // 1. localStorage에서 토큰 가져오기
+  let accessToken = localStorage.getItem('googleAccessToken');
+
+  // 2. 토큰이 없으면 재인증 시도
+  if (!accessToken) {
+    console.log('🔄 토큰이 없습니다. 재인증을 시도합니다...');
+    const success = await attemptAutoReauth();
+
+    if (success) {
+      accessToken = localStorage.getItem('googleAccessToken');
+      if (accessToken) {
+        console.log('✅ 재인증 성공!');
+        return accessToken;
+      }
+    }
+
+    throw new Error('Google 인증이 필요합니다. 로그인 페이지로 이동해주세요.');
+  }
+
+  // 3. 토큰 유효성 확인
+  const isValid = await checkTokenValidity();
+
+  // 4. 토큰이 만료되었으면 재인증
+  if (!isValid) {
+    console.log('🔄 토큰이 만료되었습니다. 재인증을 시도합니다...');
+    const success = await attemptAutoReauth();
+
+    if (success) {
+      accessToken = localStorage.getItem('googleAccessToken');
+      if (accessToken) {
+        console.log('✅ 재인증 성공!');
+        return accessToken;
+      }
+    }
+
+    throw new Error('Google 인증이 만료되었습니다. 재인증이 필요합니다.');
+  }
+
+  return accessToken;
+}
+
+/**
+ * 자동 재인증 시도
+ * @returns 성공하면 true, 실패하면 false
+ */
+async function attemptAutoReauth(): Promise<boolean> {
+  try {
+    console.log('🔄 자동 재인증 시도 중...');
+
+    const { auth, googleProvider } = await import('./firebase');
+    const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+
+    // 팝업으로 재로그인
+    const result = await signInWithPopup(auth, googleProvider);
+
+    // 새 액세스 토큰 저장
+    const googleCredential = GoogleAuthProvider.credentialFromResult(result);
+    const accessToken = googleCredential?.accessToken;
+
+    if (accessToken) {
+      localStorage.setItem('googleAccessToken', accessToken);
+      console.log('✅ 자동 재인증 성공! 새 토큰 저장 완료');
+      return true;
+    } else {
+      console.error('❌ 재인증 성공했지만 토큰을 가져올 수 없습니다.');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ 자동 재인증 실패:', error);
+    return false;
+  }
+}
 
 // 관리자 구글 시트 웹 앱 URL (환경 변수에서 가져오기)
 const GOOGLE_SHEETS_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_URL;
@@ -125,7 +204,7 @@ export async function saveSurveyResultToSheet(
       data.textValue ?? ''                  // 서술형응답
     ]];
 
-    const response = await fetch(
+    let response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:F:append?valueInputOption=USER_ENTERED`,
       {
         method: 'POST',
@@ -139,10 +218,39 @@ export async function saveSurveyResultToSheet(
       }
     );
 
+    // 401 에러 시 자동 재인증 후 재시도
+    if (response.status === 401) {
+      console.warn('⚠️ 토큰 만료 감지. 자동 재인증을 시도합니다...');
+
+      try {
+        // 새로운 유효한 토큰 가져오기
+        accessToken = await ensureValidToken();
+
+        // 새 토큰으로 재시도
+        console.log('🔄 새 토큰으로 재시도합니다...');
+        response = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:F:append?valueInputOption=USER_ENTERED`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              values: values
+            }),
+          }
+        );
+      } catch (reauthError) {
+        console.error('❌ 자동 재인증 실패:', reauthError);
+        throw new Error('Google 인증이 만료되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+      }
+    }
+
     if (!response.ok) {
       const error = await response.text();
       console.error('Google Sheets API 에러:', error);
-      throw new Error(`시트 저장 실패: ${error}`);
+      throw new Error(`시트 저장 실패 (${response.status}): ${error}`);
     }
 
     console.log('✅ 설문 결과를 구글 시트에 저장했습니다. Sheet ID:', sheetId);
@@ -653,7 +761,8 @@ export async function updateSheetRange(
   range: string,
   values: any[][],
   accessToken: string,
-  valueInputOption: 'RAW' | 'USER_ENTERED' = 'RAW'
+  valueInputOption: 'RAW' | 'USER_ENTERED' = 'RAW',
+  retryCount: number = 0
 ) {
   try {
     const response = await fetch(
@@ -672,8 +781,32 @@ export async function updateSheetRange(
     );
 
     if (!response.ok) {
+      // 401 Unauthorized 에러 (토큰 만료)
+      if (response.status === 401 && retryCount === 0) {
+        console.warn('⚠️ 토큰 만료 감지. 자동 재인증을 시도합니다...');
+
+        try {
+          // 새로운 유효한 토큰 가져오기
+          const newAccessToken = await ensureValidToken();
+
+          // 새 토큰으로 재시도 (최대 1회)
+          console.log('🔄 새 토큰으로 재시도합니다...');
+          return await updateSheetRange(
+            spreadsheetId,
+            range,
+            values,
+            newAccessToken,
+            valueInputOption,
+            retryCount + 1
+          );
+        } catch (reauthError) {
+          console.error('❌ 자동 재인증 실패:', reauthError);
+          throw new Error('Google 인증이 만료되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+        }
+      }
+
       const error = await response.json();
-      throw new Error(`Google Sheets API 오류: ${JSON.stringify(error)}`);
+      throw new Error(`Google Sheets API 오류 (${response.status}): ${JSON.stringify(error)}`);
     }
 
     return await response.json();
@@ -688,7 +821,8 @@ export async function updateSheetRange(
  */
 export async function getSheetTabs(
   spreadsheetId: string,
-  accessToken: string
+  accessToken: string,
+  retryCount: number = 0
 ): Promise<{ sheetId: number; title: string }[]> {
   try {
     const response = await fetch(
@@ -701,8 +835,25 @@ export async function getSheetTabs(
     );
 
     if (!response.ok) {
+      // 401 Unauthorized 에러 (토큰 만료)
+      if (response.status === 401 && retryCount === 0) {
+        console.warn('⚠️ 토큰 만료 감지. 자동 재인증을 시도합니다...');
+
+        try {
+          // 새로운 유효한 토큰 가져오기
+          const newAccessToken = await ensureValidToken();
+
+          // 새 토큰으로 재시도 (최대 1회)
+          console.log('🔄 새 토큰으로 재시도합니다...');
+          return await getSheetTabs(spreadsheetId, newAccessToken, retryCount + 1);
+        } catch (reauthError) {
+          console.error('❌ 자동 재인증 실패:', reauthError);
+          throw new Error('Google 인증이 만료되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+        }
+      }
+
       const error = await response.json();
-      throw new Error(`Google Sheets API 오류: ${JSON.stringify(error)}`);
+      throw new Error(`Google Sheets API 오류 (${response.status}): ${JSON.stringify(error)}`);
     }
 
     const data = await response.json();
@@ -1444,7 +1595,8 @@ export async function initializeUserSheet(
  */
 export async function getDiscussionItems(
   spreadsheetId: string,
-  accessToken: string
+  accessToken: string,
+  retryCount: number = 0
 ): Promise<Array<{ id: string; topic: string; gradeOrDept: string; process: string; decision: string; row: number }>> {
   try {
     const tabName = '논의 및 결정사항';
@@ -1461,8 +1613,25 @@ export async function getDiscussionItems(
     );
 
     if (!response.ok) {
+      // 401 Unauthorized 에러 (토큰 만료)
+      if (response.status === 401 && retryCount === 0) {
+        console.warn('⚠️ 토큰 만료 감지. 자동 재인증을 시도합니다...');
+
+        try {
+          // 새로운 유효한 토큰 가져오기
+          const newAccessToken = await ensureValidToken();
+
+          // 새 토큰으로 재시도 (최대 1회)
+          console.log('🔄 새 토큰으로 재시도합니다...');
+          return await getDiscussionItems(spreadsheetId, newAccessToken, retryCount + 1);
+        } catch (reauthError) {
+          console.error('❌ 자동 재인증 실패:', reauthError);
+          throw new Error('Google 인증이 만료되었습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+        }
+      }
+
       const error = await response.json();
-      throw new Error(`Google Sheets API 오류: ${JSON.stringify(error)}`);
+      throw new Error(`Google Sheets API 오류 (${response.status}): ${JSON.stringify(error)}`);
     }
 
     const data = await response.json();
