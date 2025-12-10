@@ -2645,8 +2645,39 @@ function DepartmentManager({ userId, schoolName }: { userId: string | undefined;
 
       let resultText = '';
       if (currentOpinionSession.type === 'free') {
-        // 자유 의견은 모든 의견을 나열
-        resultText = opinions.map((op, idx) => `${idx + 1}. ${op.content}`).join('\n');
+        // 자유 의견: 모든 의견 나열 + AI 요약
+        const opinionsListText = opinions.map((op, idx) => `${idx + 1}. ${op.content}`).join('\n');
+        resultText = opinionsListText;
+
+        // AI 요약 추가 (자유 의견일 때만)
+        if (opinions.length > 0) {
+          try {
+            console.log('🤖 AI 요약 생성 중...');
+            alert('AI가 의견을 정리하고 있습니다. 잠시만 기다려주세요...');
+
+            const summaryResponse = await fetch('/api/summarize-opinions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                opinions: opinions.map((op: any) => ({ content: op.content })),
+                discussionTopic: selectedDiscussionItem.topic,
+              }),
+            });
+
+            if (summaryResponse.ok) {
+              const { summary } = await summaryResponse.json();
+              console.log('✅ AI 요약 생성 완료');
+              resultText += `\n\n[AI 의견 정리]\n${summary}`;
+            } else {
+              console.error('⚠️ AI 요약 실패, 원본 의견만 저장합니다.');
+            }
+          } catch (aiError) {
+            console.error('⚠️ AI 요약 중 오류:', aiError);
+            // AI 요약 실패 시에도 원본 의견은 저장됨
+          }
+        }
       } else {
         // 찬반형은 통계 요약
         const counts = { '+2': 0, '+1': 0, '0': 0, '-1': 0, '-2': 0 };
